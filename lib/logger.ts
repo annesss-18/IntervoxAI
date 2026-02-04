@@ -1,7 +1,7 @@
 // lib/logger.ts - Centralized logging utility
 /* eslint-disable no-console */
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = process.env.NODE_ENV === 'development'
 
 export const logger = {
   /**
@@ -9,7 +9,7 @@ export const logger = {
    */
   info: (...args: unknown[]) => {
     if (isDevelopment) {
-      console.info('ℹ️', ...args);
+      console.info('ℹ️', ...args)
     }
   },
 
@@ -19,7 +19,7 @@ export const logger = {
    */
   debug: (...args: unknown[]) => {
     if (isDevelopment) {
-      console.debug('🔍', ...args);
+      console.debug('🔍', ...args)
     }
   },
 
@@ -27,14 +27,14 @@ export const logger = {
    * Warning level - Always shows
    */
   warn: (...args: unknown[]) => {
-    console.warn('⚠️', ...args);
+    console.warn('⚠️', ...args)
   },
 
   /**
    * Error level - Always shows
    */
   error: (...args: unknown[]) => {
-    console.error('❌', ...args);
+    console.error('❌', ...args)
   },
 
   /**
@@ -42,7 +42,7 @@ export const logger = {
    */
   log: (...args: unknown[]) => {
     if (isDevelopment) {
-      console.log('📝', ...args);
+      console.log('📝', ...args)
     }
   },
 
@@ -51,7 +51,7 @@ export const logger = {
    */
   success: (...args: unknown[]) => {
     if (isDevelopment) {
-      console.log('✅', ...args);
+      console.log('✅', ...args)
     }
   },
-};
+}

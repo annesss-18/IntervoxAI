@@ -1,204 +1,208 @@
 // types/index.ts (rename from index.d.ts)
 export interface Feedback {
-  id: string;
-  interviewId: string;
-  totalScore: number;
+  id: string
+  interviewId: string
+  userId: string
+  totalScore: number
   // NEW: Hiring recommendation
-  hiringRecommendation?:
-  | 'Strong Yes' | 'Yes' | 'Lean Yes'
-  | 'Lean No' | 'No' | 'Strong No';
-  categoryScores: {
-    [key: string]: {
-      score: number;
-      comment: string;
-    };
-  } | Array<{
-    name: string;
-    score: number;
-    comment: string;
-  }>;
+  hiringRecommendation?: 'Strong Yes' | 'Yes' | 'Lean Yes' | 'Lean No' | 'No' | 'Strong No'
+  categoryScores:
+    | {
+        [key: string]: {
+          score: number
+          comment: string
+        }
+      }
+    | Array<{
+        name: string
+        score: number
+        comment: string
+      }>
   categoryScoresArray?: Array<{
-    name: string;
-    score: number;
-    comment: string;
-  }>;
+    name: string
+    score: number
+    comment: string
+  }>
   // NEW: Behavioral insights from Deep Insight Engine
   behavioralInsights?: {
-    confidenceLevel: 'High' | 'Moderate' | 'Low' | 'Variable';
-    clarityOfThought: 'Excellent' | 'Good' | 'Developing' | 'Needs Improvement';
-    technicalDepth: 'Expert' | 'Proficient' | 'Intermediate' | 'Foundational';
-    problemApproach: 'Systematic' | 'Intuitive' | 'Exploratory' | 'Uncertain';
-    stressResponse: 'Composed' | 'Adaptive' | 'Hesitant' | 'Struggled';
-    observations: string[];
-  };
-  strengths: string[];
-  areasForImprovement: string[];
+    confidenceLevel: 'High' | 'Moderate' | 'Low' | 'Variable'
+    clarityOfThought: 'Excellent' | 'Good' | 'Developing' | 'Needs Improvement'
+    technicalDepth: 'Expert' | 'Proficient' | 'Intermediate' | 'Foundational'
+    problemApproach: 'Systematic' | 'Intuitive' | 'Exploratory' | 'Uncertain'
+    stressResponse: 'Composed' | 'Adaptive' | 'Hesitant' | 'Struggled'
+    observations: string[]
+  }
+  strengths: string[]
+  areasForImprovement: string[]
   // NEW: Actionable career coaching
   careerCoaching?: {
-    immediateActions: string[];
-    learningPath: string[];
-    interviewTips: string[];
-    roleReadiness: string;
-  };
-  finalAssessment: string;
-  createdAt: string;
+    immediateActions: string[]
+    learningPath: string[]
+    interviewTips: string[]
+    roleReadiness: string
+  }
+  finalAssessment: string
+  createdAt: string
 }
 
 export interface InterviewTemplate {
-  id: string;
-  creatorId: string;
-  isPublic: boolean;
+  id: string
+  creatorId: string
+  isPublic: boolean
 
   // Core Fields
-  role: string;
-  companyName: string;
-  companyLogoUrl?: string;
-  level: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Executive';
-  type: 'Technical' | 'System Design' | 'Behavioral' | 'HR' | 'Mixed';
+  role: string
+  companyName: string
+  companyLogoUrl?: string
+  level: 'Junior' | 'Mid' | 'Senior' | 'Staff' | 'Executive'
+  type: 'Technical' | 'System Design' | 'Behavioral' | 'HR' | 'Mixed'
 
   // Technical Details
-  techStack: string[];
-  focusArea: string[];
+  techStack: string[]
+  focusArea: string[]
 
   // Content
-  jobDescription: string;
-  baseQuestions: string[];
-  systemInstruction?: string;
+  jobDescription: string
+  baseQuestions: string[]
+  systemInstruction?: string
 
   // NEW: Company Culture Analysis (optional for backward compatibility)
   companyCultureInsights?: {
-    values: string[];
-    workStyle: string;
-    teamStructure: string;
-  };
+    values: string[]
+    workStyle: string
+    teamStructure: string
+  }
 
   // NEW: Interviewer Persona
   interviewerPersona?: {
-    name: string;
-    title: string;
-    personality: string;
-  };
+    name: string
+    title: string
+    personality: string
+  }
 
   // Metadata
-  usageCount: number;
-  avgScore: number;
-  createdAt: string;
-  updatedAt?: string;
+  usageCount: number
+  avgScore: number
+  createdAt: string
+  updatedAt?: string
 }
 
 export interface InterviewSession {
-  id: string;
-  templateId: string;
-  userId: string;
+  id: string
+  templateId: string
+  userId: string
 
   // Personalization
-  resumeText?: string;
+  resumeText?: string
 
   // State
-  status: 'setup' | 'active' | 'completed';
-  startedAt: string;
-  completedAt?: string;
+  status: 'setup' | 'active' | 'completed'
+  startedAt: string
+  completedAt?: string
 
   // Result
-  feedbackId?: string;
-  finalScore?: number;
+  feedbackId?: string
+  finalScore?: number
 }
 
 // View Models for UI Components
 export interface TemplateCardData {
-  id: string;
-  role: string;
-  companyName: string;
-  companyLogoUrl?: string;
-  level: string;
-  type: string;
-  techStack: string[];
-  usageCount: number;
-  avgScore: number;
-  createdAt: string;
-  isOwnedByUser: boolean;
+  id: string
+  role: string
+  companyName: string
+  companyLogoUrl?: string
+  level: string
+  type: string
+  techStack: string[]
+  usageCount: number
+  avgScore: number
+  createdAt: string
+  isOwnedByUser: boolean
 }
 
 export interface SessionCardData {
-  id: string;
+  id: string
   // From Template
-  role: string;
-  companyName: string;
-  companyLogoUrl?: string;
-  level: string;
-  type: string;
-  techStack: string[];
+  role: string
+  companyName: string
+  companyLogoUrl?: string
+  level: string
+  type: string
+  techStack: string[]
   // From Session
-  status: 'setup' | 'active' | 'completed';
-  startedAt: string;
-  completedAt?: string;
+  status: 'setup' | 'active' | 'completed'
+  startedAt: string
+  completedAt?: string
   // From Feedback
-  finalScore?: number;
-  hasResume: boolean;
+  finalScore?: number
+  feedbackId?: string
+  hasResume: boolean
 }
 
 // Legacy type - Keep for backward compatibility
 export interface Interview {
-  id: string;
-  role: string;
-  level: string;
-  companyName?: string;
-  companyLogoUrl?: string;
-  questions: string[];
-  techstack: string[];
-  createdAt: string;
-  userId: string;
-  type: string;
-  finalized: boolean;
-  jobDescription?: string;
-  resumeText?: string;
-  status?: string;
-  focusArea?: string[];
-  systemInstruction?: string;
+  id: string
+  role: string
+  level: string
+  companyName?: string
+  companyLogoUrl?: string
+  questions: string[]
+  techstack: string[]
+  createdAt: string
+  userId: string
+  type: string
+  finalized: boolean
+  jobDescription?: string
+  resumeText?: string
+  status?: string
+  focusArea?: string[]
+  systemInstruction?: string
+  finalScore?: number
+  feedbackId?: string
 }
 
 // API Types
 export interface CreateFeedbackParams {
-  interviewId: string;
-  userId: string;
-  transcript: { role: string; content: string }[];
-  feedbackId?: string;
+  interviewId: string
+  userId: string
+  transcript: { role: string; content: string }[]
+  feedbackId?: string
 }
 
 export interface GetFeedbackByInterviewIdParams {
-  interviewId: string;
-  userId: string;
+  interviewId: string
+  userId: string
 }
 
 export interface GetLatestInterviewsParams {
-  userId: string;
-  limit?: number;
+  userId: string
+  limit?: number
 }
 
 export interface User {
-  name: string;
-  email: string;
-  id: string;
+  name: string
+  email: string
+  id: string
 }
 
 export interface SignInParams {
-  email: string;
-  idToken: string;
+  email: string
+  idToken: string
 }
 
 export interface SignUpParams {
-  uid: string;
-  name: string;
-  email: string;
+  uid: string
+  name: string
+  email: string
 }
 
-export type FormType = "sign-in" | "sign-up";
+export type FormType = 'sign-in' | 'sign-up'
 
 export interface RouteParams {
-  params: Promise<Record<string, string>>;
-  searchParams: Promise<Record<string, string>>;
+  params: Promise<Record<string, string>>
+  searchParams: Promise<Record<string, string>>
 }
 
 export interface TechIconProps {
-  techStack: string[];
+  techStack: string[]
 }

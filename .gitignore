@@ -8,28 +8,25 @@
 !.yarn/releases
 !.yarn/versions
 
-# Testing
-/coverage
-*.lcov
-.nyc_output
-
 # Next.js
 /.next/
 /out/
 build/
 dist/
 
-# Miscellaneous
-.DS_Store
-*.pem
-*.log
-*.local
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
+# Testing
+/coverage
+*.lcov
+.nyc_output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+junit.xml
 
 # Environment variables
 .env
@@ -38,33 +35,52 @@ yarn-error.log*
 .env.production
 .env.test
 
+# Debug logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Firebase credentials (KEEP SECRET!)
+*-firebase-adminsdk-*.json
+firebase-service-account*.json
+serviceAccountKey.json
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
 # Vercel
 .vercel
 
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-junit.xml
-test-results/
-playwright-report/
-blob-report/
-playwright/.cache/
-
-# Editors
-.idea
-.vscode
-*.swp
-*.swo
-
-# Firebase credentials (keep secret!)
-*-firebase-adminsdk-*.json
-firebase-service-account*.json
-vuemaster-*.json
-.firebase/
-firebase-debug.log
-
 # System Files
+.DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# IDEs and Editors
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+*.sublime-workspace
+*.sublime-project
+
+# Secrets (extra safety)
+*.pem
+*.key
+
+# Turborepo
+.turbo
+
+# Miscellaneous
+*.local

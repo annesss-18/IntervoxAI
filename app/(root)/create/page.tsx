@@ -1,30 +1,28 @@
-import React from 'react'
-import CreateInterviewForm from '@/components/CreateInterviewForm'
-import { getCurrentUser } from '@/lib/actions/auth.action'
+import { Metadata } from 'next'
 import { redirect } from 'next/navigation'
+import { getCurrentUser } from '@/lib/actions/auth.action'
+import { Container, PageHeader } from '@/components/layout/Container'
+import { CreateInterviewForm } from '@/components/organisms/CreateInterviewForm'
 
-const InterviewPage = async () => {
-  const user = await getCurrentUser();
+export const metadata: Metadata = {
+  title: 'Create Interview',
+  description: 'Create a new custom interview template tailored to your target role and company.',
+}
+
+export default async function CreatePage() {
+  const user = await getCurrentUser()
 
   if (!user) {
     redirect('/sign-in')
   }
 
   return (
-    <div className="w-full min-h-[calc(100vh-200px)] py-10">
-      <div className="mb-8 text-center space-y-3">
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">
-          Interview Setup
-        </h1>
-        <p className="text-light-300 text-base md:text-lg max-w-2xl mx-auto">
-          Configure your session by providing the job context and your background
-        </p>
-      </div>
-
-      {/* Pass the userId to the client component */}
+    <Container size="md">
+      <PageHeader
+        title="Create New Interview"
+        description="Set up a custom interview tailored to your target role and company."
+      />
       <CreateInterviewForm userId={user.id} />
-    </div>
+    </Container>
   )
 }
-
-export default InterviewPage

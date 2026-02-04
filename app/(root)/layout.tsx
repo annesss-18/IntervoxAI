@@ -1,52 +1,26 @@
-// app/(root)/layout.tsx
-import React from 'react'
-import { ReactNode } from 'react'
-import Image from 'next/image'
-import { isAuthenticated } from '@/lib/actions/auth.action';
-import { redirect } from 'next/navigation';
-import Navigation from '@/components/Navigation';
+import { redirect } from 'next/navigation'
+import { getCurrentUser } from '@/lib/actions/auth.action'
+import { Navbar } from '@/components/layout/Navbar'
+import { FooterCompact } from '@/components/layout/Footer'
 
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser()
 
-const RootLayout = async ({ children }: { children: ReactNode }) => {
-  const isUserAuthenticated = await isAuthenticated();
-
-  if (!isUserAuthenticated) {
-    redirect('/sign-in');
+  if (!user) {
+    redirect('/sign-in')
   }
 
   return (
-    <div className="root-layout">
-      {/* Enhanced Navigation */}
-      <Navigation />
-
-      {/* Main Content */}
-      <main className="animate-fadeIn">
-        {children}
-      </main>
-
-      {/* Footer */}
-      <footer className="mt-20 pt-8 border-t border-primary-400/10">
-        <div className="text-center space-y-4">
-          <div className="flex items-center justify-center gap-2">
-            <div className="size-8 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 flex items-center justify-center">
-              <Image
-                src="/icon.png"
-                alt="IntervoxAI"
-                width={24}
-                height={24}
-              />
-            </div>
-            <span className="text-sm font-semibold text-light-300">
-              Powered by AI
-            </span>
-          </div>
-          <p className="text-xs text-light-400">
-            © 2026 IntervoxAI. All rights reserved.
-          </p>
-        </div>
-      </footer>
+    <div className="flex min-h-screen flex-col">
+      <Navbar
+        user={{
+          name: user.name,
+          email: user.email,
+          id: user.id,
+        }}
+      />
+      <main className="flex-1 py-8">{children}</main>
+      <FooterCompact />
     </div>
   )
 }
-
-export default RootLayout;

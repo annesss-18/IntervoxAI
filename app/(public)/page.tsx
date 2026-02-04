@@ -1,231 +1,266 @@
-// app/(public)/page.tsx
-import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import {
-    Sparkles,
-    ArrowRight,
-    Mic,
-    Brain,
-    Target,
-    TrendingUp,
-    CheckCircle2,
-    Zap,
-    Users,
-    Star
-} from 'lucide-react'
+import { ArrowRight, Mic, Brain, BarChart3, Target, Sparkles, Shield, Clock } from 'lucide-react'
+import { Button } from '@/components/atoms/button'
+import { Badge } from '@/components/atoms/badge'
+import { Card, CardContent } from '@/components/atoms/card'
+import { Container, Section } from '@/components/layout/Container'
+
+const features = [
+  {
+    icon: Mic,
+    title: 'Voice-Powered Practice',
+    description:
+      'Speak naturally with our AI interviewer. Practice verbal communication just like in real interviews.',
+  },
+  {
+    icon: Brain,
+    title: 'AI-Driven Feedback',
+    description:
+      'Receive instant, detailed feedback on your answers, communication style, and technical accuracy.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Progress Tracking',
+    description:
+      'Monitor your improvement over time with detailed analytics and performance insights.',
+  },
+  {
+    icon: Target,
+    title: 'Role-Specific Questions',
+    description: 'Practice with questions tailored to your target role, company, and tech stack.',
+  },
+  {
+    icon: Sparkles,
+    title: 'Adaptive Difficulty',
+    description:
+      'The AI adjusts question difficulty based on your performance for optimal learning.',
+  },
+  {
+    icon: Shield,
+    title: 'Safe Practice Space',
+    description: 'Make mistakes and learn without the pressure of a real interview environment.',
+  },
+]
+
+const howItWorks = [
+  {
+    step: '01',
+    title: 'Choose Your Role',
+    description: "Select the job role, company type, and tech stack you're targeting.",
+  },
+  {
+    step: '02',
+    title: 'Practice & Speak',
+    description: 'Have a realistic conversation with our AI interviewer using voice or text.',
+  },
+  {
+    step: '03',
+    title: 'Get Feedback',
+    description: 'Receive detailed feedback and actionable tips to improve your performance.',
+  },
+]
+
+const stats = [
+  { value: '10K+', label: 'Practice Sessions' },
+  { value: '85%', label: 'Success Rate' },
+  { value: '4.9', label: 'User Rating' },
+]
 
 export default function LandingPage() {
-    return (
-        <div className="space-y-24">
-            {/* Hero Section */}
-            <section className="container-app text-center space-y-8 pt-10">
-                {/* Badge */}
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-500/20 border border-primary-400/30 backdrop-blur-md animate-fadeIn">
-                    <Sparkles className="size-4 text-primary-300 animate-pulse" />
-                    <span className="text-sm font-semibold text-primary-200">AI-Powered Mock Interviews</span>
-                </div>
+  return (
+    <>
+      {/* Hero Section */}
+      <Section spacing="lg" className="relative overflow-hidden">
+        <Container>
+          <div className="mx-auto flex max-w-4xl flex-col items-center text-center">
+            {/* Badge */}
+            <Badge variant="primary" className="animate-fadeInUp mb-6">
+              <Sparkles className="size-3.5" />
+              AI-Powered Mock Interviews
+            </Badge>
 
-                {/* Main Heading */}
-                <div className="space-y-4 animate-slideInUp">
-                    <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white leading-tight">
-                        Practice. Speak.
-                        <span className="block bg-gradient-to-r from-primary-200 via-accent-300 to-primary-300 bg-clip-text text-transparent">
-                            Improve.
-                        </span>
-                    </h1>
-                    <p className="text-lg md:text-xl text-light-300 max-w-2xl mx-auto leading-relaxed">
-                        Real interviews. Real feedback. Faster growth. Master your technical interviews with AI-powered mock interviews that adapt to your skill level.
-                    </p>
-                </div>
+            {/* Headline */}
+            <h1 className="animate-fadeInUp animation-delay-100 mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+              Practice. <span className="text-gradient-primary">Speak.</span>{' '}
+              <span className="text-gradient-cosmic">Improve.</span>
+            </h1>
 
-                {/* CTA Buttons */}
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slideInUp" style={{ animationDelay: '0.2s' }}>
-                    <Link
-                        href="/explore"
-                        className="btn-primary text-lg px-8 py-4 group"
+            {/* Subheadline */}
+            <p className="text-muted-foreground animate-fadeInUp animation-delay-200 mb-8 max-w-2xl text-lg sm:text-xl">
+              Master your technical interviews with AI-powered mock interviews. Real interviews.
+              Real feedback. Faster growth.
+            </p>
+
+            {/* CTAs */}
+            <div className="animate-fadeInUp animation-delay-300 flex flex-col gap-4 sm:flex-row">
+              <Link href="/explore">
+                <Button size="lg" className="min-w-[200px]">
+                  Explore Interviews
+                  <ArrowRight className="size-4" />
+                </Button>
+              </Link>
+              <Link href="/sign-up">
+                <Button variant="outline" size="lg" className="min-w-[200px]">
+                  Get Started Free
+                </Button>
+              </Link>
+            </div>
+
+            {/* Social Proof */}
+            <div className="animate-fadeInUp animation-delay-500 mt-12 flex flex-col items-center gap-8 sm:flex-row">
+              {/* User avatars */}
+              <div className="flex items-center">
+                <div className="flex -space-x-3">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="border-background from-primary-400 to-accent-400 flex size-10 items-center justify-center rounded-full border-2 bg-gradient-to-br text-xs font-bold text-white"
                     >
-                        <span>Explore Interviews</span>
-                        <ArrowRight className="size-5 transition-transform duration-300 group-hover:translate-x-1" />
-                    </Link>
-                    <Link
-                        href="/sign-up"
-                        className="flex items-center gap-2 px-8 py-4 rounded-full bg-dark-200/60 border border-light-400/20 hover:border-primary-400/50 hover:bg-primary-500/10 transition-all duration-300 text-light-200 font-semibold"
-                    >
-                        Get Started Free
-                    </Link>
-                </div>
-
-                {/* Social Proof */}
-                <div className="flex items-center justify-center gap-6 pt-8 animate-fadeIn" style={{ animationDelay: '0.4s' }}>
-                    <div className="flex items-center gap-2">
-                        <div className="flex -space-x-2">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div
-                                    key={i}
-                                    className="size-8 rounded-full bg-gradient-to-r from-primary-400 to-accent-300 ring-2 ring-dark-100"
-                                />
-                            ))}
-                        </div>
-                        <span className="text-sm text-light-300">
-                            <strong className="text-white">1,000+</strong> interviews completed
-                        </span>
+                      {String.fromCharCode(64 + i)}
                     </div>
-                    <div className="hidden sm:flex items-center gap-1">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                            <Star key={i} className="size-4 text-warning-200 fill-current" />
-                        ))}
-                        <span className="text-sm text-light-300 ml-1">4.9/5 rating</span>
-                    </div>
+                  ))}
                 </div>
-            </section>
+                <span className="text-muted-foreground ml-4 text-sm">Join 10,000+ job seekers</span>
+              </div>
 
-            {/* How It Works Section */}
-            <section className="container-app">
-                <div className="text-center space-y-4 mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white">
-                        How It Works
-                    </h2>
-                    <p className="text-light-300 max-w-xl mx-auto">
-                        Get interview-ready in three simple steps
-                    </p>
-                </div>
+              {/* Stats */}
+              <div className="hidden items-center gap-8 sm:flex">
+                {stats.map((stat) => (
+                  <div key={stat.label} className="text-center">
+                    <div className="text-foreground text-2xl font-bold">{stat.value}</div>
+                    <div className="text-muted-foreground text-xs">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Container>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {[
-                        {
-                            step: '01',
-                            icon: Target,
-                            title: 'Choose Your Interview',
-                            description: 'Browse templates for your target role and company. Frontend, Backend, Full-Stack, and more.'
-                        },
-                        {
-                            step: '02',
-                            icon: Mic,
-                            title: 'Practice with AI',
-                            description: 'Have a real conversation with our AI interviewer. Speak naturally and answer technical questions.'
-                        },
-                        {
-                            step: '03',
-                            icon: TrendingUp,
-                            title: 'Get Instant Feedback',
-                            description: 'Receive detailed scoring and actionable tips to improve your responses and confidence.'
-                        }
-                    ].map((item, index) => (
-                        <div
-                            key={index}
-                            className="card-border animate-slideInUp"
-                            style={{ animationDelay: `${index * 0.1}s` }}
-                        >
-                            <div className="card !p-8 text-center space-y-4 h-full">
-                                <div className="text-5xl font-bold bg-gradient-to-r from-primary-500/30 to-accent-300/30 bg-clip-text text-transparent">
-                                    {item.step}
-                                </div>
-                                <div className="size-16 mx-auto rounded-2xl bg-primary-500/20 border border-primary-400/30 flex items-center justify-center">
-                                    <item.icon className="size-8 text-primary-300" />
-                                </div>
-                                <h3 className="text-xl font-bold text-white">{item.title}</h3>
-                                <p className="text-light-300 text-sm leading-relaxed">{item.description}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* Features Section */}
-            <section className="container-app">
-                <div className="text-center space-y-4 mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white">
-                        Why IntervoxAI?
-                    </h2>
-                    <p className="text-light-300 max-w-xl mx-auto">
-                        The most realistic AI interview experience available
-                    </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[
-                        {
-                            icon: Brain,
-                            title: 'Powered by Gemini AI',
-                            description: 'Advanced language model understands context and provides intelligent follow-up questions.'
-                        },
-                        {
-                            icon: Mic,
-                            title: 'Voice-Based Interviews',
-                            description: 'Practice speaking your answers out loud, just like a real interview.'
-                        },
-                        {
-                            icon: Zap,
-                            title: 'Real-Time Feedback',
-                            description: 'Get instant analysis of your responses with actionable improvement tips.'
-                        },
-                        {
-                            icon: Target,
-                            title: 'Role-Specific Questions',
-                            description: 'Questions tailored to your target role, company, and tech stack.'
-                        },
-                        {
-                            icon: Users,
-                            title: 'Community Templates',
-                            description: 'Access interview templates shared by the community for popular tech companies.'
-                        },
-                        {
-                            icon: CheckCircle2,
-                            title: 'Track Your Progress',
-                            description: 'Review past sessions and watch your scores improve over time.'
-                        }
-                    ].map((feature, index) => (
-                        <div
-                            key={index}
-                            className="group p-6 rounded-2xl bg-dark-200/30 border border-primary-400/10 hover:border-primary-400/30 hover:bg-dark-200/50 transition-all duration-300"
-                        >
-                            <div className="size-12 rounded-xl bg-primary-500/20 border border-primary-400/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                                <feature.icon className="size-6 text-primary-300" />
-                            </div>
-                            <h3 className="text-lg font-bold text-white mb-2">{feature.title}</h3>
-                            <p className="text-sm text-light-300 leading-relaxed">{feature.description}</p>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* CTA Section */}
-            <section className="container-app">
-                <div className="card-border">
-                    <div className="card !p-12 text-center space-y-6 bg-gradient-to-r from-primary-500/10 to-accent-300/10">
-                        <div className="size-20 mx-auto rounded-full bg-gradient-to-r from-primary-500 to-primary-600 flex items-center justify-center shadow-2xl">
-                            <Image
-                                src="/icon.png"
-                                alt="IntervoxAI"
-                                width={40}
-                                height={40}
-                            />
-                        </div>
-                        <h2 className="text-3xl md:text-4xl font-bold text-white">
-                            Ready to Ace Your Interview?
-                        </h2>
-                        <p className="text-light-300 max-w-lg mx-auto">
-                            Join thousands of developers who have improved their interview skills with IntervoxAI.
-                        </p>
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                            <Link
-                                href="/sign-up"
-                                className="btn-primary text-lg px-8 py-4 group"
-                            >
-                                <span>Start Practicing Free</span>
-                                <ArrowRight className="size-5 transition-transform duration-300 group-hover:translate-x-1" />
-                            </Link>
-                            <Link
-                                href="/explore"
-                                className="text-primary-300 hover:text-primary-200 font-semibold transition-colors"
-                            >
-                                Browse Templates →
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </section>
+        {/* Background decorations */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="bg-primary/10 animate-pulse-slow absolute top-1/4 -left-20 h-72 w-72 rounded-full blur-3xl" />
+          <div className="bg-accent/10 animate-pulse-slow animation-delay-200 absolute top-1/3 -right-20 h-72 w-72 rounded-full blur-3xl" />
+          <div className="bg-stellar/5 absolute bottom-0 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full blur-3xl" />
         </div>
-    )
+      </Section>
+
+      {/* How It Works Section */}
+      <Section className="bg-surface-2/50">
+        <Container>
+          <div className="mb-12 text-center">
+            <Badge variant="secondary" className="mb-4">
+              How It Works
+            </Badge>
+            <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
+              Three Steps to Interview Success
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-2xl">
+              Our streamlined process helps you prepare effectively and build confidence.
+            </p>
+          </div>
+
+          <div className="grid gap-8 md:grid-cols-3">
+            {howItWorks.map((item, index) => (
+              <Card key={item.step} variant="gradient" className="group relative">
+                <CardContent className="pt-8 text-center">
+                  {/* Step number */}
+                  <div className="from-primary to-accent absolute -top-4 left-1/2 flex size-12 -translate-x-1/2 items-center justify-center rounded-full bg-gradient-to-br text-lg font-bold text-white shadow-lg">
+                    {item.step}
+                  </div>
+
+                  <h3 className="mt-4 mb-3 text-xl font-bold">{item.title}</h3>
+                  <p className="text-muted-foreground">{item.description}</p>
+
+                  {/* Connector line (except last) */}
+                  {index < howItWorks.length - 1 && (
+                    <div className="from-primary/30 absolute top-1/2 -right-4 hidden h-0.5 w-8 bg-gradient-to-r to-transparent md:block" />
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </Container>
+      </Section>
+
+      {/* Features Section */}
+      <Section>
+        <Container>
+          <div className="mb-12 text-center">
+            <Badge variant="secondary" className="mb-4">
+              Features
+            </Badge>
+            <h2 className="mb-4 text-3xl font-bold sm:text-4xl">
+              Everything You Need to <span className="text-gradient-primary">Succeed</span>
+            </h2>
+            <p className="text-muted-foreground mx-auto max-w-2xl">
+              Comprehensive tools and features designed to give you the edge in your next interview.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature) => {
+              const Icon = feature.icon
+              return (
+                <Card key={feature.title} variant="interactive" className="group">
+                  <CardContent className="pt-6">
+                    <div className="from-primary/20 to-accent/20 mb-4 flex size-12 items-center justify-center rounded-xl bg-gradient-to-br transition-transform group-hover:scale-110">
+                      <Icon className="text-primary size-6" />
+                    </div>
+                    <h3 className="mb-2 text-lg font-semibold">{feature.title}</h3>
+                    <p className="text-muted-foreground text-sm">{feature.description}</p>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </Container>
+      </Section>
+
+      {/* CTA Section */}
+      <Section>
+        <Container size="md">
+          <Card variant="gradient" className="relative overflow-hidden">
+            <CardContent className="relative z-10 px-8 py-12 text-center">
+              {/* Logo */}
+              <div className="bg-surface-1/50 mx-auto mb-6 flex size-20 items-center justify-center rounded-2xl backdrop-blur">
+                <Image src="/icon.png" alt="IntervoxAI" width={48} height={48} />
+              </div>
+
+              <h2 className="mb-4 text-2xl font-bold sm:text-3xl">
+                Ready to Ace Your Next Interview?
+              </h2>
+              <p className="text-muted-foreground mx-auto mb-8 max-w-md">
+                Join thousands of successful candidates who practiced with IntervoxAI.
+              </p>
+
+              <div className="flex flex-col justify-center gap-4 sm:flex-row">
+                <Link href="/sign-up">
+                  <Button size="lg">
+                    Start Practicing Free
+                    <ArrowRight className="size-4" />
+                  </Button>
+                </Link>
+              </div>
+
+              {/* Trust badges */}
+              <div className="text-muted-foreground mt-8 flex items-center justify-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <Shield className="size-4" />
+                  <span>No credit card required</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="size-4" />
+                  <span>Setup in 2 minutes</span>
+                </div>
+              </div>
+            </CardContent>
+
+            {/* Background glow */}
+            <div className="from-primary/5 to-accent/5 absolute inset-0 -z-10 bg-gradient-to-br via-transparent" />
+          </Card>
+        </Container>
+      </Section>
+    </>
+  )
 }

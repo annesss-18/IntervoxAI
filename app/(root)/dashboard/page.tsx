@@ -1,116 +1,144 @@
-// app/(root)/dashboard/page.tsx
-import React from 'react'
+import { Metadata } from 'next'
 import Link from 'next/link'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { getUserSessions, getUserTemplates } from '@/lib/actions/general.action'
+import { PlusCircle } from 'lucide-react'
 import { redirect } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import TemplateCard from '@/components/TemplateCard'
-import SessionCard from '@/components/SessionCard'
-import { Plus, History, Layout, PlayCircle } from 'lucide-react'
+import { getCurrentUser } from '@/lib/actions/auth.action'
+import { getUserSessions, getUserTemplates } from '@/lib/actions/interview.action'
+import { Container, PageHeader } from '@/components/layout/Container'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/atoms/tabs'
+import { Button } from '@/components/atoms/button'
+import { Card, CardContent } from '@/components/atoms/card'
+import { SessionCard } from '@/components/organisms/SessionCard'
+import { TemplateCard } from '@/components/organisms/TemplateCard'
 
-const Dashboard = async () => {
-  const user = await getCurrentUser();
-  if (!user) redirect('/sign-in');
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  description: 'Manage your mock interviews, track progress, and create new interview templates.',
+}
 
-  const [sessions, myTemplates] = await Promise.all([
+export default async function DashboardPage() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect('/sign-in')
+  }
+
+  const [sessions, templates] = await Promise.all([
     getUserSessions(user.id),
-    getUserTemplates(user.id)
-  ]);
+    getUserTemplates(user.id),
+  ])
 
-  // Filter Sessions by status
-  const activeSessions = sessions.filter(s => s.status !== 'completed');
-  const completedSessions = sessions.filter(s => s.status === 'completed');
+  const activeSessions = sessions.filter((s) => s.status !== 'completed')
+  const completedSessions = sessions.filter((s) => s.status === 'completed')
 
   return (
-    <div className="container-app py-10 space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Your Dashboard</h1>
-          <p className="text-light-300 mt-1">Manage your interviews and track your progress.</p>
-        </div>
-        <Link href="/create" className="btn-primary">
-          <Plus className="size-5 mr-2" />
-          New Interview
+    <Container>
+      <PageHeader
+        title="Your Dashboard"
+        description="Manage your interviews and track your progress."
+      >
+        <Link href="/create">
+          <Button>
+            <PlusCircle className="size-4" />
+            New Interview
+          </Button>
         </Link>
-      </div>
+      </PageHeader>
 
-      <Tabs defaultValue="practice" className="w-full">
-        <TabsList className="bg-dark-200/50 p-1 rounded-xl mb-8">
-          <TabsTrigger value="practice" className="flex gap-2">
-            <PlayCircle className="size-4" /> Practice ({activeSessions.length})
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex gap-2">
-            <History className="size-4" /> History ({completedSessions.length})
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="flex gap-2">
-            <Layout className="size-4" /> My Templates ({myTemplates.length})
-          </TabsTrigger>
+      <Tabs defaultValue="active" className="w-full">
+        <TabsList className="w-full sm:w-auto">
+          <TabsTrigger value="active">Practice ({activeSessions.length})</TabsTrigger>
+          <TabsTrigger value="history">History ({completedSessions.length})</TabsTrigger>
+          <TabsTrigger value="templates">Templates ({templates.length})</TabsTrigger>
         </TabsList>
 
-        {/* 1. Practice Tab (Active Sessions) */}
-        <TabsContent value="practice" className="space-y-6 animate-fadeIn">
-          <h2 className="text-xl font-semibold text-light-100">Active Sessions</h2>
+        {/* Active Sessions */}
+        <TabsContent value="active">
           {activeSessions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {activeSessions.map((session) => (
                 <SessionCard key={session.id} session={session} />
               ))}
             </div>
           ) : (
-            <div className="text-center p-12 border border-dashed border-light-400/20 rounded-2xl">
-              <p className="text-light-300">No active sessions. Start one from your templates!</p>
-              <Link href="/create" className="btn-primary mt-4 inline-flex items-center gap-2">
-                <Plus className="size-4" />
-                Create Template
-              </Link>
-            </div>
+            <EmptyState
+              title="No active interviews"
+              description="Start a new interview to begin practicing."
+              action={
+                <Link href="/create">
+                  <Button>
+                    <PlusCircle className="size-4" />
+                    New Interview
+                  </Button>
+                </Link>
+              }
+            />
           )}
         </TabsContent>
 
-        {/* 2. History Tab (Completed Sessions) */}
-        <TabsContent value="history" className="space-y-6 animate-fadeIn">
-          <h2 className="text-xl font-semibold text-light-100">Past Interviews</h2>
+        {/* Completed Sessions */}
+        <TabsContent value="history">
           {completedSessions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {completedSessions.map((session) => (
                 <SessionCard key={session.id} session={session} />
               ))}
             </div>
           ) : (
-            <div className="text-center p-12 border border-dashed border-light-400/20 rounded-2xl">
-              <p className="text-light-300">No completed interviews yet.</p>
-            </div>
+            <EmptyState
+              title="No completed interviews"
+              description="Your completed interviews will appear here."
+            />
           )}
         </TabsContent>
 
-        {/* 3. My Templates Tab */}
-        <TabsContent value="templates" className="space-y-6 animate-fadeIn">
-          <h2 className="text-xl font-semibold text-light-100">My Custom Templates</h2>
-          {myTemplates.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {myTemplates.map((template) => (
-                <TemplateCard
-                  key={template.id}
-                  template={template}
-                  showActions={true} // User owns these
-                />
+        {/* Templates */}
+        <TabsContent value="templates">
+          {templates.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {templates.map((template) => (
+                <TemplateCard key={template.id} template={template} />
               ))}
             </div>
           ) : (
-            <div className="text-center p-12 border border-dashed border-light-400/20 rounded-2xl">
-              <p className="text-light-300">You haven&apos;t created any templates yet.</p>
-              <Link href="/create" className="btn-primary mt-4 inline-flex items-center gap-2">
-                <Plus className="size-4" />
-                Create Your First Template
-              </Link>
-            </div>
+            <EmptyState
+              title="No custom templates"
+              description="Create a custom interview template to practice specific roles."
+              action={
+                <Link href="/create">
+                  <Button>
+                    <PlusCircle className="size-4" />
+                    Create Template
+                  </Button>
+                </Link>
+              }
+            />
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </Container>
   )
 }
 
-export default Dashboard
+function EmptyState({
+  title,
+  description,
+  action,
+}: {
+  title: string
+  description: string
+  action?: React.ReactNode
+}) {
+  return (
+    <Card variant="gradient" className="py-12 text-center">
+      <CardContent>
+        <div className="bg-surface-2 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
+          <PlusCircle className="text-muted-foreground size-8" />
+        </div>
+        <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+        <p className="text-muted-foreground mx-auto mb-6 max-w-md">{description}</p>
+        {action}
+      </CardContent>
+    </Card>
+  )
+}

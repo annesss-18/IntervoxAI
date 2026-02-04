@@ -1,7 +1,11 @@
-import AuthForm from "@/components/AuthForm"
+import { Metadata } from 'next'
+import { AuthForm } from '@/components/organisms/AuthForm'
 
-const page = () => {
-  return <AuthForm type="sign-up"/>
+export const metadata: Metadata = {
+  title: 'Sign Up',
+  description: 'Create your IntervoxAI account and start practicing interviews today.',
 }
 
-export default page
+export default function SignUpPage() {
+  return <AuthForm type="sign-up" />
+}

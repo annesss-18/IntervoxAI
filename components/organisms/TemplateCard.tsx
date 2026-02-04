@@ -1,0 +1,82 @@
+import Link from 'next/link'
+import Image from 'next/image'
+import { Building2, Users, Star, ArrowRight } from 'lucide-react'
+import { Card, CardContent, CardFooter } from '@/components/atoms/card'
+import { Badge } from '@/components/atoms/badge'
+import { Button } from '@/components/atoms/button'
+import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
+import type { TemplateCardData } from '@/types'
+
+interface TemplateCardProps {
+  template: TemplateCardData
+}
+
+export function TemplateCard({ template }: TemplateCardProps) {
+  const averageScore = template.avgScore ?? 0
+
+  return (
+    <Card variant="interactive" className="group flex h-full flex-col">
+      <CardContent className="flex-1 pt-6">
+        {/* Header with company logo */}
+        <div className="mb-4 flex items-start gap-4">
+          <div className="bg-surface-2 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl">
+            {template.companyLogoUrl ? (
+              <Image
+                src={template.companyLogoUrl}
+                alt={template.companyName}
+                width={48}
+                height={48}
+                className="object-cover"
+              />
+            ) : (
+              <Building2 className="text-muted-foreground size-6" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="text-foreground truncate font-semibold">{template.role}</h3>
+            <p className="text-muted-foreground truncate text-sm">{template.companyName}</p>
+          </div>
+        </div>
+
+        {/* Type and Level Badges */}
+        <div className="mb-4 flex gap-2">
+          <Badge variant="primary">{template.type}</Badge>
+          <Badge variant="secondary">{template.level}</Badge>
+        </div>
+
+        {/* Tech Stack */}
+        {template.techStack && template.techStack.length > 0 && (
+          <div className="mb-4">
+            <DisplayTechIcons techStack={template.techStack} />
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="flex items-center gap-4 text-sm">
+          <div className="text-muted-foreground flex items-center gap-1.5">
+            <Users className="size-4" />
+            <span>{template.usageCount || 0} uses</span>
+          </div>
+          {averageScore > 0 && (
+            <div className="text-warning-500 flex items-center gap-1.5">
+              <Star className="size-4 fill-current" />
+              <span>{averageScore.toFixed(1)}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+
+      <CardFooter className="pt-0">
+        <Link href={`/interview/template/${template.id}`} className="w-full">
+          <Button
+            variant="secondary"
+            className="group-hover:bg-primary/10 group-hover:text-primary w-full"
+          >
+            Start Interview
+            <ArrowRight className="size-4" />
+          </Button>
+        </Link>
+      </CardFooter>
+    </Card>
+  )
+}
