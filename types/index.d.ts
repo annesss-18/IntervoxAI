@@ -94,6 +94,7 @@ export interface InterviewSession {
 
   // Personalization
   resumeText?: string
+  transcript?: Array<{ role: string; content: string }>
 
   // State
   status: 'setup' | 'active' | 'completed'
@@ -103,6 +104,11 @@ export interface InterviewSession {
   // Result
   feedbackId?: string
   finalScore?: number
+  feedbackStatus?: 'idle' | 'pending' | 'processing' | 'completed' | 'failed'
+  feedbackError?: string | null
+  feedbackRequestedAt?: string
+  feedbackProcessingAt?: string
+  feedbackCompletedAt?: string
 }
 
 // View Models for UI Components
@@ -194,6 +200,7 @@ export interface SignUpParams {
   uid: string
   name: string
   email: string
+  idToken?: string
 }
 
 export type FormType = 'sign-in' | 'sign-up'

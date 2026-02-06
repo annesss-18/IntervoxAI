@@ -160,22 +160,23 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-3">
-            {howItWorks.map((item, index) => (
-              <Card key={item.step} variant="gradient" className="group relative">
-                <CardContent className="pt-8 text-center">
+          <div className="grid gap-6 md:grid-cols-3">
+            {howItWorks.map((item) => (
+              <Card
+                key={item.step}
+                variant="gradient"
+                className="group relative h-full overflow-visible"
+              >
+                <CardContent className="flex h-full min-h-[220px] flex-col items-center px-6 pt-12 pb-8 text-center">
                   {/* Step number */}
-                  <div className="from-primary to-accent absolute -top-4 left-1/2 flex size-12 -translate-x-1/2 items-center justify-center rounded-full bg-gradient-to-br text-lg font-bold text-white shadow-lg">
+                  <div className="from-primary to-accent absolute -top-5 left-1/2 flex size-14 -translate-x-1/2 items-center justify-center rounded-full bg-gradient-to-br text-lg font-bold text-white shadow-lg">
                     {item.step}
                   </div>
 
-                  <h3 className="mt-4 mb-3 text-xl font-bold">{item.title}</h3>
-                  <p className="text-muted-foreground">{item.description}</p>
-
-                  {/* Connector line (except last) */}
-                  {index < howItWorks.length - 1 && (
-                    <div className="from-primary/30 absolute top-1/2 -right-4 hidden h-0.5 w-8 bg-gradient-to-r to-transparent md:block" />
-                  )}
+                  <h3 className="mb-4 text-2xl font-bold">{item.title}</h3>
+                  <p className="text-muted-foreground max-w-[34ch] leading-relaxed">
+                    {item.description}
+                  </p>
                 </CardContent>
               </Card>
             ))}

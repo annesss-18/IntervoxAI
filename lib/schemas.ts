@@ -12,6 +12,7 @@ export const signInSchema = z.object({
 
 export const signUpSchema = userSchema.extend({
   uid: z.string().min(1, 'UID is required'),
+  idToken: z.string().min(1, 'ID Token is required').optional(),
 })
 
 export const createFeedbackSchema = z.object({

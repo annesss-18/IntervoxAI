@@ -45,6 +45,26 @@ interface UseLiveInterviewOptions {
   onInterviewComplete?: () => void // Called when AI naturally concludes the interview
 }
 
+const MAX_AUDIO_CHUNK_BYTES = 32768
+const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/
+
+function estimateBase64Bytes(base64Data: string): number {
+  const padding = base64Data.endsWith('==') ? 2 : base64Data.endsWith('=') ? 1 : 0
+  return Math.floor((base64Data.length * 3) / 4) - padding
+}
+
+function isValidPcmChunk(base64Data: string): boolean {
+  if (!base64Data || base64Data.length < 16) return false
+  if (base64Data.length % 4 !== 0) return false
+  if (!BASE64_PATTERN.test(base64Data)) return false
+
+  const estimatedBytes = estimateBase64Bytes(base64Data)
+  if (estimatedBytes <= 0 || estimatedBytes > MAX_AUDIO_CHUNK_BYTES) return false
+  if (estimatedBytes % 2 !== 0) return false // Int16 PCM
+
+  return true
+}
+
 /**
  * Hook for managing Gemini Live API WebSocket connection for live interviews.
  */
@@ -425,6 +445,11 @@ export function useLiveInterview(options: UseLiveInterviewOptions): UseLiveInter
     // Use ref for synchronous status check (state updates are async)
     if (!isConnectedRef.current) {
       // Not connected yet, silently skip
+      return
+    }
+
+    if (!isValidPcmChunk(base64Data)) {
+      logger.warn('Dropping invalid audio chunk before realtime send')
       return
     }
 

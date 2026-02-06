@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { Phone, Loader2, Sparkles, FileText, ArrowRight, X } from 'lucide-react'
+import { Phone, Loader2, Sparkles, FileText, X } from 'lucide-react'
+import { Button } from '@/components/atoms/button'
+import { Badge } from '@/components/atoms/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/atoms/card'
 import { ResumeUploader } from '@/components/organisms/ResumeUploader'
 import {
   Dialog,
@@ -28,8 +31,7 @@ interface InterviewSetupCardProps {
 }
 
 /**
- * Compact setup card shown before an interview starts.
- * Features animated mic indicator and glassmorphism styling.
+ * Setup card shown before an interview starts.
  */
 export function InterviewSetupCard({
   isUpdating,
@@ -47,100 +49,89 @@ export function InterviewSetupCard({
   }
 
   return (
-    <div className="flex w-full max-w-sm flex-col items-center gap-8">
-      {/* Compact Animated Microphone Indicator */}
-      <div className="relative">
-        {/* Pulse rings */}
-        <div
-          className="bg-primary/20 absolute inset-0 animate-ping rounded-full"
-          style={{ animationDuration: '2s' }}
-        />
-        <div
-          className="bg-primary/10 absolute -inset-2 animate-ping rounded-full"
-          style={{ animationDuration: '2.5s', animationDelay: '0.5s' }}
-        />
-
-        {/* Main icon */}
-        <div className="from-primary/20 via-primary/10 to-accent/20 border-primary/30 relative flex size-24 items-center justify-center rounded-full border-2 bg-gradient-to-br backdrop-blur-sm">
-          <div className="from-primary to-primary-600 flex size-14 items-center justify-center rounded-full bg-gradient-to-br shadow-lg">
-            <Phone className="size-7 text-white" />
-          </div>
-        </div>
-
-        {/* AI badge */}
-        <div className="from-success-500 to-success-600 border-surface-950 absolute -right-0.5 -bottom-0.5 flex size-8 items-center justify-center rounded-full border-4 bg-gradient-to-br shadow-lg">
-          <Sparkles className="size-4 text-white" />
-        </div>
-      </div>
-
-      {/* Title & Description */}
-      <div className="space-y-2 text-center">
-        <h3 className="text-foreground text-2xl font-bold">Ready to Start?</h3>
-        <p className="text-muted-foreground mx-auto w-11/12">
-          We'll analyze your responses in real-time. Good luck!
-        </p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex w-full flex-col gap-3">
-        {/* Primary Start Button */}
-        <button
-          onClick={onStart}
-          disabled={isUpdating}
-          className="group shadow-primary/20 hover:shadow-primary/40 relative w-full overflow-hidden rounded-xl px-6 py-4 font-bold text-white shadow-xl transition-all duration-300 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <div className="from-primary to-primary-600 group-hover:from-primary-600 group-hover:to-primary-700 absolute inset-0 bg-gradient-to-r transition-all duration-300" />
-          <span className="relative flex items-center justify-center gap-2">
-            {isUpdating ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Phone className="size-5" />
-            )}
-            <span>Start Interview Now</span>
-          </span>
-        </button>
-
-        {/* Resume Options */}
-        <div className="flex w-full items-center justify-center">
-          {hasResume ? (
-            <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-sm text-emerald-400">
-              <FileText className="size-3.5" />
-              <span>Resume Added</span>
-              <button
-                onClick={onResumeClear}
-                className="ml-1 rounded-full p-0.5 transition-colors hover:bg-emerald-400/20"
-              >
-                <X className="size-3" />
-              </button>
+    <div className="w-full max-w-3xl">
+      <Card variant="gradient" className="border-primary/20">
+        <CardHeader className="pb-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl">
+                <Sparkles className="text-primary size-5" />
+                Start Live Interview
+              </CardTitle>
+              <CardDescription className="mt-2 max-w-2xl">
+                Confirm your mic settings, optionally attach your resume for better context, then
+                begin.
+              </CardDescription>
             </div>
-          ) : (
-            <Dialog open={isResumeModalOpen} onOpenChange={setIsResumeModalOpen}>
-              <DialogTrigger asChild>
-                <button className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-white/5">
-                  <FileText className="size-4" />
-                  Add Resume for Context
+            <Badge variant={hasResume ? 'success' : 'secondary'}>
+              {hasResume ? 'Resume Added' : 'Resume Optional'}
+            </Badge>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          <div className="flex justify-center">
+            <Button onClick={onStart} disabled={isUpdating} size="lg" className="min-w-[220px]">
+              {isUpdating ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Phone className="size-4" />
+              )}
+              Start Interview
+            </Button>
+          </div>
+
+          <div className="border-border/70 bg-surface-2/45 rounded-xl border px-4 py-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <FileText className="text-primary size-4" />
+                <span className="text-sm font-medium">Resume context</span>
+              </div>
+              {hasResume && (
+                <button
+                  onClick={onResumeClear}
+                  className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs"
+                  type="button"
+                >
+                  <X className="size-3.5" />
+                  Remove
                 </button>
-              </DialogTrigger>
-              <DialogContent className="bg-surface-900 border-border sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Provide Context</DialogTitle>
-                  <DialogDescription>
-                    Upload your resume so the AI can ask more personalized questions based on your
-                    experience.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                  <ResumeUploader
-                    onResumeUploaded={handleResumeComplete}
-                    onResumeClear={onResumeClear}
-                    initialResumeText={initialResumeText}
-                  />
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Dialog open={isResumeModalOpen} onOpenChange={setIsResumeModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="secondary" size="sm">
+                    <FileText className="size-4" />
+                    {hasResume ? 'Update Resume' : 'Upload Resume'}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Provide Additional Context</DialogTitle>
+                    <DialogDescription>
+                      Add your resume so the interviewer can tailor follow-up questions to your
+                      experience.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="py-2">
+                    <ResumeUploader
+                      onResumeUploaded={handleResumeComplete}
+                      onResumeClear={onResumeClear}
+                      initialResumeText={initialResumeText}
+                    />
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <p className="text-muted-foreground text-xs">
+                Optional, but improves interview personalization.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

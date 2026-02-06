@@ -3,7 +3,35 @@ import { NextRequest, NextResponse } from 'next/server'
 // Session refresh threshold: 2 hours before expiry
 const REFRESH_THRESHOLD_SECONDS = 2 * 60 * 60
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // API version compatibility:
+  // - /api/v1/* rewrites to existing /api/* routes
+  // - /api/vN/* (N != 1) is explicitly rejected
+  if (pathname === '/api/v1' || pathname.startsWith('/api/v1/')) {
+    const rewrittenUrl = request.nextUrl.clone()
+    rewrittenUrl.pathname =
+      pathname === '/api/v1' ? '/api' : pathname.replace(/^\/api\/v1\//, '/api/')
+    return NextResponse.rewrite(rewrittenUrl)
+  }
+
+  if (pathname.startsWith('/api/')) {
+    const versionMatch = pathname.match(/^\/api\/v(\d+)(?:\/|$)/)
+    if (versionMatch && versionMatch[1] !== '1') {
+      return NextResponse.json(
+        {
+          error: `Unsupported API version: v${versionMatch[1]}`,
+          supportedVersions: ['v1'],
+        },
+        { status: 400 }
+      )
+    }
+
+    // Existing unversioned API routes continue to work unchanged.
+    return NextResponse.next()
+  }
+
   const response = NextResponse.next()
 
   // Get session cookie
@@ -57,7 +85,7 @@ export async function middleware(request: NextRequest) {
     }
   } catch (error) {
     // If we can't decode the session, let the API routes handle validation
-    console.error('Middleware session check error:', error)
+    console.error('Proxy session check error:', error)
   }
 
   return response
@@ -100,12 +128,12 @@ function isProtected(pathname: string): boolean {
   return protectedPatterns.some((pattern) => pathname.startsWith(pattern))
 }
 
-// Configure which routes this middleware runs on
+// Configure which routes this proxy runs on
 export const config = {
   matcher: [
+    '/api/:path*',
     /*
      * Match all request paths except for:
-     * - api routes (handled by api-middleware)
      * - static files
      * - images
      * - favicon

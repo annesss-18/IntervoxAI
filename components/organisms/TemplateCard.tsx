@@ -1,10 +1,10 @@
 import Link from 'next/link'
-import Image from 'next/image'
-import { Building2, Users, Star, ArrowRight } from 'lucide-react'
+import { Users, Star, ArrowRight } from 'lucide-react'
 import { Card, CardContent, CardFooter } from '@/components/atoms/card'
 import { Badge } from '@/components/atoms/badge'
 import { Button } from '@/components/atoms/button'
 import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
+import CompanyLogo from '@/components/molecules/CompanyLogo'
 import type { TemplateCardData } from '@/types'
 
 interface TemplateCardProps {
@@ -20,17 +20,12 @@ export function TemplateCard({ template }: TemplateCardProps) {
         {/* Header with company logo */}
         <div className="mb-4 flex items-start gap-4">
           <div className="bg-surface-2 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl">
-            {template.companyLogoUrl ? (
-              <Image
-                src={template.companyLogoUrl}
-                alt={template.companyName}
-                width={48}
-                height={48}
-                className="object-cover"
-              />
-            ) : (
-              <Building2 className="text-muted-foreground size-6" />
-            )}
+            <CompanyLogo
+              companyName={template.companyName || 'Unknown Company'}
+              logoUrl={template.companyLogoUrl}
+              size={48}
+              className="rounded-md object-cover"
+            />
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-foreground truncate font-semibold">{template.role}</h3>

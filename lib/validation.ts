@@ -26,6 +26,10 @@ export function validateAndSanitizeURL(url: string): URL | null {
       /^169\.254\./, // link-local
       /^localhost$/i,
       /^0\.0\.0\.0$/,
+      /\.localhost$/i,
+      /\.local$/i,
+      /\.internal$/i,
+      /\.home\.arpa$/i,
     ]
 
     for (const pattern of blockedPatterns) {
@@ -33,6 +37,18 @@ export function validateAndSanitizeURL(url: string): URL | null {
         console.warn(`Blocked internal IP: ${hostname}`)
         return null
       }
+    }
+
+    // Block URLs with credentials
+    if (parsedUrl.username || parsedUrl.password) {
+      console.warn('Blocked URL with embedded credentials')
+      return null
+    }
+
+    // Allow only standard ports
+    if (parsedUrl.port && !['80', '443'].includes(parsedUrl.port)) {
+      console.warn(`Blocked non-standard port: ${parsedUrl.port}`)
+      return null
     }
 
     return parsedUrl

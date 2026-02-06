@@ -1,6 +1,6 @@
 import { getCurrentUser } from '@/lib/actions/auth.action'
 import { getFeedbackByInterviewId, getInterviewsById } from '@/lib/actions/interview.action'
-import { logger } from '@/lib/logger'
+import { FeedbackGenerationStatus } from '@/components/organisms/FeedbackGenerationStatus'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
@@ -37,9 +37,11 @@ const Page = async ({ params }: RouteParams) => {
     userId: user.id,
   })
 
-  logger.info('FEEDBACK:', feedback)
-
   if (!feedback) {
+    if (interview.status === 'completed') {
+      return <FeedbackGenerationStatus sessionId={sessionId} />
+    }
+
     return (
       <div className="animate-fadeIn mx-auto max-w-4xl p-6">
         <div className="card-border">

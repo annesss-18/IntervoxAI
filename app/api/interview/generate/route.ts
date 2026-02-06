@@ -9,6 +9,12 @@ import { InterviewTemplate, User } from '@/types'
 
 export const runtime = 'nodejs'
 
+const MAX_TECH_ITEMS = 20
+const MAX_TECH_ITEM_LENGTH = 50
+
+const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH)
+const techStackArraySchema = z.array(techStackItemSchema).max(MAX_TECH_ITEMS)
+
 // Input validation schema
 const requestSchema = z.object({
   role: z.string().min(3, 'Role must be at least 3 characters').max(100, 'Role too long'),
@@ -17,19 +23,24 @@ const requestSchema = z.object({
   level: z.enum(['Junior', 'Mid', 'Senior', 'Staff', 'Executive']),
   type: z.enum(['Technical', 'Behavioral', 'System Design', 'HR', 'Mixed']),
   jdInput: z.string().min(50, 'Job description too short').max(50000, 'Job description too long'),
-  techStack: z.string().refine(
-    (val) => {
-      try {
-        const parsed = JSON.parse(val)
-        return Array.isArray(parsed) && parsed.length <= 20
-      } catch {
-        return false
-      }
-    },
-    { message: 'Invalid tech stack format or too many items' }
-  ),
+  techStack: z.string().min(2, 'Tech stack is required'),
   isPublic: z.enum(['true', 'false']),
 })
+
+function parseAndNormalizeTechStack(raw: string): string[] {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error('Invalid tech stack format')
+  }
+
+  const validated = techStackArraySchema.parse(parsed)
+
+  const deduped = Array.from(new Set(validated.map((item) => item.trim()))).filter(Boolean)
+  return deduped
+}
 
 // Schema for AI output - Enhanced with culture analysis and persona
 // Made resilient to handle partial AI responses gracefully
@@ -127,7 +138,23 @@ export const POST = withAuth(
       }
 
       const validatedData = validation.data
-      const userTechStack = JSON.parse(validatedData.techStack)
+      let userTechStack: string[]
+      try {
+        userTechStack = parseAndNormalizeTechStack(validatedData.techStack)
+      } catch {
+        return NextResponse.json(
+          {
+            error: 'Invalid input',
+            details: [
+              {
+                field: 'techStack',
+                message: `Tech stack must be a JSON array of 1-${MAX_TECH_ITEMS} non-empty strings (max ${MAX_TECH_ITEM_LENGTH} chars each).`,
+              },
+            ],
+          },
+          { status: 400 }
+        )
+      }
 
       // 2. Generate template with AI - Enhanced deep-context analysis
       const constructedPrompt = `
@@ -205,7 +232,13 @@ Output JSON matching the schema.
         companyLogoUrl: validatedData.companyLogoUrl || undefined,
         level: validatedData.level as InterviewTemplate['level'],
         type: validatedData.type as InterviewTemplate['type'],
-        techStack: [...new Set([...userTechStack, ...generatedData.techStack])],
+        techStack: Array.from(
+          new Set(
+            [...userTechStack, ...(generatedData.techStack || [])]
+              .map((item) => String(item).trim())
+              .filter((item) => item.length > 0 && item.length <= MAX_TECH_ITEM_LENGTH)
+          )
+        ).slice(0, MAX_TECH_ITEMS),
         jobDescription: validatedData.jdInput,
         creatorId: user.id,
         isPublic: validatedData.isPublic === 'true',

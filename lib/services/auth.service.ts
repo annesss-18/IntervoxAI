@@ -13,9 +13,12 @@ export const AuthService = {
     if (!validation.success) {
       throw new Error('Invalid input data')
     }
-    const { uid, name, email } = validation.data
+    const { uid, name, email, idToken } = validation.data
 
     await UserRepository.createTransactionally(uid, { name, email })
+    if (idToken) {
+      await this.setSessionCookie(idToken)
+    }
     return { success: true }
   },
 

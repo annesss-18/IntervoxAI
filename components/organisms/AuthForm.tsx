@@ -14,7 +14,7 @@ import {
   updateProfile,
 } from 'firebase/auth'
 import { auth } from '@/firebase/client'
-import { signIn, signUp } from '@/lib/actions/auth.action'
+import { googleAuthenticate, signIn, signUp } from '@/lib/actions/auth.action'
 import { toast } from 'sonner'
 import { Loader2, Mail, Lock, User, Chrome } from 'lucide-react'
 import { Button } from '@/components/atoms/button'
@@ -88,11 +88,13 @@ export function AuthForm({ type }: AuthFormProps) {
         const { name, email, password } = data as SignUpFormData
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
         await updateProfile(userCredential.user, { displayName: name })
+        const idToken = await userCredential.user.getIdToken()
 
         const result = await signUp({
           uid: userCredential.user.uid,
           name,
           email,
+          idToken,
         })
 
         if (!result.success) {
@@ -123,10 +125,11 @@ export function AuthForm({ type }: AuthFormProps) {
       const user = userCredential.user
       const result = isSignIn
         ? await signIn({ email: user.email!, idToken })
-        : await signUp({
+        : await googleAuthenticate({
             uid: user.uid,
             name: user.displayName || 'User',
             email: user.email!,
+            idToken,
           })
 
       if (!result.success) {
@@ -161,8 +164,9 @@ export function AuthForm({ type }: AuthFormProps) {
       <CardContent className="space-y-6">
         {/* Google Auth */}
         <Button
+          type="button"
           variant="outline"
-          className="w-full"
+          className="relative z-10 w-full"
           onClick={handleGoogleAuth}
           disabled={isGoogleLoading || isLoading}
         >

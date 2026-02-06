@@ -1,11 +1,11 @@
 import Link from 'next/link'
-import Image from 'next/image'
-import { Building2, Calendar, ArrowRight, Play } from 'lucide-react'
+import { Calendar, ArrowRight, Play } from 'lucide-react'
 import { Card, CardContent, CardFooter } from '@/components/atoms/card'
 import { Badge } from '@/components/atoms/badge'
 import { Button } from '@/components/atoms/button'
 import { ScoreRing } from '@/components/atoms/progress'
 import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
+import CompanyLogo from '@/components/molecules/CompanyLogo'
 import type { SessionCardData } from '@/types'
 
 interface SessionCardProps {
@@ -28,17 +28,12 @@ export function SessionCard({ session }: SessionCardProps) {
         {/* Header with company logo */}
         <div className="mb-4 flex items-start gap-4">
           <div className="bg-surface-2 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl">
-            {session.companyLogoUrl ? (
-              <Image
-                src={session.companyLogoUrl}
-                alt={session.companyName}
-                width={48}
-                height={48}
-                className="object-cover"
-              />
-            ) : (
-              <Building2 className="text-muted-foreground size-6" />
-            )}
+            <CompanyLogo
+              companyName={session.companyName || 'Unknown Company'}
+              logoUrl={session.companyLogoUrl}
+              size={48}
+              className="rounded-md object-cover"
+            />
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-foreground truncate font-semibold">{session.role}</h3>

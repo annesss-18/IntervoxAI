@@ -2,10 +2,16 @@
 import * as cheerio from 'cheerio'
 import { URL } from 'url'
 import { extractText } from 'unpdf'
+import mammoth from 'mammoth'
+import dns from 'node:dns/promises'
+import net from 'node:net'
 import { logger } from '@/lib/logger'
 
 const MAX_RESUME_SIZE_MB = 5
 const MAX_TEXT_LENGTH = 50000
+const ALLOWED_PROTOCOLS = ['http:', 'https:']
+const ALLOWED_HTTP_PORTS = new Set(['80', '443'])
+const DNS_REBINDING_CHECK_DELAY_MS = 50
 
 const BLOCKED_HOSTS = [
   '127.0.0.1',
@@ -15,23 +21,135 @@ const BLOCKED_HOSTS = [
   '::1',
   'metadata.google.internal',
 ]
+const BLOCKED_HOST_SUFFIXES = ['.localhost', '.local', '.internal', '.home.arpa']
 
-const PRIVATE_IP_RANGES = [
-  /^10\./,
-  /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-  /^192\.168\./,
-  /^fc00:/,
-  /^fe80:/,
-]
+function isPrivateOrSpecialIPv4(ip: string): boolean {
+  const octets = ip.split('.').map((part) => Number.parseInt(part, 10))
+  if (octets.length !== 4 || octets.some((octet) => Number.isNaN(octet))) return true
 
-function isPrivateOrLocalhost(hostname: string): boolean {
-  if (BLOCKED_HOSTS.includes(hostname.toLowerCase())) {
-    return true
-  }
-  return PRIVATE_IP_RANGES.some((regex) => regex.test(hostname))
+  const [a, b] = octets as [number, number, number, number]
+  if (a === 10 || a === 127 || a === 0) return true
+  if (a === 169 && b === 254) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 168) return true
+  if (a === 100 && b >= 64 && b <= 127) return true // carrier-grade NAT
+  if (a === 198 && (b === 18 || b === 19)) return true // benchmark/testing
+  if (a >= 224) return true // multicast/reserved
+  return false
 }
 
-const ALLOWED_PROTOCOLS = ['http:', 'https:']
+function isPrivateOrSpecialIPv6(ip: string): boolean {
+  const normalized = ip.toLowerCase()
+  return (
+    normalized === '::1' ||
+    normalized === '::' ||
+    normalized.startsWith('fc') ||
+    normalized.startsWith('fd') ||
+    normalized.startsWith('fe80') ||
+    normalized.startsWith('ff')
+  )
+}
+
+function isPrivateOrLocalhost(hostname: string): boolean {
+  const normalizedHost = hostname.toLowerCase()
+  if (BLOCKED_HOSTS.includes(normalizedHost)) return true
+  if (BLOCKED_HOST_SUFFIXES.some((suffix) => normalizedHost.endsWith(suffix))) return true
+
+  const ipVersion = net.isIP(normalizedHost)
+  if (ipVersion === 4) return isPrivateOrSpecialIPv4(normalizedHost)
+  if (ipVersion === 6) return isPrivateOrSpecialIPv6(normalizedHost)
+
+  return false
+}
+
+function assertAllowedUrlComponents(targetUrl: URL): void {
+  if (!ALLOWED_PROTOCOLS.includes(targetUrl.protocol)) {
+    throw new Error('Only HTTP and HTTPS URLs are allowed.')
+  }
+
+  if (targetUrl.username || targetUrl.password) {
+    throw new Error('URLs with embedded credentials are not allowed.')
+  }
+
+  if (targetUrl.port && !ALLOWED_HTTP_PORTS.has(targetUrl.port)) {
+    throw new Error('Only standard HTTP/HTTPS ports are allowed.')
+  }
+}
+
+async function assertPublicHostname(hostname: string): Promise<void> {
+  if (isPrivateOrLocalhost(hostname)) {
+    throw new Error('Access to private networks and localhost is not allowed.')
+  }
+
+  if (net.isIP(hostname)) return
+
+  let firstLookup: Array<{ address: string; family: number }>
+  let secondLookup: Array<{ address: string; family: number }>
+  try {
+    firstLookup = await dns.lookup(hostname, { all: true, verbatim: true })
+    await new Promise((resolve) => setTimeout(resolve, DNS_REBINDING_CHECK_DELAY_MS))
+    secondLookup = await dns.lookup(hostname, { all: true, verbatim: true })
+  } catch {
+    throw new Error('Unable to resolve hostname. Please provide a reachable public URL.')
+  }
+
+  const resolvedAddresses = [...firstLookup, ...secondLookup]
+
+  if (resolvedAddresses.length === 0) {
+    throw new Error('Unable to resolve hostname. Please provide a reachable public URL.')
+  }
+
+  for (const resolved of resolvedAddresses) {
+    if (isPrivateOrLocalhost(resolved.address)) {
+      throw new Error('Resolved URL points to a private network and is not allowed.')
+    }
+  }
+}
+
+async function fetchWithSafeRedirects(parsedUrl: URL): Promise<Response> {
+  const maxRedirects = 5
+  const deadline = Date.now() + 10000
+  let currentUrl = parsedUrl
+
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    assertAllowedUrlComponents(currentUrl)
+    await assertPublicHostname(currentUrl.hostname)
+
+    const remainingMs = deadline - Date.now()
+    if (remainingMs <= 0) {
+      throw new Error('URL request timed out (max 10 seconds). The page may be slow or unreachable.')
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), remainingMs)
+
+    const response = await fetch(currentUrl.toString(), {
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; IntervoxAI/1.0; +https://intervoxai.com)',
+      },
+    })
+    clearTimeout(timeout)
+
+    if (response.status >= 300 && response.status < 400) {
+      const locationHeader = response.headers.get('location')
+      if (!locationHeader) {
+        throw new Error('Redirect response missing location header.')
+      }
+
+      const redirectedUrl = new URL(locationHeader, currentUrl)
+      assertAllowedUrlComponents(redirectedUrl)
+
+      currentUrl = redirectedUrl
+      continue
+    }
+
+    return response
+  }
+
+  throw new Error('Too many redirects while fetching URL.')
+}
 
 /**
  * Extract text from PDF using the unpdf library
@@ -77,22 +195,11 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
  */
 async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
   try {
-    // For DOCX, we'll convert to string and extract text from XML
-    const content = buffer.toString('utf-8')
-
-    // DOCX files contain text in <w:t> tags
-    const textMatches = content.match(/<w:t[^>]*>([^<]+)<\/w:t>/g)
-
-    if (!textMatches || textMatches.length === 0) {
-      throw new Error('No text found in DOCX file. The file may be corrupted.')
-    }
-
-    const extractedText = textMatches
-      .map((match) => {
-        const textContent = match.match(/>([^<]+)</)
-        return textContent ? textContent[1] : ''
-      })
-      .join(' ')
+    const { value } = await mammoth.extractRawText({ buffer })
+    const extractedText = value
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
       .replace(/\s+/g, ' ')
       .trim()
 
@@ -145,6 +252,11 @@ export async function extractTextFromFile(
       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       file.name.toLowerCase().endsWith('.docx')
     ) {
+      const docxMagic = buffer.slice(0, 2).toString()
+      if (docxMagic !== 'PK') {
+        throw new Error('File is not a valid DOCX document. Please upload a genuine DOCX file.')
+      }
+
       const text = await extractTextFromDOCX(buffer)
 
       if (text.length > MAX_TEXT_LENGTH) {
@@ -187,25 +299,9 @@ export async function extractTextFromUrl(url: string): Promise<string> {
       throw new Error('Invalid URL format. Please provide a valid HTTP or HTTPS URL.')
     }
 
-    if (!ALLOWED_PROTOCOLS.includes(parsedUrl.protocol)) {
-      throw new Error('Only HTTP and HTTPS URLs are allowed.')
-    }
-
-    if (isPrivateOrLocalhost(parsedUrl.hostname)) {
-      throw new Error('Access to private networks and localhost is not allowed.')
-    }
-
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 10000)
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; IntervoxAI/1.0; +https://intervoxai.com)',
-      },
-    })
-
-    clearTimeout(timeout)
+    assertAllowedUrlComponents(parsedUrl)
+    await assertPublicHostname(parsedUrl.hostname)
+    const response = await fetchWithSafeRedirects(parsedUrl)
 
     if (!response.ok) {
       throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`)

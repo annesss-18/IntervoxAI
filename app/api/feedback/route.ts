@@ -1,32 +1,35 @@
-// app/api/feedback/route.ts (UPDATED)
 import { NextRequest, NextResponse } from 'next/server'
-import { createFeedback } from '@/lib/actions/interview.action'
-import { withAuth } from '@/lib/api-middleware'
 import { db } from '@/firebase/admin'
+import { withAuth } from '@/lib/api-middleware'
+import { FeedbackRepository } from '@/lib/repositories/feedback.repository'
 import { logger } from '@/lib/logger'
 import type { User } from '@/types'
 import { z } from 'zod'
 
-// Input validation
-const feedbackRequestSchema = z.object({
-  interviewId: z.string().min(1, 'Interview ID required'),
-  transcript: z
-    .array(
-      z.object({
-        role: z.string(),
-        content: z.string(),
-      })
-    )
-    .min(1, 'Transcript cannot be empty'),
+const transcriptEntrySchema = z.object({
+  role: z.string().trim().min(1).max(40),
+  content: z.string().trim().min(1).max(2000),
 })
+
+const feedbackQueueSchema = z.object({
+  interviewId: z.string().min(1, 'Interview ID required'),
+  transcript: z.array(transcriptEntrySchema).min(1, 'Transcript cannot be empty').max(300),
+})
+
+function normalizeTranscript(transcript: z.infer<typeof transcriptEntrySchema>[]) {
+  return transcript
+    .map((entry) => ({
+      role: entry.role.trim().slice(0, 40),
+      content: entry.content.replace(/\s+/g, ' ').trim(),
+    }))
+    .filter((entry) => entry.content.length > 0)
+}
 
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
     try {
       const body = await req.json()
-
-      // Validate input
-      const validation = feedbackRequestSchema.safeParse(body)
+      const validation = feedbackQueueSchema.safeParse(body)
 
       if (!validation.success) {
         return NextResponse.json(
@@ -38,32 +41,76 @@ export const POST = withAuth(
         )
       }
 
-      const { interviewId, transcript } = validation.data
+      const { interviewId } = validation.data
+      const transcript = normalizeTranscript(validation.data.transcript)
 
-      // Create feedback
-      const result = await createFeedback({
-        interviewId,
-        userId: user.id,
-        transcript,
-      })
-
-      if (result.success && 'feedbackId' in result) {
-        // Mark session as completed and save transcript
-        try {
-          await db.collection('interview_sessions').doc(interviewId).update({
-            status: 'completed',
-            completedAt: new Date().toISOString(),
-            feedbackId: result.feedbackId,
-            transcript: transcript, // Store full transcript in session
-          })
-        } catch (updateError) {
-          logger.warn('Failed to update session status:', updateError)
-        }
+      if (transcript.length === 0) {
+        return NextResponse.json(
+          {
+            error: 'Invalid input',
+            details: [{ message: 'Transcript cannot be empty' }],
+          },
+          { status: 400 }
+        )
       }
 
-      return NextResponse.json(result)
+      const sessionRef = db.collection('interview_sessions').doc(interviewId)
+      const sessionDoc = await sessionRef.get()
+
+      if (!sessionDoc.exists) {
+        return NextResponse.json({ error: 'Interview session not found' }, { status: 404 })
+      }
+
+      const sessionData = sessionDoc.data()
+      if (sessionData?.userId !== user.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      }
+
+      const now = new Date().toISOString()
+      const existingFeedback = await FeedbackRepository.findByInterviewId(interviewId, user.id)
+
+      if (existingFeedback) {
+        await sessionRef.update({
+          status: 'completed',
+          completedAt: sessionData?.completedAt || now,
+          transcript,
+          feedbackId: existingFeedback.id,
+          finalScore: existingFeedback.totalScore,
+          feedbackStatus: 'completed',
+          feedbackError: null,
+          feedbackCompletedAt: now,
+        })
+
+        return NextResponse.json({
+          success: true,
+          queued: false,
+          status: 'completed',
+          feedbackId: existingFeedback.id,
+          reused: true,
+        })
+      }
+
+      const queuedStatus = sessionData?.feedbackStatus === 'processing' ? 'processing' : 'pending'
+
+      await sessionRef.update({
+        status: 'completed',
+        completedAt: sessionData?.completedAt || now,
+        transcript,
+        feedbackStatus: queuedStatus,
+        feedbackError: null,
+        feedbackRequestedAt: now,
+      })
+
+      return NextResponse.json(
+        {
+          success: true,
+          queued: true,
+          status: queuedStatus,
+        },
+        { status: queuedStatus === 'processing' ? 200 : 202 }
+      )
     } catch (error) {
-      console.error('API /feedback error:', error)
+      logger.error('API /feedback queue error:', error)
       return NextResponse.json(
         {
           success: false,
@@ -74,7 +121,7 @@ export const POST = withAuth(
     }
   },
   {
-    maxRequests: 10,
+    maxRequests: 20,
     windowMs: 60 * 1000,
   }
 )

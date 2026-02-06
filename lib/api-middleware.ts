@@ -5,14 +5,31 @@ import { checkRateLimit, RateLimitConfig } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger'
 import type { User } from '@/types'
 
+function getRequestScope(req: NextRequest): string {
+  return `${req.method}:${req.nextUrl.pathname}`
+}
+
+function getClientIp(req: NextRequest): string {
+  const forwardedFor = req.headers.get('x-forwarded-for')
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(',')[0]?.trim()
+    if (firstIp) return firstIp
+  }
+
+  const realIp = req.headers.get('x-real-ip')?.trim()
+  if (realIp) return realIp
+
+  return 'unknown'
+}
+
 /**
  * Authentication middleware
  */
-export function withAuth(
-  handler: (req: NextRequest, user: User) => Promise<Response>,
+export function withAuth<TArgs extends unknown[]>(
+  handler: (req: NextRequest, user: User, ...args: TArgs) => Promise<Response>,
   rateLimitConfig?: RateLimitConfig
 ) {
-  return async (req: NextRequest): Promise<Response> => {
+  return async (req: NextRequest, ...args: TArgs): Promise<Response> => {
     // 1. Check authentication
     const user = await getCurrentUser()
 
@@ -22,7 +39,8 @@ export function withAuth(
 
     // 2. Check rate limiting (if configured)
     if (rateLimitConfig) {
-      const rateLimit = await checkRateLimit(user.id, rateLimitConfig)
+      const identifier = `${user.id}:${getRequestScope(req)}`
+      const rateLimit = await checkRateLimit(identifier, rateLimitConfig)
 
       if (!rateLimit.allowed) {
         const retryAfter = Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
@@ -47,32 +65,34 @@ export function withAuth(
       }
 
       // Add rate limit headers to successful responses
-      const response = await handler(req, user)
+      const response = await handler(req, user, ...args)
 
       response.headers.set('X-RateLimit-Limit', rateLimitConfig.maxRequests?.toString() || '10')
       response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
       response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString())
+      response.headers.set('X-RateLimit-Scope', getRequestScope(req))
 
       return response
     }
 
     // No rate limiting - just authenticate
-    return handler(req, user)
+    return handler(req, user, ...args)
   }
 }
 
 /**
  * Apply rate limiting without authentication
  */
-export function withRateLimit(
-  handler: (req: NextRequest) => Promise<Response>,
+export function withRateLimit<TArgs extends unknown[]>(
+  handler: (req: NextRequest, ...args: TArgs) => Promise<Response>,
   config: RateLimitConfig = {}
 ) {
-  return async (req: NextRequest): Promise<Response> => {
+  return async (req: NextRequest, ...args: TArgs): Promise<Response> => {
     // Use IP address as identifier
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+    const ip = getClientIp(req)
+    const identifier = `${ip}:${getRequestScope(req)}`
 
-    const rateLimit = await checkRateLimit(ip, config)
+    const rateLimit = await checkRateLimit(identifier, config)
 
     if (!rateLimit.allowed) {
       const retryAfter = Math.ceil((rateLimit.resetTime - Date.now()) / 1000)
@@ -93,14 +113,15 @@ export function withRateLimit(
             'X-RateLimit-Reset': new Date(rateLimit.resetTime).toISOString(),
           },
         }
-      )
-    }
+        )
+      }
 
-    const response = await handler(req)
+    const response = await handler(req, ...args)
 
     response.headers.set('X-RateLimit-Limit', config.maxRequests?.toString() || '10')
     response.headers.set('X-RateLimit-Remaining', rateLimit.remaining.toString())
     response.headers.set('X-RateLimit-Reset', new Date(rateLimit.resetTime).toISOString())
+    response.headers.set('X-RateLimit-Scope', getRequestScope(req))
 
     return response
   }
@@ -109,8 +130,8 @@ export function withRateLimit(
 /**
  * Combined middleware with both auth and rate limiting
  */
-export function withAuthAndRateLimit(
-  handler: (req: NextRequest, user: User) => Promise<Response>,
+export function withAuthAndRateLimit<TArgs extends unknown[]>(
+  handler: (req: NextRequest, user: User, ...args: TArgs) => Promise<Response>,
   rateLimitConfig: RateLimitConfig = {}
 ) {
   return withAuth(handler, rateLimitConfig)

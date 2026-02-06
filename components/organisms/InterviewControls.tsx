@@ -1,7 +1,9 @@
 'use client'
 
-import { Mic, MicOff, PhoneOff, Loader2, Clock, Signal } from 'lucide-react'
+import { Mic, MicOff, PhoneOff, Loader2, Clock } from 'lucide-react'
 import type { ConnectionStatus } from '@/lib/hooks/useLiveInterview'
+import { Badge } from '@/components/atoms/badge'
+import { Button } from '@/components/atoms/button'
 import { cn } from '@/lib/utils'
 
 interface InterviewControlsProps {
@@ -20,8 +22,7 @@ interface InterviewControlsProps {
 }
 
 /**
- * Premium floating dock for active interview controls.
- * Centered at the bottom of the screen with glass effect.
+ * Primary controls for an active interview session.
  */
 export function InterviewControls({
   connectionStatus,
@@ -38,78 +39,56 @@ export function InterviewControls({
   }
 
   const sessionTimeWarning = elapsedTime >= 840 // 14 minutes
+  const statusVariant =
+    connectionStatus === 'connected'
+      ? 'success'
+      : connectionStatus === 'connecting'
+        ? 'warning'
+        : 'error'
 
   return (
-    <div className="animate-slideInUp flex w-full items-center justify-center p-6">
-      <div className="bg-surface-900/60 hover:bg-surface-900/70 hover:shadow-primary/5 flex items-center gap-4 rounded-full border border-white/10 px-6 py-4 shadow-2xl backdrop-blur-xl transition-all hover:scale-[1.01]">
-        {/* Connection Status Indicator */}
-        <div
-          className={cn(
-            'flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-            connectionStatus === 'connected'
-              ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
-              : 'border-amber-500/20 bg-amber-500/10 text-amber-400'
-          )}
-          title={`Connection: ${connectionStatus}`}
-        >
+    <div className="mt-4 w-full">
+      <div className="border-border/70 bg-card/90 mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 shadow-lg backdrop-blur">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <Badge variant={statusVariant} dot className="capitalize">
+            {connectionStatus}
+          </Badge>
+
           <div
             className={cn(
-              'size-1.5 rounded-full',
-              connectionStatus === 'connected'
-                ? 'animate-pulse bg-emerald-500'
-                : 'animate-pulse bg-amber-500'
+              'border-border/70 bg-surface-1 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-sm',
+              sessionTimeWarning && 'text-warning-500'
             )}
-          />
-          <span className="hidden capitalize sm:inline">{connectionStatus}</span>
-          <Signal className="size-3 sm:hidden" />
+          >
+            <Clock className="size-4 opacity-75" />
+            <span>{formatTime(elapsedTime)}</span>
+          </div>
         </div>
 
-        {/* Vertical Divider */}
-        <div className="mx-1 h-8 w-px bg-white/10" />
-
-        {/* Timer */}
-        <div
-          className={cn(
-            'flex items-center gap-2 px-2 font-mono text-sm transition-colors',
-            sessionTimeWarning ? 'animate-pulse text-amber-400' : 'text-white/80'
-          )}
-        >
-          <Clock className="size-4 opacity-70" />
-          <span>{formatTime(elapsedTime)}</span>
-        </div>
-
-        {/* Vertical Divider */}
-        <div className="mx-1 h-8 w-px bg-white/10" />
-
-        <div className="flex items-center gap-3">
-          {/* Mute Button */}
-          <button
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Button
             onClick={onToggleMute}
             disabled={connectionStatus !== 'connected'}
-            className={cn(
-              'relative flex size-12 transform items-center justify-center rounded-full transition-all duration-300 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50',
-              isMuted
-                ? 'border border-red-500/30 bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                : 'border border-white/10 bg-white/5 text-white hover:border-white/20 hover:bg-white/10'
-            )}
+            variant={isMuted ? 'destructive' : 'secondary'}
+            size="icon"
             aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
           >
-            {isMuted ? <MicOff className="size-5" /> : <Mic className="size-5" />}
-          </button>
+            {isMuted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+          </Button>
 
-          {/* End Call Button */}
-          <button
+          <Button
             onClick={onEndInterview}
             disabled={isSubmitting}
-            className="group flex transform items-center gap-2 rounded-full bg-red-600 px-5 py-3 font-medium text-white shadow-lg shadow-red-900/20 transition-all duration-300 hover:bg-red-500 active:scale-95 disabled:cursor-not-allowed disabled:opacity-70"
+            variant="destructive"
+            className="min-w-[138px]"
           >
             {isSubmitting ? (
-              <Loader2 className="size-5 animate-spin" />
+              <Loader2 className="size-4 animate-spin" />
             ) : (
-              <PhoneOff className="size-5 transition-transform duration-300 group-hover:rotate-90" />
+              <PhoneOff className="size-4" />
             )}
-            <span className="hidden sm:inline">End</span>
-          </button>
+            <span>End Interview</span>
+          </Button>
         </div>
       </div>
     </div>

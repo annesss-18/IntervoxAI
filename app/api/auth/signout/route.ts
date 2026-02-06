@@ -1,7 +1,8 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { withRateLimit } from '@/lib/api-middleware'
 
-export async function POST() {
+export const POST = withRateLimit(async () => {
   try {
     const cookieStore = await cookies()
     cookieStore.delete('session')
@@ -10,4 +11,7 @@ export async function POST() {
     console.error('Sign out error:', error)
     return NextResponse.json({ error: 'Failed to sign out' }, { status: 500 })
   }
-}
+}, {
+  maxRequests: 30,
+  windowMs: 60 * 1000,
+})

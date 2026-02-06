@@ -1,7 +1,7 @@
 import { db } from '@/firebase/admin'
-import { InterviewTemplate, TemplateCardData } from '@/types'
+import { InterviewTemplate } from '@/types'
 import { logger } from '@/lib/logger'
-import { unstable_cache, revalidateTag } from 'next/cache'
+import { unstable_cache } from 'next/cache'
 import { FieldPath } from 'firebase-admin/firestore'
 
 const CACHE_REVALIDATE_SECONDS = 300 // 5 minutes

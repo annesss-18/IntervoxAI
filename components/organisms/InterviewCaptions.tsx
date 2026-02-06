@@ -1,6 +1,6 @@
 'use client'
 
-import { MicOff, User, Sparkles } from 'lucide-react'
+import { MicOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface InterviewCaptionsProps {
@@ -10,68 +10,84 @@ interface InterviewCaptionsProps {
   currentSpeaker: 'user' | 'model' | null
   /** Whether the microphone is muted */
   isMuted: boolean
+  /** Panel this caption belongs to */
+  focus: 'user' | 'model'
+  /** Last known caption fallback for this panel */
+  fallbackCaption?: string | null
+  /** Extra className */
+  className?: string
+}
+
+function getDisplayCaption(text: string, maxChars: number = 280): string {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+
+  if (normalized.length <= maxChars) {
+    return normalized
+  }
+
+  const tail = normalized.slice(-maxChars)
+  const sentenceBreakIndex = tail.search(/[.!?]\s/)
+
+  if (sentenceBreakIndex > 0 && sentenceBreakIndex < tail.length - 32) {
+    return `...${tail.slice(sentenceBreakIndex + 2)}`
+  }
+
+  return `...${tail}`
 }
 
 /**
- * Cinematic subtitles for the interview.
- * Minimalist design with good readability.
+ * Caption panel for one interview participant.
  */
 export function InterviewCaptions({
   currentCaption,
   currentSpeaker,
   isMuted,
+  focus,
+  fallbackCaption,
+  className,
 }: InterviewCaptionsProps) {
-  // Show muted warning if muted and no caption
-  if (isMuted && !currentCaption) {
-    return (
-      <div className="animate-fadeIn pb-4">
-        <div className="bg-surface-800/80 inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 shadow-lg backdrop-blur-md">
-          <MicOff className="size-4 text-red-400" />
-          <span className="text-sm font-medium text-white/80">Microphone is muted</span>
-        </div>
-      </div>
-    )
-  }
+  const isUserPanel = focus === 'user'
+  const isLiveSpeaker = currentSpeaker === focus && !!currentCaption
+  const activeText = isLiveSpeaker ? currentCaption : fallbackCaption
+  const displayCaption = activeText ? getDisplayCaption(activeText) : ''
 
-  // No caption to show
-  if (!currentCaption) {
-    return <div className="min-h-[80px]" /> // Spacer to prevent layout jumps
-  }
+  let placeholder = isUserPanel
+    ? 'Your response will appear here as you speak.'
+    : 'The interviewer prompt will appear here.'
 
-  const isAI = currentSpeaker === 'model'
+  if (isUserPanel && isMuted) {
+    placeholder = 'Microphone is muted. Unmute to respond.'
+  }
 
   return (
-    <div className="animate-slideInUp mx-auto w-full max-w-4xl pb-4">
-      <div
-        className={cn(
-          'relative overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl transition-all duration-300',
-          isAI
-            ? 'bg-surface-900/90 border-indigo-500/30'
-            : 'bg-surface-900/90 border-emerald-500/30'
-        )}
-      >
-        <div className="p-6 text-center">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/5 bg-white/5 px-3 py-1">
-            {isAI ? (
-              <Sparkles className="size-3 text-indigo-400" />
-            ) : (
-              <User className="size-3 text-emerald-400" />
-            )}
-            <span
-              className={cn(
-                'text-xs font-bold tracking-wider uppercase',
-                isAI ? 'text-indigo-400' : 'text-emerald-400'
-              )}
-            >
-              {isAI ? 'Interviewer' : 'You'}
-            </span>
-          </div>
-
-          <p className="text-xl leading-relaxed font-medium tracking-wide text-balance text-white/95 md:text-2xl">
-            &quot;{currentCaption}&quot;
-          </p>
-        </div>
+    <div
+      className={cn(
+        'border-border/70 bg-surface-2/40 rounded-xl border px-4 py-3 transition-colors',
+        isLiveSpeaker && 'border-primary/35 bg-primary/5',
+        className
+      )}
+    >
+      <div className="mb-2 flex justify-end">
+        <span
+          className={cn(
+            'text-muted-foreground text-[11px] font-medium',
+            isLiveSpeaker && 'text-primary'
+          )}
+        >
+          {isLiveSpeaker ? 'Live' : 'Recent'}
+        </span>
       </div>
+
+      {displayCaption ? (
+        <p className="custom-scrollbar text-foreground/90 max-h-[92px] overflow-y-auto pr-1 text-sm leading-relaxed">
+          {displayCaption}
+        </p>
+      ) : (
+        <div className="flex min-h-[56px] items-center gap-2.5">
+          {isUserPanel && isMuted && <MicOff className="text-error-500 size-4 shrink-0" />}
+          <p className="text-muted-foreground text-sm">{placeholder}</p>
+        </div>
+      )}
     </div>
   )
 }

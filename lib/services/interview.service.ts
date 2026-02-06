@@ -4,9 +4,7 @@ import { FeedbackRepository } from '@/lib/repositories/feedback.repository'
 import {
   SessionCardData,
   Interview,
-  Feedback,
   CreateFeedbackParams,
-  InterviewTemplate,
   TemplateCardData,
 } from '@/types'
 import { logger } from '@/lib/logger'
@@ -41,6 +39,45 @@ async function withRetry<T>(
 
   logger.error(`${operationName} failed after ${maxRetries} attempts`)
   throw lastError
+}
+
+const MAX_TRANSCRIPT_TURNS_FOR_FEEDBACK = 120
+const MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK = 18000
+
+function compactTranscriptForFeedback(
+  transcript: { role: string; content: string }[]
+): { formattedTranscript: string; wasCompacted: boolean } {
+  const normalized = transcript
+    .map((sentence) => ({
+      role: sentence.role.trim().slice(0, 30) || 'Unknown',
+      content: sentence.content.replace(/\s+/g, ' ').trim(),
+    }))
+    .filter((sentence) => sentence.content.length > 0)
+
+  const slicedByTurns =
+    normalized.length > MAX_TRANSCRIPT_TURNS_FOR_FEEDBACK
+      ? normalized.slice(-MAX_TRANSCRIPT_TURNS_FOR_FEEDBACK)
+      : normalized
+
+  const baseTranscript = slicedByTurns
+    .map((sentence) => `-${sentence.role}: ${sentence.content}`)
+    .join('\n')
+
+  if (baseTranscript.length <= MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK) {
+    const wasCompacted =
+      normalized.length !== transcript.length || slicedByTurns.length !== normalized.length
+    return { formattedTranscript: baseTranscript, wasCompacted }
+  }
+
+  const headSize = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.45)
+  const tailSize = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.45)
+  const head = baseTranscript.slice(0, headSize)
+  const tail = baseTranscript.slice(-tailSize)
+  const omitted = baseTranscript.length - head.length - tail.length
+
+  const compacted = `${head}\n...[transcript compacted: ${omitted} characters omitted for token budget]...\n${tail}`
+
+  return { formattedTranscript: compacted, wasCompacted: true }
 }
 
 export const InterviewService = {
@@ -164,11 +201,49 @@ export const InterviewService = {
   async createFeedback(params: CreateFeedbackParams) {
     const { interviewId, userId, transcript } = params
 
-    const formattedTranscript = transcript
-      .map(
-        (sentence: { role: string; content: string }) => `-${sentence.role}: ${sentence.content}`
+    const session = await InterviewRepository.findById(interviewId)
+    if (!session) {
+      throw new Error('Interview session not found')
+    }
+    if (session.userId !== userId) {
+      logger.warn(`Unauthorized feedback generation attempt for session ${interviewId} by ${userId}`)
+      throw new Error('Unauthorized to access this interview session')
+    }
+
+    const existingFeedback = await FeedbackRepository.findByInterviewId(interviewId, userId)
+    if (existingFeedback) {
+      const now = new Date().toISOString()
+
+      if (
+        session.status !== 'completed' ||
+        session.feedbackId !== existingFeedback.id ||
+        session.finalScore !== existingFeedback.totalScore ||
+        session.feedbackStatus !== 'completed' ||
+        !!session.feedbackError
+      ) {
+        await InterviewRepository.update(interviewId, {
+          status: 'completed',
+          completedAt: session.completedAt || now,
+          feedbackId: existingFeedback.id,
+          finalScore: existingFeedback.totalScore,
+          feedbackStatus: 'completed',
+          feedbackError: null,
+          feedbackCompletedAt: session.feedbackCompletedAt || now,
+          feedbackRequestedAt: session.feedbackRequestedAt || now,
+          transcript,
+        })
+      }
+
+      return { success: true, feedbackId: existingFeedback.id, reused: true }
+    }
+
+    const { formattedTranscript, wasCompacted } = compactTranscriptForFeedback(transcript)
+
+    if (wasCompacted) {
+      logger.info(
+        `Transcript compacted for feedback generation (session ${interviewId}) to reduce token usage`
       )
-      .join('\n')
+    }
 
     logger.info(`Generating feedback for interview ${interviewId}...`)
 
@@ -256,17 +331,34 @@ HIRING RECOMMENDATION: Strong No, No, Lean No, Lean Yes, Yes, Strong Yes
       createdAt: new Date().toISOString(),
     })
 
-    // Update session score
+    const completionTimestamp = new Date().toISOString()
+
+    // Update session score and feedback processing metadata
     await InterviewRepository.update(interviewId, {
       finalScore: validatedFeedback.totalScore,
       feedbackId: feedbackId,
+      status: 'completed',
+      completedAt: completionTimestamp,
+      feedbackStatus: 'completed',
+      feedbackError: null,
+      feedbackCompletedAt: completionTimestamp,
+      feedbackRequestedAt: session.feedbackRequestedAt || completionTimestamp,
+      transcript,
     })
 
     return { success: true, feedbackId }
   },
 
-  async getTemplateById(id: string) {
-    return await TemplateRepository.findById(id)
+  async getTemplateById(id: string, userId?: string) {
+    const template = await TemplateRepository.findById(id)
+    if (!template) return null
+
+    if (!template.isPublic && template.creatorId !== userId) {
+      logger.warn(`Unauthorized access to private template ${id} by user ${userId || 'anonymous'}`)
+      return null
+    }
+
+    return template
   },
 
   async getFeedbackByInterviewId(params: { interviewId: string; userId: string }) {

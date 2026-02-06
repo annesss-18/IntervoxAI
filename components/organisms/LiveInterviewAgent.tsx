@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useCallback, useState, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
+import { AlertCircle, Briefcase, User2 } from 'lucide-react'
 import { useLiveInterview } from '@/lib/hooks/useLiveInterview'
 import { useAudioCapture } from '@/lib/hooks/useAudioCapture'
 import { useAudioPlayback } from '@/lib/hooks/useAudioPlayback'
 import { logger } from '@/lib/logger'
-import { AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/atoms/badge'
+import { Button } from '@/components/atoms/button'
 import type { Interview } from '@/types'
-
-// Extracted organisms
 import { InterviewSetupCard } from '@/components/organisms/InterviewSetupCard'
 import { InterviewControls } from '@/components/organisms/InterviewControls'
 import { SpeakerIndicator } from '@/components/organisms/SpeakerIndicator'
@@ -19,16 +19,15 @@ import { InterviewCaptions } from '@/components/organisms/InterviewCaptions'
 interface LiveInterviewAgentProps {
   interview: Interview
   sessionId: string
-  userId: string
 }
 
 type InterviewPhase = 'setup' | 'active' | 'ending' | 'completed'
 
 /**
  * Main orchestrator component for live AI interviews.
- * Manages interview phases and coordinates between extracted organisms.
+ * Manages interview phases and coordinates visual components.
  */
-export function LiveInterviewAgent({ interview, sessionId, userId }: LiveInterviewAgentProps) {
+export function LiveInterviewAgent({ interview, sessionId }: LiveInterviewAgentProps) {
   const router = useRouter()
 
   const [phase, setPhase] = useState<InterviewPhase>('setup')
@@ -37,7 +36,6 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
   const [resumeText, setResumeText] = useState<string | undefined>(interview.resumeText)
   const [isUpdatingSession, setIsUpdatingSession] = useState(false)
 
-  // Interview context for the AI - includes uploaded resume
   const interviewContext = useMemo(
     () => ({
       role: interview.role,
@@ -46,13 +44,12 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
       type: interview.type,
       techStack: interview.techstack,
       questions: interview.questions,
-      resumeText: resumeText,
+      resumeText,
       systemInstruction: interview.systemInstruction,
     }),
     [interview, resumeText]
   )
 
-  // Initialize hooks
   const {
     status: connectionStatus,
     error: connectionError,
@@ -80,19 +77,14 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
   })
 
   const { error: captureError, startCapture, stopCapture } = useAudioCapture()
-
   const { queueAudio, clearQueue: clearAudioQueue, stop: stopPlayback } = useAudioPlayback()
 
-  // Set up audio playback callback
   useEffect(() => {
-    logger.debug('🎧 Registering audio playback callback')
     onAudioReceived((base64Data) => {
-      logger.debug('🎵 Audio callback triggered, forwarding to playback')
       queueAudio(base64Data)
     })
   }, [onAudioReceived, queueAudio])
 
-  // Handle audio capture -> send to API
   const handleAudioChunk = useCallback(
     (chunk: string) => {
       if (!isMuted) {
@@ -102,7 +94,6 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
     [sendAudio, isMuted]
   )
 
-  // Handle resume upload
   const handleResumeUploaded = useCallback(
     async (text: string) => {
       setResumeText(text)
@@ -128,7 +119,6 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
     [sessionId]
   )
 
-  // Handle resume clear
   const handleResumeClear = useCallback(async () => {
     setResumeText(undefined)
 
@@ -143,26 +133,35 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
     }
   }, [sessionId])
 
-  // Start interview
   const handleStartInterview = async () => {
     try {
       setPhase('active')
 
-      logger.debug('🎧 Registering audio callback in handleStartInterview')
-      onAudioReceived((base64Data) => {
-        logger.debug('🎵 Audio received, length:', base64Data.length)
-        queueAudio(base64Data)
-      })
-
-      await startCapture(handleAudioChunk)
+      await startCapture(handleAudioChunk, { vadSensitivity: 60 })
       await connect()
+
+      try {
+        const response = await fetch(`/api/interview/session/${sessionId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'active' }),
+        })
+
+        if (!response.ok) {
+          logger.warn(`Unable to persist active status for session ${sessionId}`)
+        }
+      } catch (persistError) {
+        logger.warn('Failed to persist session active state:', persistError)
+      }
     } catch (error) {
+      stopCapture()
+      stopPlayback()
+      disconnect()
       setPhase('setup')
       toast.error(error instanceof Error ? error.message : 'Failed to start interview')
     }
   }
 
-  // End interview
   const handleEndInterview = async () => {
     setPhase('ending')
 
@@ -191,20 +190,15 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to generate feedback')
-      }
-
       const result = await response.json()
 
-      if (result.success) {
-        toast.success('Interview completed! Generating feedback...')
-        setPhase('completed')
-        router.push(`/interview/session/${sessionId}/feedback`)
-      } else {
-        throw new Error(result.message || 'Failed to generate feedback')
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || result.message || 'Failed to queue feedback generation')
       }
+
+      toast.success('Interview completed! Feedback is being generated.')
+      setPhase('completed')
+      router.push(`/interview/session/${sessionId}/feedback`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to submit interview')
       setPhase('active')
@@ -213,101 +207,174 @@ export function LiveInterviewAgent({ interview, sessionId, userId }: LiveIntervi
     }
   }
 
-  // Toggle mute
   const handleToggleMute = () => {
     setIsMuted(!isMuted)
     toast.info(isMuted ? 'Microphone unmuted' : 'Microphone muted')
   }
 
-  // Session time warning (15 min limit)
   const sessionTimeWarning = elapsedTime >= 840
+  const remainingSeconds = Math.max(0, 900 - elapsedTime)
 
-  // Common Container Structure
+  const latestModelCaption = useMemo(() => {
+    for (let i = transcript.length - 1; i >= 0; i--) {
+      const entry = transcript[i]
+      if (entry?.role === 'model' && entry.content.trim().length > 0) {
+        return entry.content
+      }
+    }
+    return null
+  }, [transcript])
+
+  const latestUserCaption = useMemo(() => {
+    for (let i = transcript.length - 1; i >= 0; i--) {
+      const entry = transcript[i]
+      if (entry?.role === 'user' && entry.content.trim().length > 0) {
+        return entry.content
+      }
+    }
+    return null
+  }, [transcript])
+
   return (
-    <div className="bg-surface-950 border-border relative flex h-[calc(100vh-12rem)] w-full flex-col overflow-hidden rounded-2xl border shadow-2xl">
-      {/* Background Effects */}
-      <div className="bg-grid-white/[0.02] absolute inset-0 -z-0" />
-      <div className="via-surface-950/50 to-surface-950 absolute inset-0 -z-0 bg-gradient-to-b from-transparent" />
-
-      {/* Error Overlay */}
+    <div className="border-border/70 bg-card relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border shadow-xl">
       {(connectionError || captureError) && (
-        <div className="bg-surface-950/90 absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
+        <div className="bg-background/85 absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="flex max-w-md flex-col items-center gap-6 text-center">
-            <div className="flex size-16 items-center justify-center rounded-full border-2 border-red-500/30 bg-red-500/20">
-              <AlertCircle className="size-8 text-red-500" />
+            <div className="border-error-500/30 bg-error-500/10 flex size-16 items-center justify-center rounded-full border-2">
+              <AlertCircle className="text-error-500 size-8" />
             </div>
             <div className="space-y-2">
               <h3 className="text-foreground text-xl font-semibold">Connection Error</h3>
               <p className="text-muted-foreground">{connectionError || captureError}</p>
             </div>
-            <button onClick={() => window.location.reload()} className="btn-primary">
-              Try Again
-            </button>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
         </div>
       )}
 
-      {/* Main Visualizer Area */}
-      <div className="relative z-10 flex w-full flex-1 flex-col items-center justify-center overflow-hidden">
-        {phase === 'setup' ? (
-          <div className="animate-fadeIn flex h-full w-full items-center justify-center p-6">
-            <InterviewSetupCard
-              isUpdating={isUpdatingSession}
-              hasResume={!!resumeText}
-              initialResumeText={interview.resumeText}
-              onResumeUploaded={handleResumeUploaded}
-              onResumeClear={handleResumeClear}
-              onStart={handleStartInterview}
-            />
+      {phase === 'setup' ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center p-4 sm:p-8">
+          <InterviewSetupCard
+            isUpdating={isUpdatingSession}
+            hasResume={!!resumeText}
+            initialResumeText={interview.resumeText}
+            onResumeUploaded={handleResumeUploaded}
+            onResumeClear={handleResumeClear}
+            onStart={handleStartInterview}
+          />
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="border-border/70 bg-surface-2/30 border-b px-4 py-3 sm:px-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-foreground text-sm font-semibold">Live Conversation</p>
+              <p className="text-muted-foreground text-xs sm:text-sm">
+                Focus on concise, structured answers.
+              </p>
+            </div>
           </div>
-        ) : (
-          <>
-            {/* Center Stage: Speaker Indicator */}
-            <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-              <SpeakerIndicator
-                connectionStatus={connectionStatus}
-                isAIResponding={isAIResponding}
-                isUserSpeaking={isUserSpeaking}
-                isMuted={isMuted}
-              />
+
+          {sessionTimeWarning && phase === 'active' && (
+            <div className="border-warning-500/20 bg-warning-500/10 text-warning-500 flex items-center gap-2 border-b px-4 py-2 text-xs sm:px-6 sm:text-sm">
+              <AlertCircle className="size-4 shrink-0" />
+              Session ends in {remainingSeconds}s
+            </div>
+          )}
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3 p-4 sm:gap-4 sm:p-5">
+            <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
+              <section className="border-border/70 bg-surface-1 flex min-h-0 flex-col rounded-2xl border p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="from-primary/80 to-primary flex size-11 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white">
+                      AI
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">AI Interviewer</p>
+                      <p className="text-muted-foreground text-xs">
+                        {interview.companyName || 'IntervoxAI'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Badge
+                    variant={
+                      isAIResponding
+                        ? 'primary'
+                        : connectionStatus === 'connected'
+                          ? 'secondary'
+                          : 'warning'
+                    }
+                  >
+                    {isAIResponding ? 'Speaking' : 'Listening'}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+                  <SpeakerIndicator
+                    connectionStatus={connectionStatus}
+                    role="interviewer"
+                    isAIResponding={isAIResponding}
+                    isUserSpeaking={isUserSpeaking}
+                    isMuted={isMuted}
+                  />
+                  <InterviewCaptions
+                    currentCaption={currentCaption || null}
+                    currentSpeaker={currentSpeaker}
+                    isMuted={isMuted}
+                    focus="model"
+                    fallbackCaption={latestModelCaption}
+                  />
+                </div>
+              </section>
+
+              <section className="border-border/70 bg-surface-1 flex min-h-0 flex-col rounded-2xl border p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="from-stellar-500 to-stellar-600 flex size-11 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white">
+                      <User2 className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">Your Response</p>
+                      <p className="text-muted-foreground flex items-center gap-1 text-xs">
+                        <Briefcase className="size-3" />
+                        Candidate
+                      </p>
+                    </div>
+                  </div>
+
+                  <Badge variant={isMuted ? 'error' : isUserSpeaking ? 'info' : 'secondary'}>
+                    {isMuted ? 'Muted' : isUserSpeaking ? 'Speaking' : 'Ready'}
+                  </Badge>
+                </div>
+
+                <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+                  <SpeakerIndicator
+                    connectionStatus={connectionStatus}
+                    role="candidate"
+                    isAIResponding={isAIResponding}
+                    isUserSpeaking={isUserSpeaking}
+                    isMuted={isMuted}
+                  />
+                  <InterviewCaptions
+                    currentCaption={currentCaption || null}
+                    currentSpeaker={currentSpeaker}
+                    isMuted={isMuted}
+                    focus="user"
+                    fallbackCaption={latestUserCaption}
+                  />
+                </div>
+              </section>
             </div>
 
-            {/* Captions Overlay */}
-            <div className="flex min-h-[100px] w-full items-end justify-center px-8 pb-4">
-              <InterviewCaptions
-                currentCaption={currentCaption}
-                currentSpeaker={currentSpeaker}
-                isMuted={isMuted}
-              />
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Controls Bar - Floating at bottom (Only show when active or ending) */}
-      {phase !== 'setup' && (
-        <div className="from-surface-950 relative z-20 flex w-full justify-center bg-gradient-to-t to-transparent pt-2 pb-6">
-          <div className="w-full max-w-2xl px-4">
             <InterviewControls
               connectionStatus={connectionStatus}
               elapsedTime={elapsedTime}
               isMuted={isMuted}
-              isSubmitting={isSubmitting}
+              isSubmitting={isSubmitting || phase === 'ending'}
               onToggleMute={handleToggleMute}
               onEndInterview={handleEndInterview}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Session time warning - Floating Top */}
-      {sessionTimeWarning && phase === 'active' && (
-        <div className="absolute top-6 left-1/2 z-30 -translate-x-1/2 animate-pulse">
-          <div className="flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-4 py-2 backdrop-blur-md">
-            <AlertCircle className="size-4 text-amber-500" />
-            <span className="text-sm font-medium text-amber-500">
-              Session ends in {Math.max(0, 900 - elapsedTime)}s
-            </span>
           </div>
         </div>
       )}

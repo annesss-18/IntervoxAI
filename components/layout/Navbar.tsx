@@ -9,15 +9,7 @@ import { signOut } from 'firebase/auth'
 import { auth } from '@/firebase/client'
 import { Button } from '@/components/atoms/button'
 import { ThemeToggle, UserMenu } from '@/components/molecules'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/atoms/avatar'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/atoms/dropdown-menu'
+import { Avatar, AvatarFallback } from '@/components/atoms/avatar'
 import {
   Sheet,
   SheetContent,

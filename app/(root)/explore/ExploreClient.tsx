@@ -84,7 +84,7 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
               <>
                 <h3 className="mb-2 text-lg font-semibold">No Matches Found</h3>
                 <p className="text-muted-foreground mx-auto max-w-md">
-                  No templates match "{searchQuery}". Try a different search term.
+                  No templates match &quot;{searchQuery}&quot;. Try a different search term.
                 </p>
               </>
             ) : (

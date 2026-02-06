@@ -49,7 +49,8 @@ const CompanyLogo: React.FC<CompanyLogoProps> = ({
 
   // If custom logoUrl provided, add it as the first option
   const allUrls = useMemo(() => {
-    return logoUrl ? [logoUrl, primary, ...fallbacks] : [primary, ...fallbacks]
+    const urls = logoUrl ? [logoUrl, primary, ...fallbacks] : [primary, ...fallbacks]
+    return Array.from(new Set(urls.filter(Boolean)))
   }, [logoUrl, primary, fallbacks])
 
   const [currentUrlIndex, setCurrentUrlIndex] = useState(0)
@@ -116,7 +117,6 @@ const CompanyLogo: React.FC<CompanyLogoProps> = ({
       }}
       onError={handleError}
       unoptimized
-      priority
     />
   )
 }

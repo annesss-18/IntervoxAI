@@ -5,9 +5,20 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.BufferSize = 4096 // larger buffer for network efficiency (approx 250ms at 16kHz)
     this.buffer = new Float32Array(this.BufferSize)
     this.bufferIndex = 0
+    this.VadThreshold = 0.005
+
+    this.port.onmessage = (event) => {
+      const payload = event.data
+      if (!payload || payload.type !== 'SET_VAD_THRESHOLD') return
+
+      const nextThreshold = Number(payload.value)
+      if (Number.isFinite(nextThreshold)) {
+        this.VadThreshold = Math.max(0.0005, Math.min(0.05, nextThreshold))
+      }
+    }
   }
 
-  process(inputs, _outputs, _parameters) {
+  process(inputs) {
     const input = inputs[0]
     if (!input || !input.length) return true
 
@@ -50,6 +61,18 @@ class AudioProcessor extends AudioWorkletProcessor {
   }
 
   flush() {
+    // Drop near-silent chunks to reduce background noise and unnecessary network traffic.
+    let rms = 0
+    for (let i = 0; i < this.bufferIndex; i++) {
+      const sample = this.buffer[i] || 0
+      rms += sample * sample
+    }
+    rms = Math.sqrt(rms / Math.max(1, this.bufferIndex))
+    if (rms < this.VadThreshold) {
+      this.bufferIndex = 0
+      return
+    }
+
     // Convert to 16-bit PCM
     const pcmData = new Int16Array(this.bufferIndex)
     for (let i = 0; i < this.bufferIndex; i++) {

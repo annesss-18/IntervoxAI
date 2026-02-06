@@ -6,7 +6,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/atoms/tab
 import InterviewCard from './InterviewCard'
 import { Library, History } from 'lucide-react'
 import Link from 'next/link'
-import type { Feedback } from '@/types'
 
 // Interface matching the data structure returned by server actions
 interface CardDataBase {
@@ -19,7 +18,11 @@ interface CardDataBase {
 }
 
 interface SessionData extends CardDataBase {
-  feedback?: Feedback | null
+  feedback?: {
+    totalScore: number
+    finalAssessment?: string
+    createdAt?: string | Date
+  } | null
 }
 
 interface InterviewTabsProps {

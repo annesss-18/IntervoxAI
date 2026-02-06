@@ -19,6 +19,13 @@ export const POST = withAuth(async (req: NextRequest, user: User) => {
     if (!templateSnap.exists) {
       return NextResponse.json({ error: 'Template not found' }, { status: 404 })
     }
+    const templateData = templateSnap.data()
+    if (!templateData?.isPublic && templateData?.creatorId !== user.id) {
+      return NextResponse.json(
+        { error: 'Forbidden. You do not have access to this private template.' },
+        { status: 403 }
+      )
+    }
 
     // 2. Create Session
     // We can copy some data for easier querying if needed, but strict relational is safer
@@ -26,6 +33,8 @@ export const POST = withAuth(async (req: NextRequest, user: User) => {
       templateId,
       userId: user.id,
       status: 'setup',
+      feedbackStatus: 'idle',
+      feedbackError: null,
       startedAt: new Date().toISOString(),
     })
 
@@ -44,4 +53,7 @@ export const POST = withAuth(async (req: NextRequest, user: User) => {
       { status: 500 }
     )
   }
+}, {
+  maxRequests: 20,
+  windowMs: 5 * 60 * 1000,
 })

@@ -3,6 +3,7 @@ import { db } from '@/firebase/admin'
 import { extractTextFromFile } from '@/lib/server-utils'
 import { withAuth } from '@/lib/api-middleware'
 import { logger } from '@/lib/logger'
+import { encryptResumeText } from '@/lib/resume-crypto'
 import type { User } from '@/types'
 
 export const runtime = 'nodejs'
@@ -36,9 +37,10 @@ export const POST = withAuth(async (req: NextRequest, user: User) => {
     }
 
     const resumeText = await extractTextFromFile(resumeFile)
+    const encryptedResumeText = encryptResumeText(resumeText)
 
     await db.collection('interview_sessions').doc(sessionId).update({
-      resumeText,
+      resumeText: encryptedResumeText,
     })
 
     return NextResponse.json({ success: true, resumeText })
@@ -46,4 +48,7 @@ export const POST = withAuth(async (req: NextRequest, user: User) => {
     logger.error('Resume Upload Error:', error)
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
+}, {
+  maxRequests: 6,
+  windowMs: 60 * 1000,
 })

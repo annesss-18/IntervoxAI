@@ -15,7 +15,7 @@ const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }
     redirect('/sign-in')
   }
 
-  const template = await getTemplateById(templateId)
+  const template = await getTemplateById(templateId, user.id)
 
   if (!template) {
     return (

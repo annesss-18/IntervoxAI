@@ -11,6 +11,7 @@ const BRANDFETCH_CDN = 'https://cdn.brandfetch.io'
 const UI_AVATARS_API = 'https://ui-avatars.com/api'
 const DEVICON_CDN = 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons'
 const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org'
+const BRANDFETCH_CLIENT_ID = process.env.NEXT_PUBLIC_BRANDFETCH_CLIENT_ID?.trim()
 
 // ============================================================================
 // COMPANY DOMAIN MAPPINGS
@@ -419,6 +420,14 @@ function companyToDomain(companyName: string): string {
   return `${withoutSpaces}.com`
 }
 
+function clampImageSize(size: number, min: number, max: number): number {
+  if (!Number.isFinite(size)) {
+    return min
+  }
+
+  return Math.min(Math.max(Math.round(size), min), max)
+}
+
 // ============================================================================
 // PUBLIC API - COMPANY LOGOS
 // ============================================================================
@@ -428,7 +437,20 @@ function companyToDomain(companyName: string): string {
  */
 export function getBrandfetchLogoUrl(companyName: string, size: number = 400): string {
   const domain = companyToDomain(companyName)
-  return `${BRANDFETCH_CDN}/${domain}/w/${size}/h/${size}?c=1idp1s40w0d`
+  const normalizedSize = clampImageSize(size, 16, 1024)
+
+  // Brandfetch CDN requires a valid client id (?c=...).
+  // If not configured, fall back to a reliable public source.
+  if (!BRANDFETCH_CLIENT_ID || BRANDFETCH_CLIENT_ID === 'your_brandfetch_client_id') {
+    return getGoogleFaviconUrl(companyName, normalizedSize)
+  }
+
+  const encodedDomain = encodeURIComponent(domain)
+  const encodedClientId = encodeURIComponent(BRANDFETCH_CLIENT_ID)
+
+  // Brandfetch CDN route format:
+  // /domain/{domain}/w/{w}/h/{h}/fallback/{mode}/type/{asset}
+  return `${BRANDFETCH_CDN}/domain/${encodedDomain}/w/${normalizedSize}/h/${normalizedSize}/fallback/404/type/icon?c=${encodedClientId}`
 }
 
 /**
@@ -442,9 +464,10 @@ export function getClearbitLogoUrl(companyName: string): string {
 /**
  * Fallback 1: Google Favicon API
  */
-export function getGoogleFaviconUrl(companyName: string): string {
+export function getGoogleFaviconUrl(companyName: string, size: number = 128): string {
   const domain = companyToDomain(companyName)
-  return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+  const normalizedSize = clampImageSize(size, 16, 256)
+  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${normalizedSize}`
 }
 
 /**
@@ -452,7 +475,8 @@ export function getGoogleFaviconUrl(companyName: string): string {
  */
 export function getUIAvatarsUrl(companyName: string, size: number = 128): string {
   const initials = getInitials(companyName)
-  return `${UI_AVATARS_API}/?name=${encodeURIComponent(initials)}&size=${size}&background=6366f1&color=fff&bold=true&format=svg`
+  const normalizedSize = clampImageSize(size, 16, 512)
+  return `${UI_AVATARS_API}/?name=${encodeURIComponent(initials)}&size=${normalizedSize}&background=6366f1&color=fff&bold=true&format=svg`
 }
 
 /**
@@ -473,13 +497,20 @@ export function getCompanyLogoUrls(
     }
   }
 
+  const brandfetchPrimary = getBrandfetchLogoUrl(companyName, size)
+  const googleFallback = getGoogleFaviconUrl(companyName, size)
+  const uiAvatarFallback = getUIAvatarsUrl(companyName, size)
+
+  if (brandfetchPrimary === googleFallback) {
+    return {
+      primary: googleFallback,
+      fallbacks: [uiAvatarFallback],
+    }
+  }
+
   return {
-    primary: getBrandfetchLogoUrl(companyName, size),
-    fallbacks: [
-      getClearbitLogoUrl(companyName),
-      getGoogleFaviconUrl(companyName),
-      getUIAvatarsUrl(companyName, size),
-    ],
+    primary: brandfetchPrimary,
+    fallbacks: [googleFallback, uiAvatarFallback],
   }
 }
 

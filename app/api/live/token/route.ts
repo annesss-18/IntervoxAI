@@ -4,6 +4,7 @@ import { withAuth } from '@/lib/api-middleware'
 import { logger } from '@/lib/logger'
 import type { User } from '@/types'
 import { GoogleGenAI, Modality } from '@google/genai'
+import { db } from '@/firebase/admin'
 
 const client = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
@@ -17,6 +18,15 @@ export const POST = withAuth(
 
       if (!sessionId) {
         return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
+      }
+
+      const sessionDoc = await db.collection('interview_sessions').doc(sessionId).get()
+      if (!sessionDoc.exists) {
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      }
+      const sessionData = sessionDoc.data()
+      if (sessionData?.userId !== user.id) {
+        return NextResponse.json({ error: 'Unauthorized access to session' }, { status: 403 })
       }
 
       logger.info(`Generating ephemeral token for user ${user.id}, session ${sessionId}`)

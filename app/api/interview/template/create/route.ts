@@ -48,4 +48,7 @@ export const POST = withAuth(async (req: NextRequest, user: User) => {
       { status: 500 }
     )
   }
+}, {
+  maxRequests: 10,
+  windowMs: 5 * 60 * 1000,
 })
