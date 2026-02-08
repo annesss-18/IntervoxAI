@@ -131,15 +131,28 @@ export function ResumeUploader({
     fileInputRef.current?.click()
   }, [])
 
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        handleClick()
+      }
+    },
+    [handleClick]
+  )
+
   // Idle state - compact upload zone
   if (uploadState.status === 'idle') {
     return (
       <div className="w-full">
         <div
           onClick={handleClick}
+          onKeyDown={handleKeyDown}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
+          role="button"
+          tabIndex={0}
           className={`group cursor-pointer rounded-xl p-4 transition-all duration-200 ${
             isDragOver
               ? 'bg-primary/10 border-primary scale-[1.02] border-2'
@@ -198,14 +211,14 @@ export function ResumeUploader({
   // Error state
   if (uploadState.status === 'error') {
     return (
-      <div className="border-error-400/30 bg-error-500/5 w-full rounded-xl border p-4">
+      <div className="border-error/30 bg-error/5 w-full rounded-xl border p-4">
         <div className="flex items-center gap-3">
-          <div className="bg-error-500/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
-            <AlertCircle className="text-error-400 size-5" />
+          <div className="bg-error/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+            <AlertCircle className="text-error size-5" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-foreground text-sm font-medium">Upload failed</p>
-            <p className="text-error-400 text-xs">{uploadState.error}</p>
+            <p className="text-error text-xs">{uploadState.error}</p>
           </div>
           <button onClick={handleClear} className="hover:bg-secondary rounded-lg p-1.5">
             <X className="text-muted-foreground size-4" />
@@ -217,14 +230,14 @@ export function ResumeUploader({
 
   // Success state - compact
   return (
-    <div className="border-success-500/30 bg-success-500/5 w-full rounded-xl border p-4">
+    <div className="border-success/30 bg-success/5 w-full rounded-xl border p-4">
       <div className="flex items-center gap-3">
-        <div className="bg-success-500/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
-          <FileCheck className="text-success-500 size-5" />
+        <div className="bg-success/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
+          <FileCheck className="text-success size-5" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-foreground truncate text-sm font-medium">{uploadState.fileName}</p>
-          <p className="text-success-500 text-xs">Ready for personalization</p>
+          <p className="text-success text-xs">Ready for personalization</p>
         </div>
         <button
           onClick={handleClear}

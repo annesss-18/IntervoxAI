@@ -62,7 +62,7 @@ export function InterviewCaptions({
   return (
     <div
       className={cn(
-        'border-border/70 bg-surface-2/40 rounded-xl border px-4 py-3 transition-colors',
+        'rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors',
         isLiveSpeaker && 'border-primary/35 bg-primary/5',
         className
       )}
@@ -84,7 +84,7 @@ export function InterviewCaptions({
         </p>
       ) : (
         <div className="flex min-h-[56px] items-center gap-2.5">
-          {isUserPanel && isMuted && <MicOff className="text-error-500 size-4 shrink-0" />}
+          {isUserPanel && isMuted && <MicOff className="text-error size-4 shrink-0" />}
           <p className="text-muted-foreground text-sm">{placeholder}</p>
         </div>
       )}

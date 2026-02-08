@@ -51,17 +51,17 @@ export function SpeakerIndicator({
             : 'Ready for your answer'
 
   return (
-    <div className="border-border/70 bg-surface-2/35 flex min-h-[168px] flex-col items-center justify-center rounded-2xl border px-4 py-4">
+    <div className="flex min-h-[168px] flex-col items-center justify-center rounded-2xl border border-border bg-muted/30 px-4 py-4">
       <div
         className={cn(
           'mb-3 flex size-11 items-center justify-center rounded-full border text-sm font-semibold transition-colors',
           isConnecting
-            ? 'border-warning-500/30 bg-warning-500/10 text-warning-500'
+            ? 'border-warning/30 bg-warning/10 text-warning'
             : isMutedCandidate
-              ? 'border-error-500/30 bg-error-500/10 text-error-500'
+              ? 'border-error/30 bg-error/10 text-error'
               : isActive
                 ? 'border-primary/40 bg-primary/15 text-primary'
-                : 'border-border/70 bg-surface-1 text-muted-foreground'
+                : 'border-border bg-card text-muted-foreground'
         )}
       >
         {isConnecting ? (
@@ -86,7 +86,7 @@ export function SpeakerIndicator({
               isActive
                 ? isInterviewer
                   ? 'from-primary-400/80 to-primary animate-pulse bg-gradient-to-t'
-                  : 'from-stellar-500/80 to-stellar-400 animate-pulse bg-gradient-to-t'
+                  : 'from-info/80 to-info-400 animate-pulse bg-gradient-to-t'
                 : 'bg-border/70'
             )}
             style={{

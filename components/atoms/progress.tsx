@@ -11,10 +11,10 @@ interface ProgressProps extends React.ComponentPropsWithoutRef<typeof ProgressPr
 const Progress = React.forwardRef<React.ElementRef<typeof ProgressPrimitive.Root>, ProgressProps>(
   ({ className, value, variant = 'default', ...props }, ref) => {
     const variants = {
-      default: 'bg-gradient-to-r from-primary-400 to-primary-600',
-      success: 'bg-gradient-to-r from-success-400 to-success-600',
-      warning: 'bg-gradient-to-r from-warning-400 to-warning-600',
-      error: 'bg-gradient-to-r from-error-400 to-error-600',
+      default: 'bg-primary',
+      success: 'bg-success',
+      warning: 'bg-warning',
+      error: 'bg-error',
     }
 
     return (
@@ -50,9 +50,9 @@ function ScoreRing({
   const offset = circumference - (score / 100) * circumference
 
   const getColor = (score: number) => {
-    if (score >= 80) return 'stroke-success-500'
-    if (score >= 60) return 'stroke-warning-500'
-    return 'stroke-error-500'
+    if (score >= 80) return 'stroke-success'
+    if (score >= 60) return 'stroke-warning'
+    return 'stroke-error'
   }
 
   return (

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { after, NextRequest, NextResponse } from 'next/server'
 import { db } from '@/firebase/admin'
 import { withAuth } from '@/lib/api-middleware'
 import { logger } from '@/lib/logger'
@@ -7,6 +7,8 @@ import { InterviewRepository, TranscriptSentence } from '@/lib/repositories/inte
 import { InterviewService } from '@/lib/services/interview.service'
 import type { User } from '@/types'
 import { z } from 'zod'
+
+export const runtime = 'nodejs'
 
 const processFeedbackSchema = z.object({
   interviewId: z.string().min(1, 'Interview ID required'),
@@ -29,6 +31,39 @@ type ClaimResult =
   | { type: 'already_processing' }
   | { type: 'already_completed'; feedbackId: string | null }
   | { type: 'claimed'; transcript: TranscriptSentence[] }
+
+async function runFeedbackGeneration(interviewId: string, userId: string, transcript: TranscriptSentence[]) {
+  try {
+    const result = await InterviewService.createFeedback({
+      interviewId,
+      userId,
+      transcript,
+    })
+
+    if (!result.success || !result.feedbackId) {
+      throw new Error(result.success ? 'Feedback ID missing after generation' : 'Feedback failed')
+    }
+
+    await InterviewRepository.update(interviewId, {
+      feedbackStatus: 'completed',
+      feedbackError: null,
+      feedbackCompletedAt: new Date().toISOString(),
+      feedbackId: result.feedbackId,
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to generate feedback'
+    logger.error(`Async feedback processing failed for interview ${interviewId}:`, error)
+
+    try {
+      await InterviewRepository.update(interviewId, {
+        feedbackStatus: 'failed',
+        feedbackError: message,
+      })
+    } catch (updateError) {
+      logger.error(`Failed to persist feedback failure status for interview ${interviewId}:`, updateError)
+    }
+  }
+}
 
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
@@ -156,51 +191,34 @@ export const POST = withAuth(
       }
 
       try {
-        const result = await InterviewService.createFeedback({
-          interviewId,
-          userId: user.id,
-          transcript: claim.transcript,
+        after(async () => {
+          await runFeedbackGeneration(interviewId, user.id, claim.transcript)
         })
-
-        if (!result.success || !result.feedbackId) {
-          throw new Error(result.success ? 'Feedback ID missing after generation' : 'Feedback failed')
-        }
-
+      } catch (scheduleError) {
+        logger.error(`Failed to schedule feedback processing for interview ${interviewId}:`, scheduleError)
         await InterviewRepository.update(interviewId, {
-          feedbackStatus: 'completed',
-          feedbackError: null,
-          feedbackCompletedAt: new Date().toISOString(),
-          feedbackId: result.feedbackId,
+          feedbackStatus: 'failed',
+          feedbackError: 'Failed to schedule feedback processing',
         })
-
-        return NextResponse.json({
-          success: true,
-          status: 'completed',
-          feedbackId: result.feedbackId,
-          reused: !!result.reused,
-        })
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to generate feedback'
-        logger.error(`Async feedback processing failed for interview ${interviewId}:`, error)
-
-        try {
-          await InterviewRepository.update(interviewId, {
-            feedbackStatus: 'failed',
-            feedbackError: message,
-          })
-        } catch (updateError) {
-          logger.error(`Failed to persist feedback failure status for interview ${interviewId}:`, updateError)
-        }
 
         return NextResponse.json(
           {
             success: false,
             status: 'failed',
-            error: message,
+            error: 'Failed to schedule feedback processing',
           },
           { status: 500 }
         )
       }
+
+      return NextResponse.json(
+        {
+          success: true,
+          status: 'processing',
+          queued: true,
+        },
+        { status: 202 }
+      )
     } catch (error) {
       logger.error('API /feedback/process error:', error)
       return NextResponse.json(

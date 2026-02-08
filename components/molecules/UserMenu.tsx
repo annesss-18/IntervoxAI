@@ -49,7 +49,7 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0">
+        <Button variant="ghost" className="relative size-10 rounded-xl border border-border bg-card p-0 hover:border-primary/30">
           <Avatar size="md">
             <AvatarImage src={avatarUrl ?? ''} alt={user.name} />
             <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
@@ -66,13 +66,13 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link href="/dashboard">
-            <LayoutDashboard className="mr-2 h-4 w-4" />
+            <LayoutDashboard className="mr-2 size-4" />
             Dashboard
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut} className="text-error-500 focus:text-error-500">
-          <LogOut className="mr-2 h-4 w-4" />
+        <DropdownMenuItem onClick={handleSignOut} className="text-error focus:text-error">
+          <LogOut className="mr-2 size-4" />
           Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>

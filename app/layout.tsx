@@ -1,21 +1,27 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Quantico } from 'next/font/google'
+import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from 'next-themes'
-import { Toaster } from 'sonner'
+import { Toaster } from '@/components/atoms/sonner'
 import { AuthProvider } from '@/components/providers/AuthProvider'
 import './globals.css'
 
-const inter = Inter({
+const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-instrument-sans',
   display: 'swap',
 })
 
-const quantico = Quantico({
-  weight: ['400', '700'],
-  variable: '--font-quantico',
+const instrumentSerif = Instrument_Serif({
+  weight: ['400'],
+  variable: '--font-instrument-serif',
   subsets: ['latin'],
+  display: 'swap',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
   display: 'swap',
 })
 
@@ -92,13 +98,13 @@ export const metadata: Metadata = {
       {
         rel: 'mask-icon',
         url: '/safari-pinned-tab.svg',
-        color: '#6366f1',
+        color: '#e6569e',
       },
     ],
   },
   manifest: '/site.webmanifest',
   other: {
-    'msapplication-TileColor': '#0a0a0f',
+    'msapplication-TileColor': '#0a0e27',
     'msapplication-TileImage': '/mstile-150x150.png',
   },
 }
@@ -106,7 +112,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#fafafa' },
-    { media: '(prefers-color-scheme: dark)', color: '#0a0a0f' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f0d1a' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -121,10 +127,15 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${quantico.variable} font-sans antialiased`}
+        className={`${instrumentSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
       >
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
           <AuthProvider>{children}</AuthProvider>
           <Toaster position="top-center" richColors closeButton />
         </ThemeProvider>

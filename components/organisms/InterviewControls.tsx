@@ -56,8 +56,8 @@ export function InterviewControls({
 
           <div
             className={cn(
-              'border-border/70 bg-surface-1 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 font-mono text-sm',
-              sessionTimeWarning && 'text-warning-500'
+              'inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 font-mono text-sm',
+              sessionTimeWarning && 'text-warning'
             )}
           >
             <Clock className="size-4 opacity-75" />

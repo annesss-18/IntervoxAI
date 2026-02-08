@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { Button } from '@/components/atoms/button'
 import { Loader2, PlayCircle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 
 interface StartSessionButtonProps {
   templateId: string
@@ -25,7 +26,16 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create session')
+        let message = 'Failed to create session'
+        try {
+          const errorData = await response.json()
+          if (typeof errorData?.error === 'string' && errorData.error.length > 0) {
+            message = errorData.error
+          }
+        } catch {
+          // Ignore JSON parse failure and use default message.
+        }
+        throw new Error(message)
       }
 
       const data = await response.json()
@@ -34,26 +44,23 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
       }
     } catch (error) {
       console.error('Error starting session:', error)
-      // Ideally show toast error
+      const message = error instanceof Error ? error.message : 'Unable to start interview'
+      toast.error(message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Button
-      onClick={handleStart}
-      disabled={loading}
-      className="bg-primary-500 hover:bg-primary-600 w-full py-3 font-bold text-white"
-    >
+    <Button onClick={handleStart} disabled={loading} className="w-full py-3 font-semibold" size="lg">
       {loading ? (
         <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="mr-2 size-4 animate-spin" />
           Initializing...
         </>
       ) : (
         <>
-          <PlayCircle className="mr-2 h-5 w-5" />
+          <PlayCircle className="mr-2 size-5" />
           Start Interview
         </>
       )}

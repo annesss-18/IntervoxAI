@@ -86,7 +86,7 @@ const CompanyLogo: React.FC<CompanyLogoProps> = ({
     return (
       <div
         className={cn(
-          'from-primary-500 to-accent-300 flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br font-bold text-white',
+          'from-primary to-accent flex shrink-0 items-center justify-center rounded-full bg-gradient-to-br font-bold text-white',
           className
         )}
         style={{

@@ -20,14 +20,6 @@ import { Loader2, Mail, Lock, User, Chrome } from 'lucide-react'
 import { Button } from '@/components/atoms/button'
 import { Input } from '@/components/atoms/input'
 import { Label } from '@/components/atoms/label'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/atoms/card'
 import { Separator } from '@/components/atoms/separator'
 
 const signInSchema = z.object({
@@ -126,11 +118,11 @@ export function AuthForm({ type }: AuthFormProps) {
       const result = isSignIn
         ? await signIn({ email: user.email!, idToken })
         : await googleAuthenticate({
-            uid: user.uid,
-            name: user.displayName || 'User',
-            email: user.email!,
-            idToken,
-          })
+          uid: user.uid,
+          name: user.displayName || 'User',
+          email: user.email!,
+          idToken,
+        })
 
       if (!result.success) {
         throw new Error(result.message || 'Authentication failed')
@@ -151,22 +143,25 @@ export function AuthForm({ type }: AuthFormProps) {
   const errors = form.formState.errors as Record<string, { message?: string }>
 
   return (
-    <Card variant="gradient" className="w-full">
-      <CardHeader className="pb-2 text-center">
-        <CardTitle className="text-2xl">{isSignIn ? 'Welcome Back' : 'Create Account'}</CardTitle>
-        <CardDescription>
+    <div className="w-full space-y-6">
+      <div className="space-y-2 text-center">
+        <h1 className="text-3xl font-normal">
+          <span className="font-serif italic">
+            {isSignIn ? 'Welcome back' : 'Create account'}
+          </span>
+        </h1>
+        <p className="text-muted-foreground">
           {isSignIn
-            ? 'Sign in to continue your interview practice'
-            : 'Start your journey to interview success'}
-        </CardDescription>
-      </CardHeader>
+            ? 'Sign in to continue your interview practice.'
+            : 'Get started with structured interview preparation.'}
+        </p>
+      </div>
 
-      <CardContent className="space-y-6">
-        {/* Google Auth */}
+      <div className="space-y-6">
         <Button
           type="button"
           variant="outline"
-          className="relative z-10 w-full"
+          className="w-full"
           onClick={handleGoogleAuth}
           disabled={isGoogleLoading || isLoading}
         >
@@ -185,11 +180,12 @@ export function AuthForm({ type }: AuthFormProps) {
             <Separator />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card text-muted-foreground px-2">or continue with email</span>
+            <span className="bg-background text-muted-foreground px-3">
+              or continue with email
+            </span>
           </div>
         </div>
 
-        {/* Email Form */}
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {!isSignIn && (
             <div className="space-y-2">
@@ -201,7 +197,7 @@ export function AuthForm({ type }: AuthFormProps) {
                 error={!!errors.name}
                 {...signUpForm.register('name')}
               />
-              {errors.name && <p className="text-error-500 text-sm">{errors.name.message}</p>}
+              {errors.name && <p className="text-error text-sm">{errors.name.message}</p>}
             </div>
           )}
 
@@ -215,7 +211,7 @@ export function AuthForm({ type }: AuthFormProps) {
               error={!!errors.email}
               {...(isSignIn ? signInForm.register('email') : signUpForm.register('email'))}
             />
-            {errors.email && <p className="text-error-500 text-sm">{errors.email.message}</p>}
+            {errors.email && <p className="text-error text-sm">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -223,15 +219,15 @@ export function AuthForm({ type }: AuthFormProps) {
             <Input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="********"
               icon={<Lock className="size-4" />}
               error={!!errors.password}
               {...(isSignIn ? signInForm.register('password') : signUpForm.register('password'))}
             />
-            {errors.password && <p className="text-error-500 text-sm">{errors.password.message}</p>}
+            {errors.password && <p className="text-error text-sm">{errors.password.message}</p>}
           </div>
 
-          <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
+          <Button type="submit" size="lg" className="w-full" disabled={isLoading || isGoogleLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
@@ -244,9 +240,9 @@ export function AuthForm({ type }: AuthFormProps) {
             )}
           </Button>
         </form>
-      </CardContent>
+      </div>
 
-      <CardFooter className="justify-center">
+      <div className="border-t border-border pt-6 text-center">
         <p className="text-muted-foreground text-sm">
           {isSignIn ? "Don't have an account?" : 'Already have an account?'}{' '}
           <Link
@@ -256,7 +252,7 @@ export function AuthForm({ type }: AuthFormProps) {
             {isSignIn ? 'Sign Up' : 'Sign In'}
           </Link>
         </p>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }

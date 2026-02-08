@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { Github, Twitter, Linkedin } from 'lucide-react'
-import { Separator } from '@/components/atoms/separator'
 
 const footerLinks = {
   product: [
@@ -15,8 +14,8 @@ const footerLinks = {
     { label: 'Support', href: '/support' },
   ],
   legal: [
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Terms of Service', href: '/terms' },
+    { label: 'Privacy', href: '/privacy' },
+    { label: 'Terms', href: '/terms' },
   ],
 }
 
@@ -30,26 +29,18 @@ export function Footer() {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className="border-border bg-surface-1 border-t">
-      <div className="container-app py-12">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 lg:gap-12">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="mb-4 flex items-center gap-3">
-              <Image src="/icon.png" alt="IntervoxAI" width={36} height={36} />
-              <Image
-                src="/wordmark.png"
-                alt="IntervoxAI"
-                width={120}
-                height={30}
-                className="dark:brightness-0 dark:invert"
-              />
+    <footer className="border-t border-border py-12">
+      <div className="container-app">
+        <div className="grid gap-8 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+          {/* Brand Column */}
+          <div className="space-y-4">
+            <Link href="/" className="inline-flex items-center gap-2">
+              <Image src="/icon.png" alt="IntervoxAI" width={24} height={24} />
+              <span className="font-semibold">IntervoxAI</span>
             </Link>
-            <p className="text-muted-foreground mb-4 max-w-xs text-sm">
-              Practice. Speak. Improve. Master your technical interviews with AI-powered mock
-              interviews.
+            <p className="max-w-xs text-sm text-muted-foreground">
+              Structured interview practice with AI-led simulation.
             </p>
-            {/* Social links */}
             <div className="flex gap-3">
               {socialLinks.map((link) => {
                 const Icon = link.icon
@@ -59,77 +50,56 @@ export function Footer() {
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-muted-foreground hover:text-foreground hover:bg-surface-2 rounded-lg p-2 transition-colors"
+                    className="text-muted-foreground transition-colors hover:text-foreground"
                     aria-label={link.label}
                   >
-                    <Icon className="size-5" />
+                    <Icon className="size-4" />
                   </a>
                 )
               })}
             </div>
           </div>
 
-          {/* Product links */}
-          <div>
-            <h4 className="text-foreground mb-4 font-semibold">Product</h4>
-            <ul className="space-y-3">
-              {footerLinks.product.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Resources links */}
-          <div>
-            <h4 className="text-foreground mb-4 font-semibold">Resources</h4>
-            <ul className="space-y-3">
-              {footerLinks.resources.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Legal links */}
-          <div>
-            <h4 className="text-foreground mb-4 font-semibold">Legal</h4>
-            <ul className="space-y-3">
-              {footerLinks.legal.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Link Columns */}
+          <FooterColumn title="Product" links={footerLinks.product} />
+          <FooterColumn title="Resources" links={footerLinks.resources} />
+          <FooterColumn title="Legal" links={footerLinks.legal} />
         </div>
 
-        <Separator className="my-8" />
-
-        {/* Copyright */}
-        <div className="text-muted-foreground flex flex-col items-center justify-between gap-4 text-sm sm:flex-row">
+        {/* Bottom Bar */}
+        <div className="mt-10 border-t border-border pt-6 text-sm text-muted-foreground">
           <p>© {currentYear} IntervoxAI. All rights reserved.</p>
-          <p>Built with ❤️ for job seekers everywhere</p>
         </div>
       </div>
     </footer>
+  )
+}
+
+function FooterColumn({
+  title,
+  links,
+}: {
+  title: string
+  links: { label: string; href: string }[]
+}) {
+  return (
+    <div>
+      <p className="mb-3 text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        {title}
+      </p>
+      <ul className="space-y-2">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -138,20 +108,20 @@ export function FooterCompact() {
   const currentYear = new Date().getFullYear()
 
   return (
-    <footer className="border-border border-t py-6">
-      <div className="container-app text-muted-foreground flex flex-col items-center justify-between gap-4 text-sm sm:flex-row">
+    <footer className="border-t border-border py-4">
+      <div className="container-app flex flex-col items-center justify-between gap-3 text-sm text-muted-foreground sm:flex-row">
         <div className="flex items-center gap-2">
-          <Image src="/icon.png" alt="IntervoxAI" width={20} height={20} />
+          <Image src="/icon.png" alt="IntervoxAI" width={16} height={16} />
           <span>© {currentYear} IntervoxAI</span>
         </div>
-        <div className="flex gap-6">
-          <Link href="/privacy" className="hover:text-foreground transition-colors">
+        <div className="flex gap-4">
+          <Link href="/privacy" className="transition-colors hover:text-foreground">
             Privacy
           </Link>
-          <Link href="/terms" className="hover:text-foreground transition-colors">
+          <Link href="/terms" className="transition-colors hover:text-foreground">
             Terms
           </Link>
-          <Link href="/support" className="hover:text-foreground transition-colors">
+          <Link href="/support" className="transition-colors hover:text-foreground">
             Support
           </Link>
         </div>

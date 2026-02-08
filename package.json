@@ -10,9 +10,11 @@
     "dev:webpack": "next dev --webpack",
     "build": "next build --turbopack",
     "start": "next start",
+    "guard:styles": "node scripts/style-guard.mjs",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "type-check": "tsc --noEmit",
+    "ci:check": "npm run guard:styles && npm run lint && npm run type-check && npm run build",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

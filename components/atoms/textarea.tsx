@@ -15,7 +15,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           'focus-visible:border-primary focus-visible:ring-primary/20 focus-visible:ring-2 focus-visible:outline-none',
           'disabled:cursor-not-allowed disabled:opacity-50',
           error
-            ? 'border-error-500 focus-visible:border-error-500 focus-visible:ring-error-500/20'
+            ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
             : 'border-border hover:border-primary/30',
           className
         )}

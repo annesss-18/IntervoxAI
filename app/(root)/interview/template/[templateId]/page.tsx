@@ -1,11 +1,16 @@
-import { getTemplateById } from '@/lib/actions/interview.action'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { redirect } from 'next/navigation'
-import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
-import CompanyLogo from '@/components/molecules/CompanyLogo'
-import StartSessionButton from '@/components/organisms/StartSessionButton'
-import { Briefcase, Target, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { ArrowLeft, Briefcase, Sparkles, Target, ShieldCheck, Clock3 } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { getCurrentUser } from '@/lib/actions/auth.action'
+import { getTemplateById } from '@/lib/actions/interview.action'
+import { Badge } from '@/components/atoms/badge'
+import { Button } from '@/components/atoms/button'
+import { Card, CardContent } from '@/components/atoms/card'
+import { Container } from '@/components/layout/Container'
+import CompanyLogo from '@/components/molecules/CompanyLogo'
+import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
+import StartSessionButton from '@/components/organisms/StartSessionButton'
 
 const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }> }) => {
   const { templateId } = await params
@@ -19,90 +24,121 @@ const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }
 
   if (!template) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center space-y-4">
-        <h1 className="text-light-100 text-2xl font-bold">Template Not Found</h1>
-        <Link href="/interview" className="btn-primary">
-          Go Back
-        </Link>
-      </div>
+      <Container size="md" className="animate-fadeIn">
+        <Card variant="gradient" className="py-12 text-center">
+          <CardContent className="space-y-4">
+            <h1 className="text-2xl font-semibold">Template Not Found</h1>
+            <Link href="/dashboard">
+              <Button>Go Back</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </Container>
     )
   }
 
   return (
-    <div className="animate-fadeIn mx-auto max-w-4xl space-y-8 px-6 py-10">
-      <Link
-        href="/interview"
-        className="text-primary-300 hover:text-primary-200 mb-6 flex items-center gap-2 transition-colors"
-      >
-        <ArrowLeft className="size-4" />
-        Back to Dashboard
-      </Link>
-
-      {/* Template Header Card */}
-      <div className="card-border animate-slideInLeft">
-        <div className="card !p-8">
-          <div className="flex flex-col items-start gap-6 md:flex-row md:items-center">
-            <div className="group relative shrink-0">
-              <div className="from-primary-500/30 to-accent-300/30 absolute inset-0 rounded-full bg-gradient-to-r opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100" />
-              <CompanyLogo
-                companyName={template.companyName || 'Unknown Company'}
-                size={80}
-                className="ring-primary-400/30 relative size-20 rounded-full shadow-2xl ring-4"
-              />
-            </div>
-            <div className="flex-1 space-y-2">
-              <h1 className="text-3xl font-bold text-white">{template.role} Interview</h1>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="bg-dark-200/60 border-primary-400/20 flex items-center gap-2 rounded-full border px-3 py-1">
-                  <Briefcase className="text-primary-300 size-3" />
-                  <span className="text-light-200 text-xs font-medium capitalize">
-                    {template.level}
-                  </span>
-                </div>
-                <div className="bg-dark-200/60 border-primary-400/20 flex items-center gap-2 rounded-full border px-3 py-1">
-                  <Target className="text-accent-300 size-3" />
-                  <span className="text-light-200 text-xs font-medium capitalize">
-                    {template.type}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+    <Container size="xl" className="animate-fadeIn space-y-6">
+      <div>
+        <Link
+          href="/dashboard"
+          className="text-primary hover:text-primary/80 inline-flex items-center gap-2 text-sm font-medium"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Dashboard
+        </Link>
       </div>
 
-      {/* Details & Tech Stack */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <div className="space-y-6 md:col-span-2">
-          <div className="card-border animate-slideInUp" style={{ animationDelay: '0.1s' }}>
-            <div className="card space-y-4 !p-6">
-              <h2 className="text-light-100 text-xl font-semibold">Job Description</h2>
-              <div className="prose prose-invert text-light-300 custom-scrollbar max-h-60 max-w-none overflow-y-auto text-sm leading-relaxed">
-                {template.jobDescription}
+      <Card variant="gradient" className="animate-slideInLeft">
+        <CardContent className="space-y-6 pt-7">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="bg-surface-2/75 border-border/70 flex size-20 items-center justify-center overflow-hidden rounded-2xl border">
+                <CompanyLogo
+                  companyName={template.companyName || 'Unknown Company'}
+                  logoUrl={template.companyLogoUrl}
+                  size={72}
+                  className="rounded-xl object-cover"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Badge variant="info" className="w-fit">
+                  <Sparkles className="size-3.5" />
+                  Ready to Practice
+                </Badge>
+                <div>
+                  <h1 className="text-2xl font-semibold sm:text-3xl">{template.role} Interview</h1>
+                  <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+                    {template.companyName || 'IntervoxAI'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary" className="capitalize">
+                    <Briefcase className="size-3.5" />
+                    {template.level}
+                  </Badge>
+                  <Badge variant="primary" className="capitalize">
+                    <Target className="size-3.5" />
+                    {template.type}
+                  </Badge>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="space-y-6">
-          <div className="card-border animate-slideInUp" style={{ animationDelay: '0.2s' }}>
-            <div className="card space-y-4 !p-6">
-              <h2 className="text-light-100 text-xl font-semibold">Tech Stack</h2>
-              <DisplayTechIcons techStack={template.techStack || []} />
-            </div>
-          </div>
-
-          <div className="card-border animate-slideInUp" style={{ animationDelay: '0.3s' }}>
-            <div className="card space-y-4 !p-6">
-              <h2 className="text-light-100 text-xl font-semibold">Ready?</h2>
-              <p className="text-light-300 text-sm">
-                Start your AI-powered mock interview session now. Ensure your microphone is ready.
-              </p>
+            <div className="w-full max-w-xs">
               <StartSessionButton templateId={template.id} />
             </div>
           </div>
-        </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <InfoPill
+              icon={<ShieldCheck className="text-success size-4" />}
+              text="Personalized AI interviewer context"
+            />
+            <InfoPill
+              icon={<Sparkles className="text-primary size-4" />}
+              text="Role and stack-aware questioning"
+            />
+            <InfoPill
+              icon={<Clock3 className="text-info size-4" />}
+              text="Feedback generated right after session"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card>
+          <CardContent className="space-y-3 pt-7">
+            <h2 className="text-xl font-semibold">Job Description</h2>
+            <div className="custom-scrollbar max-h-[28rem] overflow-y-auto pr-2">
+              <p className="text-muted-foreground whitespace-pre-wrap text-sm leading-relaxed">
+                {template.jobDescription}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-3 pt-7">
+            <h2 className="text-xl font-semibold">Tech Stack Focus</h2>
+            <DisplayTechIcons techStack={template.techStack || []} />
+            <p className="text-muted-foreground text-sm">
+              Expect follow-up questions around these technologies during the interview.
+            </p>
+          </CardContent>
+        </Card>
       </div>
+    </Container>
+  )
+}
+
+function InfoPill({ icon, text }: { icon: ReactNode; text: string }) {
+  return (
+    <div className="border-border/65 bg-surface-1/75 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm">
+      {icon}
+      <span>{text}</span>
     </div>
   )
 }

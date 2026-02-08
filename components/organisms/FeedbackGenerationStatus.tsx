@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlertCircle, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/atoms/button'
+import { Card, CardContent } from '@/components/atoms/card'
+import { Badge } from '@/components/atoms/badge'
 
 type FeedbackJobStatus = 'idle' | 'pending' | 'processing' | 'completed' | 'failed'
 
@@ -85,19 +88,12 @@ export function FeedbackGenerationStatus({ sessionId }: FeedbackGenerationStatus
     })
 
     const data = (await response.json()) as FeedbackStatusResponse
-    if (!response.ok && response.status !== 202) {
+    if (!response.ok || !data.success || !data.status) {
       throw new Error(data.error || 'Failed to start feedback processing')
     }
 
-    if (data.status) {
-      setStatus(data.status)
-    }
-
-    if (data.error) {
-      setError(data.error)
-    } else {
-      setError(null)
-    }
+    setStatus(data.status)
+    setError(data.error || null)
   }, [sessionId])
 
   useEffect(() => {
@@ -167,64 +163,65 @@ export function FeedbackGenerationStatus({ sessionId }: FeedbackGenerationStatus
   const description =
     status === 'processing'
       ? 'Your transcript is being analyzed. This usually takes under a minute.'
-      : status === 'failed'
-        ? 'Something went wrong while generating feedback. You can retry now.'
-        : 'Your interview is complete. We are preparing your detailed report.'
+      : status === 'pending'
+        ? 'Your transcript is queued. Processing starts automatically in a moment.'
+        : status === 'failed'
+          ? 'Something went wrong while generating feedback. You can retry now.'
+          : 'Your interview is complete. We are preparing your detailed report.'
+
+  const statusVariant =
+    status === 'failed' ? 'error' : status === 'completed' ? 'success' : status === 'processing' ? 'info' : 'secondary'
 
   return (
-    <div className="animate-fadeIn mx-auto max-w-4xl p-6">
-      <div className="card-border">
-        <div className="card space-y-6 !p-12 text-center">
+    <div className="animate-fadeIn mx-auto max-w-3xl p-6">
+      <Card variant="gradient">
+        <CardContent className="space-y-6 px-7 py-10 text-center sm:px-10 sm:py-12">
           <div className="mx-auto">
             {status === 'failed' ? (
-              <div className="flex size-24 items-center justify-center rounded-full border-2 border-red-500/30 bg-red-500/20">
-                <AlertCircle className="size-12 text-red-400" />
+              <div className="border-error/30 bg-error/10 flex size-24 items-center justify-center rounded-full border-2">
+                <AlertCircle className="text-error size-12" />
               </div>
             ) : (
-              <div className="border-primary-400/30 bg-primary-500/10 flex size-24 items-center justify-center rounded-full border-2">
-                <Loader2 className="text-primary-300 size-12 animate-spin" />
+              <div className="border-primary/30 bg-primary/10 flex size-24 items-center justify-center rounded-full border-2">
+                <Loader2 className="text-primary size-12 animate-spin" />
               </div>
             )}
           </div>
 
-          <div className="space-y-2">
-            <div className="text-primary-300 inline-flex items-center gap-2 text-xs font-semibold tracking-wide uppercase">
+          <div className="space-y-3">
+            <Badge variant={statusVariant} className="mx-auto inline-flex uppercase">
               <Sparkles className="size-3" />
               Feedback Status: {status}
-            </div>
-            <h2 className="text-light-100 text-2xl font-bold">{title}</h2>
-            <p className="text-light-300">{description}</p>
-            {error && <p className="text-sm text-red-300">{error}</p>}
+            </Badge>
+            <h2 className="text-2xl font-semibold">{title}</h2>
+            <p className="text-muted-foreground">{description}</p>
+            {error && <p className="text-error text-sm">{error}</p>}
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
             {status === 'failed' ? (
-              <button className="btn-primary inline-flex items-center gap-2" onClick={handleRetry}>
-                {isRetrying ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="size-4" />
-                )}
+              <Button onClick={handleRetry}>
+                {isRetrying ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
                 <span>{isRetrying ? 'Retrying...' : 'Retry Generation'}</span>
-              </button>
+              </Button>
             ) : (
-              <button
-                className="btn-secondary inline-flex items-center gap-2"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   void checkStatus()
                 }}
               >
                 <RefreshCw className="size-4" />
                 <span>Check Now</span>
-              </button>
+              </Button>
             )}
 
-            <Link href={`/interview/session/${sessionId}`} className="btn-secondary inline-flex gap-2">
-              <span>Back to Session</span>
-            </Link>
+            <Button asChild variant="outline">
+              <Link href={`/interview/session/${sessionId}`}>Back to Session</Link>
+            </Button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

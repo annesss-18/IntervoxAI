@@ -47,7 +47,7 @@ const TechIcon: React.FC<TechIconProps> = ({ tech, size = 24, className, showToo
   if (hasError || !currentUrl) {
     return (
       <div
-        className={cn('text-light-400 flex items-center justify-center', className)}
+        className={cn('text-muted-foreground flex items-center justify-center', className)}
         style={{ width: size, height: size }}
         title={showTooltip ? tech : undefined}
       >

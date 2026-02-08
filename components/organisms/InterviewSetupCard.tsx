@@ -81,7 +81,7 @@ export function InterviewSetupCard({
             </Button>
           </div>
 
-          <div className="border-border/70 bg-surface-2/45 rounded-xl border px-4 py-3">
+          <div className="rounded-xl border border-border bg-muted/50 px-4 py-3">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <FileText className="text-primary size-4" />

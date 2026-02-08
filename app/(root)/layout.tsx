@@ -11,7 +11,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="relative flex min-h-screen flex-col">
       <Navbar
         user={{
           name: user.name,
@@ -19,8 +19,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           id: user.id,
         }}
       />
-      <main className="flex-1 py-8">{children}</main>
+      <main className="relative flex-1 py-8 md:py-10">{children}</main>
       <FooterCompact />
+
+      {/* Subtle background glow */}
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-[100px]" />
+        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5 blur-[100px]" />
+      </div>
     </div>
   )
 }

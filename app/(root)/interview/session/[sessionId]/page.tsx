@@ -1,7 +1,6 @@
-// app/(root)/interview/session/[sessionId]/page.tsx
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { AlertCircle, Briefcase, Sparkles, Target } from 'lucide-react'
+import { AlertCircle, Briefcase, Sparkles, Target, ShieldCheck } from 'lucide-react'
 import { getInterviewsById } from '@/lib/actions/interview.action'
 import { getCurrentUser } from '@/lib/actions/auth.action'
 import { LiveInterviewAgent } from '@/components/organisms/LiveInterviewAgent'
@@ -17,11 +16,15 @@ const Page = async ({ params }: RouteParams) => {
   const user = await getCurrentUser()
   const { sessionId } = await params
 
+  if (!user) {
+    redirect('/sign-in')
+  }
+
   if (!sessionId || typeof sessionId !== 'string') {
     redirect('/')
   }
 
-  const interview = await getInterviewsById(sessionId, user?.id)
+  const interview = await getInterviewsById(sessionId, user.id)
 
   if (!interview) {
     return (
@@ -29,7 +32,7 @@ const Page = async ({ params }: RouteParams) => {
         <StateCard
           title="Interview Session Not Found"
           description="The interview session does not exist or you do not have access to it."
-          actionHref="/interview"
+          actionHref="/create"
           actionLabel="Create New Interview"
         />
       </Container>
@@ -42,7 +45,7 @@ const Page = async ({ params }: RouteParams) => {
         <StateCard
           title="Interview Data Incomplete"
           description="This interview session is missing required questions. Please create a new interview."
-          actionHref="/interview"
+          actionHref="/create"
           actionLabel="Create New Interview"
         />
       </Container>
@@ -50,32 +53,32 @@ const Page = async ({ params }: RouteParams) => {
   }
 
   return (
-    <Container size="xl" className="animate-fadeIn space-y-3.5">
-      <section className="border-border/70 from-primary/10 via-card to-accent/5 rounded-2xl border bg-gradient-to-br p-4 shadow-md sm:p-5">
+    <Container size="xl" className="animate-fadeIn space-y-4">
+      <section className="section-shell surface-highlight texture-noise rounded-2xl px-5 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex items-start gap-4">
-            <div className="bg-surface-1 border-border/70 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border shadow-sm">
+            <div className="bg-surface-1/80 border-border/70 flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border">
               <CompanyLogo
                 companyName={interview.companyName || 'Unknown Company'}
                 logoUrl={interview.companyLogoUrl}
-                size={52}
-                className="rounded-md object-cover"
+                size={56}
+                className="rounded-lg object-cover"
               />
             </div>
 
-            <div className="min-w-0">
-              <Badge variant="primary" className="mb-2 w-fit gap-1.5">
+            <div className="min-w-0 space-y-2">
+              <Badge variant="primary" className="w-fit gap-1.5">
                 <Sparkles className="size-3.5" />
                 Live Session
               </Badge>
               <h1 className="text-foreground text-xl leading-tight font-bold break-words sm:text-2xl">
                 {interview.role}
               </h1>
-              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              <p className="text-muted-foreground text-sm sm:text-base">
                 {interview.companyName || 'IntervoxAI'}
               </p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Stay concise and explain your reasoning clearly.
+              <p className="text-muted-foreground text-sm">
+                Keep answers concise, structured, and technically defensible.
               </p>
             </div>
           </div>
@@ -99,12 +102,27 @@ const Page = async ({ params }: RouteParams) => {
             )}
           </div>
         </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <HintPill text="Stay focused on one problem at a time" />
+          <HintPill text="State assumptions before diving deep" />
+          <HintPill text="Ask clarifying questions when needed" />
+        </div>
       </section>
 
-      <section className="min-h-[540px] lg:h-[calc(100vh-16rem)]">
+      <section className="min-h-[560px] lg:h-[calc(100vh-16rem)]">
         <LiveInterviewAgent interview={interview} sessionId={sessionId} />
       </section>
     </Container>
+  )
+}
+
+function HintPill({ text }: { text: string }) {
+  return (
+    <div className="border-border/65 bg-surface-1/75 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm">
+      <ShieldCheck className="text-success size-4" />
+      <span>{text}</span>
+    </div>
   )
 }
 
@@ -122,8 +140,8 @@ function StateCard({
   return (
     <Card variant="gradient" className="py-12">
       <CardContent className="space-y-6 text-center">
-        <div className="bg-error-500/10 border-error-500/30 mx-auto flex size-16 items-center justify-center rounded-full border">
-          <AlertCircle className="text-error-500 size-8" />
+        <div className="bg-error/10 border-error/30 mx-auto flex size-16 items-center justify-center rounded-full border">
+          <AlertCircle className="text-error size-8" />
         </div>
 
         <div className="space-y-2">

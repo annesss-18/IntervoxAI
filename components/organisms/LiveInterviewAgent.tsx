@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { AlertCircle, Briefcase, User2 } from 'lucide-react'
 import { useLiveInterview } from '@/lib/hooks/useLiveInterview'
@@ -21,7 +22,7 @@ interface LiveInterviewAgentProps {
   sessionId: string
 }
 
-type InterviewPhase = 'setup' | 'active' | 'ending' | 'completed'
+type InterviewPhase = 'setup' | 'active' | 'ending' | 'completed' | 'submit_failed'
 
 /**
  * Main orchestrator component for live AI interviews.
@@ -200,8 +201,12 @@ export function LiveInterviewAgent({ interview, sessionId }: LiveInterviewAgentP
       setPhase('completed')
       router.push(`/interview/session/${sessionId}/feedback`)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to submit interview')
-      setPhase('active')
+      toast.error(
+        error instanceof Error
+          ? `${error.message}. Retry submission from this screen.`
+          : 'Failed to submit interview. Retry submission from this screen.'
+      )
+      setPhase('submit_failed')
     } finally {
       setIsSubmitting(false)
     }
@@ -240,8 +245,8 @@ export function LiveInterviewAgent({ interview, sessionId }: LiveInterviewAgentP
       {(connectionError || captureError) && (
         <div className="bg-background/85 absolute inset-0 z-50 flex items-center justify-center p-6 backdrop-blur-sm">
           <div className="flex max-w-md flex-col items-center gap-6 text-center">
-            <div className="border-error-500/30 bg-error-500/10 flex size-16 items-center justify-center rounded-full border-2">
-              <AlertCircle className="text-error-500 size-8" />
+            <div className="border-error/30 bg-error/10 flex size-16 items-center justify-center rounded-full border-2">
+              <AlertCircle className="text-error size-8" />
             </div>
             <div className="space-y-2">
               <h3 className="text-foreground text-xl font-semibold">Connection Error</h3>
@@ -265,7 +270,7 @@ export function LiveInterviewAgent({ interview, sessionId }: LiveInterviewAgentP
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="border-border/70 bg-surface-2/30 border-b px-4 py-3 sm:px-5">
+          <div className="border-b border-border bg-muted/30 px-4 py-3 sm:px-5">
             <div className="flex items-center justify-between gap-3">
               <p className="text-foreground text-sm font-semibold">Live Conversation</p>
               <p className="text-muted-foreground text-xs sm:text-sm">
@@ -275,15 +280,31 @@ export function LiveInterviewAgent({ interview, sessionId }: LiveInterviewAgentP
           </div>
 
           {sessionTimeWarning && phase === 'active' && (
-            <div className="border-warning-500/20 bg-warning-500/10 text-warning-500 flex items-center gap-2 border-b px-4 py-2 text-xs sm:px-6 sm:text-sm">
+            <div className="border-warning/20 bg-warning/10 text-warning flex items-center gap-2 border-b px-4 py-2 text-xs sm:px-6 sm:text-sm">
               <AlertCircle className="size-4 shrink-0" />
               Session ends in {remainingSeconds}s
             </div>
           )}
 
+          {phase === 'submit_failed' && (
+            <div className="border-error/20 bg-error/10 flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-error text-sm">
+                Feedback submission failed. Retry now or open the feedback page.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleEndInterview}>
+                  Retry Submission
+                </Button>
+                <Button asChild size="sm" variant="secondary">
+                  <Link href={`/interview/session/${sessionId}/feedback`}>Open Feedback</Link>
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="flex min-h-0 flex-1 flex-col gap-3 p-4 sm:gap-4 sm:p-5">
             <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-2">
-              <section className="border-border/70 bg-surface-1 flex min-h-0 flex-col rounded-2xl border p-4 sm:p-5">
+              <section className="flex min-h-0 flex-col rounded-2xl border border-border bg-card p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <div className="from-primary/80 to-primary flex size-11 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white">
@@ -328,10 +349,10 @@ export function LiveInterviewAgent({ interview, sessionId }: LiveInterviewAgentP
                 </div>
               </section>
 
-              <section className="border-border/70 bg-surface-1 flex min-h-0 flex-col rounded-2xl border p-4 sm:p-5">
+              <section className="flex min-h-0 flex-col rounded-2xl border border-border bg-card p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="from-stellar-500 to-stellar-600 flex size-11 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white">
+                    <div className="from-info to-info-600 flex size-11 items-center justify-center rounded-full bg-gradient-to-br text-sm font-bold text-white">
                       <User2 className="size-5" />
                     </div>
                     <div>

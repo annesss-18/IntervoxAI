@@ -1,5 +1,6 @@
 'use client'
 
+import { Card, CardContent } from '@/components/atoms/card'
 import { Button } from '@/components/atoms/button'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 
@@ -12,24 +13,28 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body className="flex min-h-screen items-center justify-center bg-[#0a0a0f] p-4 text-white">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-red-500/20">
-            <AlertTriangle className="size-8 text-red-400" />
-          </div>
+      <body className="bg-background text-foreground flex min-h-screen items-center justify-center p-4">
+        <Card variant="gradient" className="w-full max-w-md py-4 text-center">
+          <CardContent className="space-y-6">
+            <div className="bg-error/10 border-error/30 mx-auto flex size-16 items-center justify-center rounded-full border">
+              <AlertTriangle className="text-error size-8" />
+            </div>
 
-          <h1 className="mb-2 text-2xl font-bold">Something went wrong</h1>
-          <p className="mb-8 text-gray-400">
-            A critical error occurred. Please try refreshing the page.
-          </p>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-semibold">Something went wrong</h1>
+              <p className="text-muted-foreground">
+                A critical error occurred. Please try refreshing the page.
+              </p>
+            </div>
 
-          <Button onClick={reset} className="bg-white text-black hover:bg-gray-200">
-            <RefreshCw className="mr-2 size-4" />
-            Try Again
-          </Button>
+            <Button onClick={reset}>
+              <RefreshCw className="mr-2 size-4" />
+              Try Again
+            </Button>
 
-          {error.digest && <p className="mt-8 text-xs text-gray-500">Error ID: {error.digest}</p>}
-        </div>
+            {error.digest && <p className="text-muted-foreground text-xs">Error ID: {error.digest}</p>}
+          </CardContent>
+        </Card>
       </body>
     </html>
   )

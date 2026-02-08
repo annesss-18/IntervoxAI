@@ -1,9 +1,9 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { onAuthStateChanged, User } from 'firebase/auth'
 import { auth } from '@/firebase/client'
-import { signOut as signOutAction } from '@/lib/actions/auth.action'
+import { refreshSession, signOut as signOutAction } from '@/lib/actions/auth.action'
 import { useRouter } from 'next/navigation'
 
 type AuthContextType = {
@@ -22,6 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  const isRefreshingSessionRef = useRef(false)
+  const lastUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -29,16 +31,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
 
       if (!user) {
-        // User logged out
-        await signOutAction()
-        router.refresh()
-      } else {
-        // User logged in or session refreshed
-        // Ideally we also check/refresh the server cookie here if needed
-        // For now, we rely on the login form to set the initial cookie using server action
-        // But if the server cookie expires and the client is still logged in,
-        // we might want to refresh it here.
-        // Leaving that enhancement for later to keep this focused on the "not updating" issue.
+        const hadAuthenticatedUser = lastUserIdRef.current !== null
+        lastUserIdRef.current = null
+        if (hadAuthenticatedUser) {
+          await signOutAction()
+          router.refresh()
+        }
+        return
+      }
+
+      const userChanged = lastUserIdRef.current !== user.uid
+      lastUserIdRef.current = user.uid
+
+      const sessionRefreshNeeded = document.cookie.includes('session-refresh-needed=true')
+      let refreshedSession = false
+
+      if (sessionRefreshNeeded && !isRefreshingSessionRef.current) {
+        isRefreshingSessionRef.current = true
+        try {
+          const idToken = await user.getIdToken(true)
+          const result = await refreshSession(idToken)
+          refreshedSession = !!result?.success
+        } catch (error) {
+          console.error('Failed to refresh server session cookie:', error)
+        } finally {
+          isRefreshingSessionRef.current = false
+        }
+      }
+
+      if (userChanged || refreshedSession) {
         router.refresh()
       }
     })

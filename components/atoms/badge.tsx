@@ -3,18 +3,18 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+  'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
   {
     variants: {
       variant: {
-        default: 'bg-secondary text-secondary-foreground',
-        primary: 'bg-primary/20 text-primary border border-primary/30',
-        secondary: 'bg-secondary text-secondary-foreground border border-border',
-        success: 'bg-success-100 text-success-700 dark:bg-success-500/20 dark:text-success-400',
-        warning: 'bg-warning-100 text-warning-700 dark:bg-warning-500/20 dark:text-warning-400',
-        error: 'bg-error-100 text-error-700 dark:bg-error-500/20 dark:text-error-400',
-        info: 'bg-stellar-100 text-stellar-700 dark:bg-stellar-500/20 dark:text-stellar-400',
+        default: 'bg-muted text-muted-foreground',
+        primary: 'bg-primary/15 text-primary',
+        secondary: 'bg-secondary/15 text-secondary',
         outline: 'border border-border text-foreground',
+        success: 'bg-success/15 text-success',
+        warning: 'bg-warning/15 text-warning-foreground',
+        error: 'bg-error/15 text-error',
+        info: 'bg-info/15 text-info',
       },
     },
     defaultVariants: {
@@ -24,7 +24,8 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {
+  extends React.HTMLAttributes<HTMLDivElement>,
+  VariantProps<typeof badgeVariants> {
   dot?: boolean
 }
 
@@ -35,16 +36,14 @@ function Badge({ className, variant, dot, children, ...props }: BadgeProps) {
         <span
           className={cn(
             'size-1.5 rounded-full',
-            variant === 'success' && 'bg-success-500',
-            variant === 'warning' && 'bg-warning-500',
-            variant === 'error' && 'bg-error-500',
-            variant === 'info' && 'bg-stellar-500',
+            variant === 'success' && 'bg-success',
+            variant === 'warning' && 'bg-warning',
+            variant === 'error' && 'bg-error',
+            variant === 'info' && 'bg-info',
             variant === 'primary' && 'bg-primary',
-            (!variant ||
-              variant === 'default' ||
-              variant === 'secondary' ||
-              variant === 'outline') &&
-              'bg-muted-foreground'
+            variant === 'secondary' && 'bg-secondary',
+            (!variant || variant === 'default' || variant === 'outline') &&
+            'bg-muted-foreground'
           )}
         />
       )}
