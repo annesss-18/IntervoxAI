@@ -14,9 +14,7 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "type-check": "tsc --noEmit",
-    "ci:check": "npm run guard:styles && npm run lint && npm run type-check && npm run build",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "ci:check": "npm run guard:styles && npm run lint && npm run type-check && npm run build"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.52",
@@ -36,7 +34,7 @@
     "@upstash/redis": "^1.36.1",
     "@vercel/analytics": "^1.6.1",
     "ai": "^5.0.121",
-    "cheerio": "^1.1.2",
+    "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.8.0",
@@ -62,8 +60,6 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "prettier": "^3.8.1",
-    "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
     "typescript": "^5"
