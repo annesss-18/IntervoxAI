@@ -1,22 +1,23 @@
-import { Metadata } from 'next'
-import { redirect } from 'next/navigation'
-import { Sparkles, Wand2, ShieldCheck } from 'lucide-react'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { Container, PageHeader } from '@/components/layout/Container'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Badge } from '@/components/atoms/badge'
-import { CreateInterviewForm } from '@/components/organisms/CreateInterviewForm'
+import { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { Sparkles, Wand2, ShieldCheck } from "lucide-react";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { Container, PageHeader } from "@/components/layout/Container";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Badge } from "@/components/atoms/badge";
+import { CreateInterviewForm } from "@/components/organisms/CreateInterviewForm";
 
 export const metadata: Metadata = {
-  title: 'Create Interview',
-  description: 'Create a new custom interview template tailored to your target role and company.',
-}
+  title: "Create Interview",
+  description:
+    "Create a new custom interview template tailored to your target role and company.",
+};
 
 export default async function CreatePage() {
-  const user = await getCurrentUser()
+  const user = await getCurrentUser();
 
   if (!user) {
-    redirect('/sign-in')
+    redirect("/sign-in");
   }
 
   return (
@@ -35,20 +36,29 @@ export default async function CreatePage() {
             </Badge>
 
             <div className="space-y-2">
-              <h2 className="text-2xl font-semibold">Build role-specific interview flows</h2>
+              <h2 className="text-2xl font-semibold">
+                Build role-specific interview flows
+              </h2>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                The generated template includes role context, likely technical depth, suggested
-                interview type, and stack-aware questioning seeds.
+                The generated template includes role context, likely technical
+                depth, suggested interview type, and stack-aware questioning
+                seeds.
               </p>
             </div>
 
             <div className="grid gap-3">
               {[
-                { icon: Wand2, text: 'Auto extract role and level from JD input' },
-                { icon: Sparkles, text: 'Generate focused tech stack context' },
-                { icon: ShieldCheck, text: 'Choose public or private visibility mode' },
+                {
+                  icon: Wand2,
+                  text: "Auto extract role and level from JD input",
+                },
+                { icon: Sparkles, text: "Generate focused tech stack context" },
+                {
+                  icon: ShieldCheck,
+                  text: "Choose public or private visibility mode",
+                },
               ].map((item) => {
-                const Icon = item.icon
+                const Icon = item.icon;
                 return (
                   <div
                     key={item.text}
@@ -57,7 +67,7 @@ export default async function CreatePage() {
                     <Icon className="text-primary size-4" />
                     <span className="text-sm">{item.text}</span>
                   </div>
-                )
+                );
               })}
             </div>
           </CardContent>
@@ -66,5 +76,5 @@ export default async function CreatePage() {
         <CreateInterviewForm userId={user.id} />
       </div>
     </Container>
-  )
+  );
 }

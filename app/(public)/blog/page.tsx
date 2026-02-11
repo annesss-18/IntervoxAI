@@ -1,30 +1,31 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { ArrowRight, Calendar } from 'lucide-react'
-import { Container, PageHeader, Section } from '@/components/layout/Container'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Button } from '@/components/atoms/button'
-import { Badge } from '@/components/atoms/badge'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight, Calendar } from "lucide-react";
+import { Container, PageHeader, Section } from "@/components/layout/Container";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Button } from "@/components/atoms/button";
+import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: 'Blog',
-  description: 'Interview preparation and career growth articles from IntervoxAI.',
-}
+  title: "Blog",
+  description:
+    "Interview preparation and career growth articles from IntervoxAI.",
+};
 
 const upcomingTopics = [
   {
-    title: 'How to structure backend system design answers',
-    category: 'System Design',
+    title: "How to structure backend system design answers",
+    category: "System Design",
   },
   {
-    title: 'Communicating tradeoffs under interview pressure',
-    category: 'Soft Skills',
+    title: "Communicating tradeoffs under interview pressure",
+    category: "Soft Skills",
   },
   {
-    title: 'Building a high-impact interview prep routine',
-    category: 'Strategy',
+    title: "Building a high-impact interview prep routine",
+    category: "Strategy",
   },
-]
+];
 
 export default function BlogPage() {
   return (
@@ -45,7 +46,9 @@ export default function BlogPage() {
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="size-4 text-info" />
               <span className="text-muted-foreground">
-                <strong className="text-foreground">Coming soon.</strong> We're preparing practical, example-driven content focused on real interview scenarios.
+                <strong className="text-foreground">Coming soon.</strong> We're
+                preparing practical, example-driven content focused on real
+                interview scenarios.
               </span>
             </div>
           </div>
@@ -73,5 +76,5 @@ export default function BlogPage() {
         </Container>
       </Section>
     </>
-  )
+  );
 }

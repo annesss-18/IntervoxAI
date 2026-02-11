@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 import {
   ArrowRight,
   Mic,
@@ -8,65 +8,65 @@ import {
   Sparkles,
   MessageSquare,
   Zap,
-} from 'lucide-react'
-import { Button } from '@/components/atoms/button'
+} from "lucide-react";
+import { Button } from "@/components/atoms/button";
 
 const features = [
   {
     icon: Mic,
-    title: 'Voice-Powered Practice',
-    description: 'Speak naturally with our AI interviewer.',
+    title: "Voice-Powered Practice",
+    description: "Speak naturally with our AI interviewer.",
   },
   {
     icon: Brain,
-    title: 'AI-Driven Feedback',
-    description: 'Receive instant, detailed feedback on your answers.',
+    title: "AI-Driven Feedback",
+    description: "Receive instant, detailed feedback on your answers.",
   },
   {
     icon: BarChart3,
-    title: 'Progress Tracking',
-    description: 'Monitor your improvement over time.',
+    title: "Progress Tracking",
+    description: "Monitor your improvement over time.",
   },
   {
     icon: Target,
-    title: 'Role-Specific Questions',
-    description: 'Practice with questions tailored to your target role.',
+    title: "Role-Specific Questions",
+    description: "Practice with questions tailored to your target role.",
   },
   {
     icon: MessageSquare,
-    title: 'Real Conversations',
-    description: 'Dynamic AI that adapts to your responses.',
+    title: "Real Conversations",
+    description: "Dynamic AI that adapts to your responses.",
   },
   {
     icon: Zap,
-    title: 'Instant Analysis',
-    description: 'Get immediate insights on your performance.',
+    title: "Instant Analysis",
+    description: "Get immediate insights on your performance.",
   },
-]
+];
 
 const howItWorks = [
   {
-    step: '01',
-    title: 'Create Interview',
-    description: 'Pick your target role and focus areas.',
+    step: "01",
+    title: "Create Interview",
+    description: "Pick your target role and focus areas.",
   },
   {
-    step: '02',
-    title: 'Practice Speaking',
-    description: 'Engage in voice conversations with AI.',
+    step: "02",
+    title: "Practice Speaking",
+    description: "Engage in voice conversations with AI.",
   },
   {
-    step: '03',
-    title: 'Review & Improve',
-    description: 'Get structured feedback and track progress.',
+    step: "03",
+    title: "Review & Improve",
+    description: "Get structured feedback and track progress.",
   },
-]
+];
 
 const stats = [
-  { value: '16K+', label: 'Sessions' },
-  { value: '90%', label: 'Improve' },
-  { value: '4.6', label: 'Rating' },
-]
+  { value: "16K+", label: "Sessions" },
+  { value: "90%", label: "Improve" },
+  { value: "4.6", label: "Rating" },
+];
 
 export default function LandingPage() {
   return (
@@ -78,12 +78,14 @@ export default function LandingPage() {
             <h1 className="mb-6 text-4xl font-medium tracking-tight sm:text-5xl">
               <span className="font-serif italic">Master Your Interview</span>
               <br />
-              <span className="font-serif italic text-primary">With AI Coaching</span>
+              <span className="font-serif italic text-primary">
+                With AI Coaching
+              </span>
             </h1>
 
             <p className="mb-10 text-lg text-muted-foreground">
-              Practice technical interviews with an AI that listens, responds, and provides
-              structured feedback.
+              Practice technical interviews with an AI that listens, responds,
+              and provides structured feedback.
             </p>
 
             <div className="mb-12 flex flex-wrap items-center justify-center gap-4">
@@ -103,7 +105,9 @@ export default function LandingPage() {
             <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
               {stats.map((stat) => (
                 <div key={stat.label} className="text-center">
-                  <div className="text-xl font-semibold text-foreground">{stat.value}</div>
+                  <div className="text-xl font-semibold text-foreground">
+                    {stat.value}
+                  </div>
                   <div>{stat.label}</div>
                 </div>
               ))}
@@ -126,16 +130,18 @@ export default function LandingPage() {
 
           <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feature) => {
-              const Icon = feature.icon
+              const Icon = feature.icon;
               return (
                 <div key={feature.title} className="text-center">
                   <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full border border-border">
                     <Icon className="size-5 text-primary" />
                   </div>
                   <h3 className="mb-2 font-semibold">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {feature.description}
+                  </p>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
@@ -156,9 +162,13 @@ export default function LandingPage() {
           <div className="mx-auto grid max-w-3xl gap-12 md:grid-cols-3">
             {howItWorks.map((item) => (
               <div key={item.step} className="text-center">
-                <div className="mb-4 text-4xl font-light text-primary/30">{item.step}</div>
+                <div className="mb-4 text-4xl font-light text-primary/30">
+                  {item.step}
+                </div>
                 <h3 className="mb-2 font-semibold">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
             ))}
           </div>
@@ -185,5 +195,5 @@ export default function LandingPage() {
         </div>
       </section>
     </div>
-  )
+  );
 }

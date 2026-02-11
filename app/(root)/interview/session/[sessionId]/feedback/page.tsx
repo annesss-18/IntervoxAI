@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
+import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   AlertCircle,
   Award,
@@ -10,40 +10,43 @@ import {
   Target,
   TrendingDown,
   TrendingUp,
-} from 'lucide-react'
-import type { RouteParams } from '@/types'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { getFeedbackByInterviewId, getInterviewsById } from '@/lib/actions/interview.action'
-import { Button } from '@/components/atoms/button'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Progress } from '@/components/atoms/progress'
-import { Badge } from '@/components/atoms/badge'
-import { Container } from '@/components/layout/Container'
-import { FeedbackGenerationStatus } from '@/components/organisms/FeedbackGenerationStatus'
+} from "lucide-react";
+import type { RouteParams } from "@/types";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import {
+  getFeedbackByInterviewId,
+  getInterviewsById,
+} from "@/lib/actions/interview.action";
+import { Button } from "@/components/atoms/button";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Progress } from "@/components/atoms/progress";
+import { Badge } from "@/components/atoms/badge";
+import { Container } from "@/components/layout/Container";
+import { FeedbackGenerationStatus } from "@/components/organisms/FeedbackGenerationStatus";
 
 const Page = async ({ params }: RouteParams) => {
-  const { sessionId } = await params
+  const { sessionId } = await params;
 
-  if (!sessionId || typeof sessionId !== 'string') {
-    redirect('/')
+  if (!sessionId || typeof sessionId !== "string") {
+    redirect("/");
   }
 
-  const user = await getCurrentUser()
+  const user = await getCurrentUser();
   if (!user) {
-    redirect('/sign-in')
+    redirect("/sign-in");
   }
 
-  const interview = await getInterviewsById(sessionId, user.id)
-  if (!interview) redirect('/')
+  const interview = await getInterviewsById(sessionId, user.id);
+  if (!interview) redirect("/");
 
   const feedback = await getFeedbackByInterviewId({
     interviewId: sessionId,
     userId: user.id,
-  })
+  });
 
   if (!feedback) {
-    if (interview.status === 'completed') {
-      return <FeedbackGenerationStatus sessionId={sessionId} />
+    if (interview.status === "completed") {
+      return <FeedbackGenerationStatus sessionId={sessionId} />;
     }
 
     return (
@@ -56,7 +59,8 @@ const Page = async ({ params }: RouteParams) => {
             <div className="space-y-2">
               <h2 className="text-2xl font-semibold">No Feedback Available</h2>
               <p className="text-muted-foreground">
-                Complete the interview to receive detailed feedback on your performance.
+                Complete the interview to receive detailed feedback on your
+                performance.
               </p>
             </div>
             <Button asChild>
@@ -68,42 +72,42 @@ const Page = async ({ params }: RouteParams) => {
           </CardContent>
         </Card>
       </Container>
-    )
+    );
   }
 
-  type CategoryItem = { name: string; score: number; comment: string }
+  type CategoryItem = { name: string; score: number; comment: string };
 
   const formatDate = (iso?: string) => {
-    if (!iso) return 'N/A'
-    const date = new Date(iso)
-    if (isNaN(date.getTime())) return 'Invalid date'
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-  }
+    if (!iso) return "N/A";
+    const date = new Date(iso);
+    if (isNaN(date.getTime())) return "Invalid date";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
-  const scoreVariant = (score: number): 'success' | 'warning' | 'error' => {
-    if (score >= 80) return 'success'
-    if (score >= 60) return 'warning'
-    return 'error'
-  }
+  const scoreVariant = (score: number): "success" | "warning" | "error" => {
+    if (score >= 80) return "success";
+    if (score >= 60) return "warning";
+    return "error";
+  };
 
   const scoreTone = (score: number) => {
-    if (score >= 80) return 'text-success'
-    if (score >= 60) return 'text-warning'
-    return 'text-error'
-  }
+    if (score >= 80) return "text-success";
+    if (score >= 60) return "text-warning";
+    return "text-error";
+  };
 
   const scoreMessage =
     feedback.totalScore >= 80
-      ? 'Outstanding performance. You demonstrated clear reasoning and confident communication.'
+      ? "Outstanding performance. You demonstrated clear reasoning and confident communication."
       : feedback.totalScore >= 60
-        ? 'Solid progress with room to improve. Keep tightening structure and clarity.'
-        : 'There is clear room for growth. Focus on the improvement areas below and iterate.'
+        ? "Solid progress with room to improve. Keep tightening structure and clarity."
+        : "There is clear room for growth. Focus on the improvement areas below and iterate.";
 
   return (
     <Container size="xl" className="animate-fadeIn space-y-7 p-6">
@@ -116,9 +120,12 @@ const Page = async ({ params }: RouteParams) => {
                 Interview Completed
               </Badge>
               <div>
-                <h1 className="text-3xl font-semibold sm:text-4xl">Performance Report</h1>
+                <h1 className="text-3xl font-semibold sm:text-4xl">
+                  Performance Report
+                </h1>
                 <p className="text-muted-foreground text-sm">
-                  Interview ID: <span className="font-mono">{feedback.interviewId}</span>
+                  Interview ID:{" "}
+                  <span className="font-mono">{feedback.interviewId}</span>
                 </p>
               </div>
             </div>
@@ -144,7 +151,9 @@ const Page = async ({ params }: RouteParams) => {
         <CardContent className="pt-7">
           <div className="grid gap-6 lg:grid-cols-[auto_1fr] lg:items-center">
             <div className="border-border/65 bg-surface-2/70 mx-auto flex size-48 flex-col items-center justify-center rounded-full border">
-              <div className={`text-6xl font-semibold ${scoreTone(feedback.totalScore)}`}>
+              <div
+                className={`text-6xl font-semibold ${scoreTone(feedback.totalScore)}`}
+              >
                 {feedback.totalScore}
               </div>
               <div className="text-muted-foreground text-lg">/100</div>
@@ -153,20 +162,31 @@ const Page = async ({ params }: RouteParams) => {
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Award className={`size-6 ${scoreTone(feedback.totalScore)}`} />
-                  <h2 className="text-2xl font-semibold">Overall Performance</h2>
+                  <Award
+                    className={`size-6 ${scoreTone(feedback.totalScore)}`}
+                  />
+                  <h2 className="text-2xl font-semibold">
+                    Overall Performance
+                  </h2>
                 </div>
                 <p className="text-muted-foreground">{scoreMessage}</p>
               </div>
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Score Distribution</span>
-                  <span className={`font-semibold ${scoreTone(feedback.totalScore)}`}>
+                  <span className="text-muted-foreground">
+                    Score Distribution
+                  </span>
+                  <span
+                    className={`font-semibold ${scoreTone(feedback.totalScore)}`}
+                  >
                     {feedback.totalScore}%
                   </span>
                 </div>
-                <Progress value={feedback.totalScore} variant={scoreVariant(feedback.totalScore)} />
+                <Progress
+                  value={feedback.totalScore}
+                  variant={scoreVariant(feedback.totalScore)}
+                />
               </div>
             </div>
           </div>
@@ -185,12 +205,19 @@ const Page = async ({ params }: RouteParams) => {
                 <CardContent className="space-y-4 pt-7">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">{category.name}</h3>
-                    <span className={`text-2xl font-semibold ${scoreTone(category.score)}`}>
+                    <span
+                      className={`text-2xl font-semibold ${scoreTone(category.score)}`}
+                    >
                       {category.score}%
                     </span>
                   </div>
-                  <Progress value={category.score} variant={scoreVariant(category.score)} />
-                  <p className="text-muted-foreground text-sm leading-relaxed">{category.comment}</p>
+                  <Progress
+                    value={category.score}
+                    variant={scoreVariant(category.score)}
+                  />
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {category.comment}
+                  </p>
                 </CardContent>
               </Card>
             ))}
@@ -211,7 +238,9 @@ const Page = async ({ params }: RouteParams) => {
                 feedback.strengths.map((strength: string, index: number) => (
                   <li key={index} className="flex items-start gap-3">
                     <CheckCircle2 className="text-success mt-0.5 size-5 shrink-0" />
-                    <span className="text-muted-foreground text-sm leading-relaxed">{strength}</span>
+                    <span className="text-muted-foreground text-sm leading-relaxed">
+                      {strength}
+                    </span>
                   </li>
                 ))}
             </ul>
@@ -228,12 +257,16 @@ const Page = async ({ params }: RouteParams) => {
             </div>
             <ul className="space-y-3">
               {Array.isArray(feedback.areasForImprovement) &&
-                feedback.areasForImprovement.map((item: string, index: number) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <AlertCircle className="text-warning mt-0.5 size-5 shrink-0" />
-                    <span className="text-muted-foreground text-sm leading-relaxed">{item}</span>
-                  </li>
-                ))}
+                feedback.areasForImprovement.map(
+                  (item: string, index: number) => (
+                    <li key={index} className="flex items-start gap-3">
+                      <AlertCircle className="text-warning mt-0.5 size-5 shrink-0" />
+                      <span className="text-muted-foreground text-sm leading-relaxed">
+                        {item}
+                      </span>
+                    </li>
+                  ),
+                )}
             </ul>
           </CardContent>
         </Card>
@@ -247,7 +280,9 @@ const Page = async ({ params }: RouteParams) => {
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-semibold">Final Assessment</h3>
-              <p className="text-muted-foreground leading-relaxed">{feedback.finalAssessment}</p>
+              <p className="text-muted-foreground leading-relaxed">
+                {feedback.finalAssessment}
+              </p>
             </div>
           </div>
 
@@ -268,7 +303,7 @@ const Page = async ({ params }: RouteParams) => {
         </CardContent>
       </Card>
     </Container>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

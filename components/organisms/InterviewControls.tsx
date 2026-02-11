@@ -1,24 +1,24 @@
-'use client'
+"use client";
 
-import { Mic, MicOff, PhoneOff, Loader2, Clock } from 'lucide-react'
-import type { ConnectionStatus } from '@/lib/hooks/useLiveInterview'
-import { Badge } from '@/components/atoms/badge'
-import { Button } from '@/components/atoms/button'
-import { cn } from '@/lib/utils'
+import { Mic, MicOff, PhoneOff, Loader2, Clock } from "lucide-react";
+import type { ConnectionStatus } from "@/lib/hooks/useLiveInterview";
+import { Badge } from "@/components/atoms/badge";
+import { Button } from "@/components/atoms/button";
+import { cn } from "@/lib/utils";
 
 interface InterviewControlsProps {
   /** Current connection status */
-  connectionStatus: ConnectionStatus
+  connectionStatus: ConnectionStatus;
   /** Elapsed time in seconds */
-  elapsedTime: number
+  elapsedTime: number;
   /** Whether the microphone is muted */
-  isMuted: boolean
+  isMuted: boolean;
   /** Whether the interview is being submitted */
-  isSubmitting: boolean
+  isSubmitting: boolean;
   /** Callback to toggle mute */
-  onToggleMute: () => void
+  onToggleMute: () => void;
   /** Callback to end interview */
-  onEndInterview: () => void
+  onEndInterview: () => void;
 }
 
 /**
@@ -33,18 +33,18 @@ export function InterviewControls({
   onEndInterview,
 }: InterviewControlsProps) {
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
-  const sessionTimeWarning = elapsedTime >= 840 // 14 minutes
+  const sessionTimeWarning = elapsedTime >= 840; // 14 minutes
   const statusVariant =
-    connectionStatus === 'connected'
-      ? 'success'
-      : connectionStatus === 'connecting'
-        ? 'warning'
-        : 'error'
+    connectionStatus === "connected"
+      ? "success"
+      : connectionStatus === "connecting"
+        ? "warning"
+        : "error";
 
   return (
     <div className="mt-4 w-full">
@@ -56,8 +56,8 @@ export function InterviewControls({
 
           <div
             className={cn(
-              'inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 font-mono text-sm',
-              sessionTimeWarning && 'text-warning'
+              "inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 font-mono text-sm",
+              sessionTimeWarning && "text-warning",
             )}
           >
             <Clock className="size-4 opacity-75" />
@@ -68,12 +68,16 @@ export function InterviewControls({
         <div className="flex items-center gap-2 sm:gap-3">
           <Button
             onClick={onToggleMute}
-            disabled={connectionStatus !== 'connected'}
-            variant={isMuted ? 'destructive' : 'secondary'}
+            disabled={connectionStatus !== "connected"}
+            variant={isMuted ? "destructive" : "secondary"}
             size="icon"
-            aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
+            aria-label={isMuted ? "Unmute microphone" : "Mute microphone"}
           >
-            {isMuted ? <MicOff className="size-4" /> : <Mic className="size-4" />}
+            {isMuted ? (
+              <MicOff className="size-4" />
+            ) : (
+              <Mic className="size-4" />
+            )}
           </Button>
 
           <Button
@@ -92,7 +96,7 @@ export function InterviewControls({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default InterviewControls
+export default InterviewControls;

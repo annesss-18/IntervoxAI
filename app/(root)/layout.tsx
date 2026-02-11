@@ -1,13 +1,17 @@
-import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { Navbar } from '@/components/layout/Navbar'
-import { FooterCompact } from '@/components/layout/Footer'
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { Navbar } from "@/components/layout/Navbar";
+import { FooterCompact } from "@/components/layout/Footer";
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const user = await getCurrentUser()
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const user = await getCurrentUser();
 
   if (!user) {
-    redirect('/sign-in')
+    redirect("/sign-in");
   }
 
   return (
@@ -28,5 +32,5 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5 blur-[100px]" />
       </div>
     </div>
-  )
+  );
 }

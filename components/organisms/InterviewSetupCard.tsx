@@ -1,11 +1,17 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Phone, Loader2, Sparkles, FileText, X } from 'lucide-react'
-import { Button } from '@/components/atoms/button'
-import { Badge } from '@/components/atoms/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/atoms/card'
-import { ResumeUploader } from '@/components/organisms/ResumeUploader'
+import { useState } from "react";
+import { Phone, Loader2, Sparkles, FileText, X } from "lucide-react";
+import { Button } from "@/components/atoms/button";
+import { Badge } from "@/components/atoms/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/atoms/card";
+import { ResumeUploader } from "@/components/organisms/ResumeUploader";
 import {
   Dialog,
   DialogContent,
@@ -13,21 +19,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/atoms/dialog'
+} from "@/components/atoms/dialog";
 
 interface InterviewSetupCardProps {
   /** Whether the session is being updated (e.g., resume upload) */
-  isUpdating: boolean
+  isUpdating: boolean;
   /** Whether a resume is attached */
-  hasResume: boolean
+  hasResume: boolean;
   /** Initial resume text for the uploader */
-  initialResumeText?: string
+  initialResumeText?: string;
   /** Callback when resume is uploaded */
-  onResumeUploaded: (text: string) => void
+  onResumeUploaded: (text: string) => void;
   /** Callback when resume is cleared */
-  onResumeClear: () => void
+  onResumeClear: () => void;
   /** Callback when user clicks start */
-  onStart: () => void
+  onStart: () => void;
 }
 
 /**
@@ -41,12 +47,12 @@ export function InterviewSetupCard({
   onResumeClear,
   onStart,
 }: InterviewSetupCardProps) {
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false)
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
 
   const handleResumeComplete = (text: string) => {
-    onResumeUploaded(text)
-    setIsResumeModalOpen(false)
-  }
+    onResumeUploaded(text);
+    setIsResumeModalOpen(false);
+  };
 
   return (
     <div className="w-full max-w-3xl">
@@ -59,19 +65,24 @@ export function InterviewSetupCard({
                 Start Live Interview
               </CardTitle>
               <CardDescription className="mt-2 max-w-2xl">
-                Confirm your mic settings, optionally attach your resume for better context, then
-                begin.
+                Confirm your mic settings, optionally attach your resume for
+                better context, then begin.
               </CardDescription>
             </div>
-            <Badge variant={hasResume ? 'success' : 'secondary'}>
-              {hasResume ? 'Resume Added' : 'Resume Optional'}
+            <Badge variant={hasResume ? "success" : "secondary"}>
+              {hasResume ? "Resume Added" : "Resume Optional"}
             </Badge>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5">
           <div className="flex justify-center">
-            <Button onClick={onStart} disabled={isUpdating} size="lg" className="min-w-[220px]">
+            <Button
+              onClick={onStart}
+              disabled={isUpdating}
+              size="lg"
+              className="min-w-[220px]"
+            >
               {isUpdating ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -100,19 +111,22 @@ export function InterviewSetupCard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Dialog open={isResumeModalOpen} onOpenChange={setIsResumeModalOpen}>
+              <Dialog
+                open={isResumeModalOpen}
+                onOpenChange={setIsResumeModalOpen}
+              >
                 <DialogTrigger asChild>
                   <Button variant="secondary" size="sm">
                     <FileText className="size-4" />
-                    {hasResume ? 'Update Resume' : 'Upload Resume'}
+                    {hasResume ? "Update Resume" : "Upload Resume"}
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Provide Additional Context</DialogTitle>
                     <DialogDescription>
-                      Add your resume so the interviewer can tailor follow-up questions to your
-                      experience.
+                      Add your resume so the interviewer can tailor follow-up
+                      questions to your experience.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="py-2">
@@ -133,7 +147,7 @@ export function InterviewSetupCard({
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
 
-export default InterviewSetupCard
+export default InterviewSetupCard;

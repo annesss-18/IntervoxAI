@@ -1,23 +1,23 @@
-import type { Metadata } from 'next'
-import Link from 'next/link'
-import { ArrowRight, Check } from 'lucide-react'
-import { Container, PageHeader, Section } from '@/components/layout/Container'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Button } from '@/components/atoms/button'
-import { Badge } from '@/components/atoms/badge'
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight, Check } from "lucide-react";
+import { Container, PageHeader, Section } from "@/components/layout/Container";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Button } from "@/components/atoms/button";
+import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: 'Pricing',
-  description: 'IntervoxAI pricing and plan information.',
-}
+  title: "Pricing",
+  description: "IntervoxAI pricing and plan information.",
+};
 
 const features = [
-  'Unlimited practice sessions',
-  'AI-powered feedback',
-  'Voice and text interviews',
-  'Progress tracking',
-  'Role-specific templates',
-]
+  "Unlimited practice sessions",
+  "AI-powered feedback",
+  "Voice and text interviews",
+  "Progress tracking",
+  "Role-specific templates",
+];
 
 export default function PricingPage() {
   return (
@@ -39,7 +39,9 @@ export default function PricingPage() {
             <Card variant="interactive" className="relative overflow-hidden">
               <CardContent className="space-y-6 p-8">
                 <div>
-                  <Badge variant="success" className="mb-4">Current Plan</Badge>
+                  <Badge variant="success" className="mb-4">
+                    Current Plan
+                  </Badge>
                   <h2 className="text-2xl font-semibold">Early Access</h2>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span className="text-4xl font-bold">$0</span>
@@ -48,12 +50,16 @@ export default function PricingPage() {
                 </div>
 
                 <p className="text-muted-foreground">
-                  Full access to core features while we collect feedback and finalize paid plans.
+                  Full access to core features while we collect feedback and
+                  finalize paid plans.
                 </p>
 
                 <ul className="space-y-3">
                   {features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3 text-sm">
+                    <li
+                      key={feature}
+                      className="flex items-center gap-3 text-sm"
+                    >
                       <Check className="size-4 text-success" />
                       {feature}
                     </li>
@@ -73,7 +79,9 @@ export default function PricingPage() {
             <Card className="relative overflow-hidden border-dashed opacity-75">
               <CardContent className="space-y-6 p-8">
                 <div>
-                  <Badge variant="secondary" className="mb-4">Coming Soon</Badge>
+                  <Badge variant="secondary" className="mb-4">
+                    Coming Soon
+                  </Badge>
                   <h2 className="text-2xl font-semibold">Pro</h2>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span className="text-4xl font-bold">$19</span>
@@ -82,7 +90,8 @@ export default function PricingPage() {
                 </div>
 
                 <p className="text-muted-foreground">
-                  Advanced features for serious interview preparation and career growth.
+                  Advanced features for serious interview preparation and career
+                  growth.
                 </p>
 
                 <ul className="space-y-3 text-muted-foreground">
@@ -113,5 +122,5 @@ export default function PricingPage() {
         </Container>
       </Section>
     </>
-  )
+  );
 }

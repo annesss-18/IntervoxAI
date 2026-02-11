@@ -1,26 +1,29 @@
-import Link from 'next/link'
-import { Calendar, ArrowRight, Play, Clock3 } from 'lucide-react'
-import { Card, CardContent, CardFooter } from '@/components/atoms/card'
-import { Badge } from '@/components/atoms/badge'
-import { Button } from '@/components/atoms/button'
-import { ScoreRing } from '@/components/atoms/progress'
-import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
-import CompanyLogo from '@/components/molecules/CompanyLogo'
-import type { SessionCardData } from '@/types'
+import Link from "next/link";
+import { Calendar, ArrowRight, Play, Clock3 } from "lucide-react";
+import { Card, CardContent, CardFooter } from "@/components/atoms/card";
+import { Badge } from "@/components/atoms/badge";
+import { Button } from "@/components/atoms/button";
+import { ScoreRing } from "@/components/atoms/progress";
+import DisplayTechIcons from "@/components/molecules/DisplayTechIcons";
+import CompanyLogo from "@/components/molecules/CompanyLogo";
+import type { SessionCardData } from "@/types";
 
 interface SessionCardProps {
-  session: SessionCardData
+  session: SessionCardData;
 }
 
 export function SessionCard({ session }: SessionCardProps) {
-  const isCompleted = session.status === 'completed'
-  const isActive = session.status === 'active'
+  const isCompleted = session.status === "completed";
+  const isActive = session.status === "active";
 
-  const formattedDate = new Date(session.startedAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  const formattedDate = new Date(session.startedAt).toLocaleDateString(
+    "en-US",
+    {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    },
+  );
 
   return (
     <Card variant="interactive" className="group flex h-full flex-col">
@@ -28,15 +31,19 @@ export function SessionCard({ session }: SessionCardProps) {
         <div className="flex items-start gap-4">
           <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/50">
             <CompanyLogo
-              companyName={session.companyName || 'Unknown Company'}
+              companyName={session.companyName || "Unknown Company"}
               logoUrl={session.companyLogoUrl}
               size={48}
               className="rounded-lg object-cover"
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-foreground truncate text-base font-semibold">{session.role}</h3>
-            <p className="text-muted-foreground truncate text-sm">{session.companyName}</p>
+            <h3 className="text-foreground truncate text-base font-semibold">
+              {session.role}
+            </h3>
+            <p className="text-muted-foreground truncate text-sm">
+              {session.companyName}
+            </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Badge variant="secondary" className="text-[10px]">
                 {session.type}
@@ -50,8 +57,8 @@ export function SessionCard({ session }: SessionCardProps) {
           {isCompleted && session.finalScore !== undefined ? (
             <ScoreRing score={session.finalScore} size={50} />
           ) : (
-            <Badge variant={isActive ? 'warning' : 'info'} dot>
-              {isActive ? 'In Progress' : 'Setup'}
+            <Badge variant={isActive ? "warning" : "info"} dot>
+              {isActive ? "In Progress" : "Setup"}
             </Badge>
           )}
         </div>
@@ -78,7 +85,11 @@ export function SessionCard({ session }: SessionCardProps) {
 
       <CardFooter className="pt-0">
         {isCompleted ? (
-          <Button asChild variant="secondary" className="group-hover:bg-primary/10 group-hover:text-primary w-full">
+          <Button
+            asChild
+            variant="secondary"
+            className="group-hover:bg-primary/10 group-hover:text-primary w-full"
+          >
             <Link href={`/interview/session/${session.id}/feedback`}>
               View Feedback
               <ArrowRight className="size-4" />
@@ -88,11 +99,11 @@ export function SessionCard({ session }: SessionCardProps) {
           <Button asChild className="w-full">
             <Link href={`/interview/session/${session.id}`}>
               <Play className="size-4" />
-              {isActive ? 'Continue Interview' : 'Start Interview'}
+              {isActive ? "Continue Interview" : "Start Interview"}
             </Link>
           </Button>
         )}
       </CardFooter>
     </Card>
-  )
+  );
 }

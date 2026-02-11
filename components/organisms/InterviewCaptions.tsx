@@ -1,38 +1,38 @@
-'use client'
+"use client";
 
-import { MicOff } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { MicOff } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface InterviewCaptionsProps {
   /** Current caption text */
-  currentCaption: string | null
+  currentCaption: string | null;
   /** Who is currently speaking */
-  currentSpeaker: 'user' | 'model' | null
+  currentSpeaker: "user" | "model" | null;
   /** Whether the microphone is muted */
-  isMuted: boolean
+  isMuted: boolean;
   /** Panel this caption belongs to */
-  focus: 'user' | 'model'
+  focus: "user" | "model";
   /** Last known caption fallback for this panel */
-  fallbackCaption?: string | null
+  fallbackCaption?: string | null;
   /** Extra className */
-  className?: string
+  className?: string;
 }
 
 function getDisplayCaption(text: string, maxChars: number = 280): string {
-  const normalized = text.replace(/\s+/g, ' ').trim()
+  const normalized = text.replace(/\s+/g, " ").trim();
 
   if (normalized.length <= maxChars) {
-    return normalized
+    return normalized;
   }
 
-  const tail = normalized.slice(-maxChars)
-  const sentenceBreakIndex = tail.search(/[.!?]\s/)
+  const tail = normalized.slice(-maxChars);
+  const sentenceBreakIndex = tail.search(/[.!?]\s/);
 
   if (sentenceBreakIndex > 0 && sentenceBreakIndex < tail.length - 32) {
-    return `...${tail.slice(sentenceBreakIndex + 2)}`
+    return `...${tail.slice(sentenceBreakIndex + 2)}`;
   }
 
-  return `...${tail}`
+  return `...${tail}`;
 }
 
 /**
@@ -46,35 +46,35 @@ export function InterviewCaptions({
   fallbackCaption,
   className,
 }: InterviewCaptionsProps) {
-  const isUserPanel = focus === 'user'
-  const isLiveSpeaker = currentSpeaker === focus && !!currentCaption
-  const activeText = isLiveSpeaker ? currentCaption : fallbackCaption
-  const displayCaption = activeText ? getDisplayCaption(activeText) : ''
+  const isUserPanel = focus === "user";
+  const isLiveSpeaker = currentSpeaker === focus && !!currentCaption;
+  const activeText = isLiveSpeaker ? currentCaption : fallbackCaption;
+  const displayCaption = activeText ? getDisplayCaption(activeText) : "";
 
   let placeholder = isUserPanel
-    ? 'Your response will appear here as you speak.'
-    : 'The interviewer prompt will appear here.'
+    ? "Your response will appear here as you speak."
+    : "The interviewer prompt will appear here.";
 
   if (isUserPanel && isMuted) {
-    placeholder = 'Microphone is muted. Unmute to respond.'
+    placeholder = "Microphone is muted. Unmute to respond.";
   }
 
   return (
     <div
       className={cn(
-        'rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors',
-        isLiveSpeaker && 'border-primary/35 bg-primary/5',
-        className
+        "rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors",
+        isLiveSpeaker && "border-primary/35 bg-primary/5",
+        className,
       )}
     >
       <div className="mb-2 flex justify-end">
         <span
           className={cn(
-            'text-muted-foreground text-[11px] font-medium',
-            isLiveSpeaker && 'text-primary'
+            "text-muted-foreground text-[11px] font-medium",
+            isLiveSpeaker && "text-primary",
           )}
         >
-          {isLiveSpeaker ? 'Live' : 'Recent'}
+          {isLiveSpeaker ? "Live" : "Recent"}
         </span>
       </div>
 
@@ -84,12 +84,14 @@ export function InterviewCaptions({
         </p>
       ) : (
         <div className="flex min-h-[56px] items-center gap-2.5">
-          {isUserPanel && isMuted && <MicOff className="text-error size-4 shrink-0" />}
+          {isUserPanel && isMuted && (
+            <MicOff className="text-error size-4 shrink-0" />
+          )}
           <p className="text-muted-foreground text-sm">{placeholder}</p>
         </div>
       )}
     </div>
-  )
+  );
 }
 
-export default InterviewCaptions
+export default InterviewCaptions;

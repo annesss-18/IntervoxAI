@@ -1,20 +1,24 @@
-import Image from 'next/image'
-import Link from 'next/link'
-import { CheckCircle2 } from 'lucide-react'
-import { ThemeToggleSimple } from '@/components/molecules/ThemeToggle'
+import Image from "next/image";
+import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
+import { ThemeToggleSimple } from "@/components/molecules/ThemeToggle";
 
 const features = [
-  'Voice-first mock sessions',
-  'Guided role and company context',
-  'Clear strengths and growth areas',
-]
+  "Voice-first mock sessions",
+  "Guided role and company context",
+  "Clear strengths and growth areas",
+];
 
 const stats = [
-  { label: 'Sessions', value: '10k+' },
-  { label: 'Improvement', value: '+85%' },
-]
+  { label: "Sessions", value: "10k+" },
+  { label: "Improvement", value: "+85%" },
+];
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative min-h-screen">
       {/* Main Grid */}
@@ -24,7 +28,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           {/* Header */}
           <header className="absolute top-0 right-0 left-0 p-6">
             <Link href="/" className="inline-flex items-center gap-2">
-              <Image src="/icon.png" alt="IntervoxAI" width={24} height={24} priority />
+              <Image
+                src="/icon.png"
+                alt="IntervoxAI"
+                width={24}
+                height={24}
+                priority
+              />
               <span className="font-semibold">IntervoxAI</span>
             </Link>
           </header>
@@ -37,7 +47,8 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
                 <span className="font-serif italic">for interviews.</span>
               </h1>
               <p className="text-muted-foreground">
-                Build confidence with role-specific sessions and measurable feedback.
+                Build confidence with role-specific sessions and measurable
+                feedback.
               </p>
             </div>
 
@@ -70,11 +81,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <ThemeToggleSimple />
           </div>
 
-          <div className="w-full max-w-sm">
-            {children}
-          </div>
+          <div className="w-full max-w-sm">{children}</div>
         </main>
       </div>
     </div>
-  )
+  );
 }

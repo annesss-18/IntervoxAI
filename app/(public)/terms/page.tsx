@@ -1,27 +1,27 @@
-import type { Metadata } from 'next'
-import { FileText } from 'lucide-react'
-import { Container, PageHeader, Section } from '@/components/layout/Container'
-import { Card, CardContent } from '@/components/atoms/card'
+import type { Metadata } from "next";
+import { FileText } from "lucide-react";
+import { Container, PageHeader, Section } from "@/components/layout/Container";
+import { Card, CardContent } from "@/components/atoms/card";
 
 export const metadata: Metadata = {
-  title: 'Terms of Service',
-  description: 'Terms for using IntervoxAI.',
-}
+  title: "Terms of Service",
+  description: "Terms for using IntervoxAI.",
+};
 
 const terms = [
   {
-    title: 'Service scope',
-    text: 'IntervoxAI provides AI-assisted mock interview practice and performance feedback features.',
+    title: "Service scope",
+    text: "IntervoxAI provides AI-assisted mock interview practice and performance feedback features.",
   },
   {
-    title: 'User responsibility',
-    text: 'Users are responsible for content submitted to the platform, including resumes and interview responses.',
+    title: "User responsibility",
+    text: "Users are responsible for content submitted to the platform, including resumes and interview responses.",
   },
   {
-    title: 'Platform evolution',
-    text: 'Features and pricing may evolve as the service matures and we release stable commercial tiers.',
+    title: "Platform evolution",
+    text: "Features and pricing may evolve as the service matures and we release stable commercial tiers.",
   },
-]
+];
 
 export default function TermsPage() {
   return (
@@ -41,7 +41,8 @@ export default function TermsPage() {
           <div className="mb-8 flex items-center gap-3 rounded-xl border border-info/20 bg-info/5 p-4">
             <FileText className="size-5 text-info" />
             <span className="text-sm text-muted-foreground">
-              <strong className="text-foreground">Early access terms.</strong> Updated terms for commercial launch coming soon.
+              <strong className="text-foreground">Early access terms.</strong>{" "}
+              Updated terms for commercial launch coming soon.
             </span>
           </div>
 
@@ -55,7 +56,9 @@ export default function TermsPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold">{term.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{term.text}</p>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                        {term.text}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -64,10 +67,11 @@ export default function TermsPage() {
           </div>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
-            This summary will be replaced with full legal terms in the next update.
+            This summary will be replaced with full legal terms in the next
+            update.
           </p>
         </Container>
       </Section>
     </>
-  )
+  );
 }

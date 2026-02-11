@@ -1,40 +1,43 @@
-'use client'
+"use client";
 
-import { useMemo, useState } from 'react'
-import { Container, PageHeader } from '@/components/layout/Container'
-import { TemplateCard } from '@/components/organisms/TemplateCard'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Input } from '@/components/atoms/input'
-import { Badge } from '@/components/atoms/badge'
-import { Search, Compass, Sparkles, Filter } from 'lucide-react'
-import { TemplateCardData } from '@/types'
+import { useMemo, useState } from "react";
+import { Container, PageHeader } from "@/components/layout/Container";
+import { TemplateCard } from "@/components/organisms/TemplateCard";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Input } from "@/components/atoms/input";
+import { Badge } from "@/components/atoms/badge";
+import { Search, Compass, Sparkles, Filter } from "lucide-react";
+import { TemplateCardData } from "@/types";
 
 interface ExploreClientProps {
-  templates: TemplateCardData[]
+  templates: TemplateCardData[];
 }
 
-const quickFilters = ['Frontend', 'Backend', 'System Design', 'Behavioral']
+const quickFilters = ["Frontend", "Backend", "System Design", "Behavioral"];
 
 export default function ExploreClient({ templates }: ExploreClientProps) {
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState("");
 
   const filteredTemplates = useMemo(() => {
     if (!searchQuery.trim()) {
-      return templates
+      return templates;
     }
 
-    const query = searchQuery.toLowerCase().trim()
+    const query = searchQuery.toLowerCase().trim();
 
     return templates.filter((template) => {
-      if (template.role?.toLowerCase().includes(query)) return true
-      if (template.companyName?.toLowerCase().includes(query)) return true
-      if (template.techStack?.some((tech) => tech.toLowerCase().includes(query))) return true
-      if (template.type?.toLowerCase().includes(query)) return true
-      if (template.level?.toLowerCase().includes(query)) return true
+      if (template.role?.toLowerCase().includes(query)) return true;
+      if (template.companyName?.toLowerCase().includes(query)) return true;
+      if (
+        template.techStack?.some((tech) => tech.toLowerCase().includes(query))
+      )
+        return true;
+      if (template.type?.toLowerCase().includes(query)) return true;
+      if (template.level?.toLowerCase().includes(query)) return true;
 
-      return false
-    })
-  }, [templates, searchQuery])
+      return false;
+    });
+  }, [templates, searchQuery]);
 
   return (
     <Container>
@@ -83,7 +86,7 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
               <button
                 type="button"
                 className="text-primary hover:text-primary/80 text-xs font-medium"
-                onClick={() => setSearchQuery('')}
+                onClick={() => setSearchQuery("")}
               >
                 Clear search
               </button>
@@ -106,17 +109,22 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
             </div>
             {searchQuery ? (
               <>
-                <h3 className="mb-2 text-lg font-semibold">No matching templates</h3>
+                <h3 className="mb-2 text-lg font-semibold">
+                  No matching templates
+                </h3>
                 <p className="text-muted-foreground mx-auto max-w-md">
-                  No templates matched &quot;{searchQuery}&quot;. Try broader keywords such as role type,
-                  stack name, or interview level.
+                  No templates matched &quot;{searchQuery}&quot;. Try broader
+                  keywords such as role type, stack name, or interview level.
                 </p>
               </>
             ) : (
               <>
-                <h3 className="mb-2 text-lg font-semibold">No templates published yet</h3>
+                <h3 className="mb-2 text-lg font-semibold">
+                  No templates published yet
+                </h3>
                 <p className="text-muted-foreground mx-auto max-w-md">
-                  Create and publish the first template to start a collaborative interview library.
+                  Create and publish the first template to start a collaborative
+                  interview library.
                 </p>
               </>
             )}
@@ -124,5 +132,5 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
         </Card>
       )}
     </Container>
-  )
+  );
 }

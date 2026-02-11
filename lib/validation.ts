@@ -8,16 +8,16 @@
  */
 export function validateAndSanitizeURL(url: string): URL | null {
   try {
-    const parsedUrl = new URL(url)
+    const parsedUrl = new URL(url);
 
     // Only allow http and https
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      console.warn(`Invalid protocol: ${parsedUrl.protocol}`)
-      return null
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      console.warn(`Invalid protocol: ${parsedUrl.protocol}`);
+      return null;
     }
 
     // Block private/internal IP ranges
-    const hostname = parsedUrl.hostname
+    const hostname = parsedUrl.hostname;
     const blockedPatterns = [
       /^127\./, // localhost
       /^10\./, // private range
@@ -30,31 +30,31 @@ export function validateAndSanitizeURL(url: string): URL | null {
       /\.local$/i,
       /\.internal$/i,
       /\.home\.arpa$/i,
-    ]
+    ];
 
     for (const pattern of blockedPatterns) {
       if (pattern.test(hostname)) {
-        console.warn(`Blocked internal IP: ${hostname}`)
-        return null
+        console.warn(`Blocked internal IP: ${hostname}`);
+        return null;
       }
     }
 
     // Block URLs with credentials
     if (parsedUrl.username || parsedUrl.password) {
-      console.warn('Blocked URL with embedded credentials')
-      return null
+      console.warn("Blocked URL with embedded credentials");
+      return null;
     }
 
     // Allow only standard ports
-    if (parsedUrl.port && !['80', '443'].includes(parsedUrl.port)) {
-      console.warn(`Blocked non-standard port: ${parsedUrl.port}`)
-      return null
+    if (parsedUrl.port && !["80", "443"].includes(parsedUrl.port)) {
+      console.warn(`Blocked non-standard port: ${parsedUrl.port}`);
+      return null;
     }
 
-    return parsedUrl
+    return parsedUrl;
   } catch (error) {
-    console.warn('Invalid URL:', url, error)
-    return null
+    console.warn("Invalid URL:", url, error);
+    return null;
   }
 }
 
@@ -64,37 +64,37 @@ export function validateAndSanitizeURL(url: string): URL | null {
 export function validateFileUpload(
   file: File,
   options: {
-    maxSizeMB?: number
-    allowedMimeTypes?: string[]
-  } = {}
+    maxSizeMB?: number;
+    allowedMimeTypes?: string[];
+  } = {},
 ): { valid: boolean; error?: string } {
   const {
     maxSizeMB = 10,
     allowedMimeTypes = [
-      'application/pdf',
-      'text/plain',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      "application/pdf",
+      "text/plain",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ],
-  } = options
+  } = options;
 
   // Check file size
-  const maxSizeBytes = maxSizeMB * 1024 * 1024
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
   if (file.size > maxSizeBytes) {
     return {
       valid: false,
       error: `File size exceeds ${maxSizeMB}MB limit. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`,
-    }
+    };
   }
 
   // Check MIME type
   if (!allowedMimeTypes.includes(file.type)) {
     return {
       valid: false,
-      error: `Invalid file type. Allowed types: ${allowedMimeTypes.join(', ')}`,
-    }
+      error: `Invalid file type. Allowed types: ${allowedMimeTypes.join(", ")}`,
+    };
   }
 
-  return { valid: true }
+  return { valid: true };
 }
 
 /**
@@ -103,45 +103,45 @@ export function validateFileUpload(
  */
 export function sanitizeTextInput(text: string): string {
   return text
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
 }
 
 /**
  * Validates email format
  */
 export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) && email.length <= 254
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 254;
 }
 
 /**
  * Validates password strength
  */
 export function validatePasswordStrength(password: string): {
-  strong: boolean
-  feedback: string[]
+  strong: boolean;
+  feedback: string[];
 } {
-  const feedback: string[] = []
+  const feedback: string[] = [];
 
   if (password.length < 8) {
-    feedback.push('Password must be at least 8 characters')
+    feedback.push("Password must be at least 8 characters");
   }
   if (!/[A-Z]/.test(password)) {
-    feedback.push('Password must contain uppercase letter')
+    feedback.push("Password must contain uppercase letter");
   }
   if (!/[a-z]/.test(password)) {
-    feedback.push('Password must contain lowercase letter')
+    feedback.push("Password must contain lowercase letter");
   }
   if (!/[0-9]/.test(password)) {
-    feedback.push('Password must contain number')
+    feedback.push("Password must contain number");
   }
 
   return {
     strong: feedback.length === 0,
     feedback,
-  }
+  };
 }

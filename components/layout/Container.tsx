@@ -1,41 +1,54 @@
-import { cn } from '@/lib/utils'
+import { cn } from "@/lib/utils";
 
 interface ContainerProps extends React.HTMLAttributes<HTMLDivElement> {
-  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full'
+  size?: "sm" | "md" | "lg" | "xl" | "full";
 }
 
-export function Container({ className, size = 'lg', children, ...props }: ContainerProps) {
+export function Container({
+  className,
+  size = "lg",
+  children,
+  ...props
+}: ContainerProps) {
   const sizes = {
-    sm: 'max-w-3xl',
-    md: 'max-w-5xl',
-    lg: 'max-w-7xl',
-    xl: 'max-w-[1400px]',
-    full: 'max-w-full',
-  }
+    sm: "max-w-3xl",
+    md: "max-w-5xl",
+    lg: "max-w-7xl",
+    xl: "max-w-[1400px]",
+    full: "max-w-full",
+  };
 
   return (
-    <div className={cn('container-app', sizes[size], className)} {...props}>
+    <div className={cn("container-app", sizes[size], className)} {...props}>
       {children}
     </div>
-  )
+  );
 }
 
 interface SectionProps extends React.HTMLAttributes<HTMLElement> {
-  spacing?: 'sm' | 'md' | 'lg'
+  spacing?: "sm" | "md" | "lg";
 }
 
-export function Section({ className, spacing = 'lg', children, ...props }: SectionProps) {
+export function Section({
+  className,
+  spacing = "lg",
+  children,
+  ...props
+}: SectionProps) {
   const spacings = {
-    sm: 'py-8 md:py-12',
-    md: 'py-12 md:py-16',
-    lg: 'py-16 md:py-20 lg:py-24',
-  }
+    sm: "py-8 md:py-12",
+    md: "py-12 md:py-16",
+    lg: "py-16 md:py-20 lg:py-24",
+  };
 
   return (
-    <section className={cn('relative', spacings[spacing], className)} {...props}>
+    <section
+      className={cn("relative", spacings[spacing], className)}
+      {...props}
+    >
       {children}
     </section>
-  )
+  );
 }
 
 export function PageHeader({
@@ -45,14 +58,19 @@ export function PageHeader({
   children,
   className,
 }: {
-  title: string
-  description?: string
-  badge?: string
-  children?: React.ReactNode
-  className?: string
+  title: string;
+  description?: string;
+  badge?: string;
+  children?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className={cn('relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f0d1a] via-[#1a1625] to-[#0f0d1a] px-8 py-12 sm:px-12 sm:py-16', className)}>
+    <div
+      className={cn(
+        "relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f0d1a] via-[#1a1625] to-[#0f0d1a] px-8 py-12 sm:px-12 sm:py-16",
+        className,
+      )}
+    >
       <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           {badge && (
@@ -76,6 +94,5 @@ export function PageHeader({
         <div className="absolute -right-20 bottom-0 h-32 w-32 rounded-full bg-secondary/15 blur-[60px]" />
       </div>
     </div>
-  )
+  );
 }
-

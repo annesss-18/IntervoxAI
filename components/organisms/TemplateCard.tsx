@@ -1,18 +1,18 @@
-import Link from 'next/link'
-import { Users, Star, ArrowRight, Sparkles } from 'lucide-react'
-import { Card, CardContent, CardFooter } from '@/components/atoms/card'
-import { Badge } from '@/components/atoms/badge'
-import { Button } from '@/components/atoms/button'
-import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
-import CompanyLogo from '@/components/molecules/CompanyLogo'
-import type { TemplateCardData } from '@/types'
+import Link from "next/link";
+import { Users, Star, ArrowRight, Sparkles } from "lucide-react";
+import { Card, CardContent, CardFooter } from "@/components/atoms/card";
+import { Badge } from "@/components/atoms/badge";
+import { Button } from "@/components/atoms/button";
+import DisplayTechIcons from "@/components/molecules/DisplayTechIcons";
+import CompanyLogo from "@/components/molecules/CompanyLogo";
+import type { TemplateCardData } from "@/types";
 
 interface TemplateCardProps {
-  template: TemplateCardData
+  template: TemplateCardData;
 }
 
 export function TemplateCard({ template }: TemplateCardProps) {
-  const averageScore = template.avgScore ?? 0
+  const averageScore = template.avgScore ?? 0;
 
   return (
     <Card variant="interactive" className="group flex h-full flex-col">
@@ -20,15 +20,19 @@ export function TemplateCard({ template }: TemplateCardProps) {
         <div className="flex items-start gap-4">
           <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/50">
             <CompanyLogo
-              companyName={template.companyName || 'Unknown Company'}
+              companyName={template.companyName || "Unknown Company"}
               logoUrl={template.companyLogoUrl}
               size={48}
               className="rounded-lg object-cover"
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-foreground truncate text-base font-semibold">{template.role}</h3>
-            <p className="text-muted-foreground truncate text-sm">{template.companyName}</p>
+            <h3 className="text-foreground truncate text-base font-semibold">
+              {template.role}
+            </h3>
+            <p className="text-muted-foreground truncate text-sm">
+              {template.companyName}
+            </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <Badge variant="primary" className="text-[10px]">
                 {template.type}
@@ -78,5 +82,5 @@ export function TemplateCard({ template }: TemplateCardProps) {
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }

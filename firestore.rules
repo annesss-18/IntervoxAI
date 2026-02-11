@@ -82,22 +82,17 @@ service cloud.firestore {
       // Only owner can read
       allow read: if isOwner(resource.data.userId);
       
-      // Create feedback - must reference valid session or legacy interview
+      // Create feedback - must reference a valid interview session
       allow create: if isAuthenticated() && 
                        isOwner(request.resource.data.userId) &&
                        request.resource.data.keys().hasAll(['userId', 'interviewId', 'totalScore', 'createdAt']) &&
-                       (
-                         exists(/databases/$(database)/documents/interview_sessions/$(request.resource.data.interviewId)) ||
-                         exists(/databases/$(database)/documents/interviews/$(request.resource.data.interviewId))
-                       );
+                       exists(/databases/$(database)/documents/interview_sessions/$(request.resource.data.interviewId));
       
       // Feedback is immutable
       allow update: if false;
       allow delete: if false;
     }
     
-    // LEGACY: Keep interviews collection for feedback references during transition
-        
     // Deny all other collections
     match /{document=**} {
       allow read, write: if false;

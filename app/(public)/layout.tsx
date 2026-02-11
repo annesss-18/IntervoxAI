@@ -1,7 +1,11 @@
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
+import { Navbar } from "@/components/layout/Navbar";
+import { Footer } from "@/components/layout/Footer";
 
-export default function PublicLayout({ children }: { children: React.ReactNode }) {
+export default function PublicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <Navbar />
@@ -11,5 +15,5 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="texture-grid absolute inset-0 opacity-20" />
       </div>
     </div>
-  )
+  );
 }

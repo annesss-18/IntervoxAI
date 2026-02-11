@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { Button } from '@/components/atoms/button'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Container } from '@/components/layout/Container'
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
+import Link from "next/link";
+import { Button } from "@/components/atoms/button";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Container } from "@/components/layout/Container";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 export default function Error({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }) {
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -25,7 +25,8 @@ export default function Error({
             <div className="space-y-2">
               <h1 className="text-2xl font-bold">Something went wrong</h1>
               <p className="text-muted-foreground mx-auto max-w-md">
-                An unexpected error occurred. Please try again or return to the home page.
+                An unexpected error occurred. Please try again or return to the
+                home page.
               </p>
             </div>
 
@@ -43,11 +44,13 @@ export default function Error({
             </div>
 
             {error.digest && (
-              <p className="text-muted-foreground text-xs">Error ID: {error.digest}</p>
+              <p className="text-muted-foreground text-xs">
+                Error ID: {error.digest}
+              </p>
             )}
           </CardContent>
         </Card>
       </Container>
     </div>
-  )
+  );
 }

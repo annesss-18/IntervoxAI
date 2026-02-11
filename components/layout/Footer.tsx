@@ -1,32 +1,36 @@
-import Link from 'next/link'
-import Image from 'next/image'
-import { Github, Twitter, Linkedin } from 'lucide-react'
+import Link from "next/link";
+import Image from "next/image";
+import { Github, Twitter, Linkedin } from "lucide-react";
 
 const footerLinks = {
   product: [
-    { label: 'Features', href: '/#features' },
-    { label: 'How It Works', href: '/#how-it-works' },
-    { label: 'Pricing', href: '/pricing' },
+    { label: "Features", href: "/#features" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Pricing", href: "/pricing" },
   ],
   resources: [
-    { label: 'Blog', href: '/blog' },
-    { label: 'Documentation', href: '/docs' },
-    { label: 'Support', href: '/support' },
+    { label: "Blog", href: "/blog" },
+    { label: "Documentation", href: "/docs" },
+    { label: "Support", href: "/support" },
   ],
   legal: [
-    { label: 'Privacy', href: '/privacy' },
-    { label: 'Terms', href: '/terms' },
+    { label: "Privacy", href: "/privacy" },
+    { label: "Terms", href: "/terms" },
   ],
-}
+};
 
 const socialLinks = [
-  { icon: Twitter, href: 'https://twitter.com/intervoxai', label: 'Twitter' },
-  { icon: Github, href: 'https://github.com/intervoxai', label: 'GitHub' },
-  { icon: Linkedin, href: 'https://linkedin.com/company/intervoxai', label: 'LinkedIn' },
-]
+  { icon: Twitter, href: "https://twitter.com/intervoxai", label: "Twitter" },
+  { icon: Github, href: "https://github.com/intervoxai", label: "GitHub" },
+  {
+    icon: Linkedin,
+    href: "https://linkedin.com/company/intervoxai",
+    label: "LinkedIn",
+  },
+];
 
 export function Footer() {
-  const currentYear = new Date().getFullYear()
+  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="border-t border-border py-12">
@@ -43,7 +47,7 @@ export function Footer() {
             </p>
             <div className="flex gap-3">
               {socialLinks.map((link) => {
-                const Icon = link.icon
+                const Icon = link.icon;
                 return (
                   <a
                     key={link.label}
@@ -55,7 +59,7 @@ export function Footer() {
                   >
                     <Icon className="size-4" />
                   </a>
-                )
+                );
               })}
             </div>
           </div>
@@ -72,15 +76,15 @@ export function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }
 
 function FooterColumn({
   title,
   links,
 }: {
-  title: string
-  links: { label: string; href: string }[]
+  title: string;
+  links: { label: string; href: string }[];
 }) {
   return (
     <div>
@@ -100,12 +104,12 @@ function FooterColumn({
         ))}
       </ul>
     </div>
-  )
+  );
 }
 
 // Compact footer for authenticated pages
 export function FooterCompact() {
-  const currentYear = new Date().getFullYear()
+  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="border-t border-border py-4">
@@ -115,19 +119,28 @@ export function FooterCompact() {
           <span>© {currentYear} IntervoxAI</span>
         </div>
         <div className="flex gap-4">
-          <Link href="/privacy" className="transition-colors hover:text-foreground">
+          <Link
+            href="/privacy"
+            className="transition-colors hover:text-foreground"
+          >
             Privacy
           </Link>
-          <Link href="/terms" className="transition-colors hover:text-foreground">
+          <Link
+            href="/terms"
+            className="transition-colors hover:text-foreground"
+          >
             Terms
           </Link>
-          <Link href="/support" className="transition-colors hover:text-foreground">
+          <Link
+            href="/support"
+            className="transition-colors hover:text-foreground"
+          >
             Support
           </Link>
         </div>
       </div>
     </footer>
-  )
+  );
 }
 
-export default Footer
+export default Footer;

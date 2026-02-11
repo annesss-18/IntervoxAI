@@ -1,27 +1,27 @@
-import type { Metadata } from 'next'
-import { Shield } from 'lucide-react'
-import { Container, PageHeader, Section } from '@/components/layout/Container'
-import { Card, CardContent } from '@/components/atoms/card'
+import type { Metadata } from "next";
+import { Shield } from "lucide-react";
+import { Container, PageHeader, Section } from "@/components/layout/Container";
+import { Card, CardContent } from "@/components/atoms/card";
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description: 'How IntervoxAI handles and protects user data.',
-}
+  title: "Privacy Policy",
+  description: "How IntervoxAI handles and protects user data.",
+};
 
 const items = [
   {
-    title: 'Authentication and account data',
-    text: 'IntervoxAI uses Firebase Authentication and stores essential account metadata for product operation.',
+    title: "Authentication and account data",
+    text: "IntervoxAI uses Firebase Authentication and stores essential account metadata for product operation.",
   },
   {
-    title: 'Interview and resume content',
-    text: 'Interview/session data is stored in Firestore. Resume text may be encrypted at rest when encryption is configured.',
+    title: "Interview and resume content",
+    text: "Interview/session data is stored in Firestore. Resume text may be encrypted at rest when encryption is configured.",
   },
   {
-    title: 'Operational logging',
-    text: 'Minimal operational logs may be collected for reliability and debugging purposes.',
+    title: "Operational logging",
+    text: "Minimal operational logs may be collected for reliability and debugging purposes.",
   },
-]
+];
 
 export default function PrivacyPage() {
   return (
@@ -41,7 +41,10 @@ export default function PrivacyPage() {
           <div className="mb-8 flex items-center gap-3 rounded-xl border border-secondary/20 bg-secondary/5 p-4">
             <Shield className="size-5 text-secondary" />
             <span className="text-sm text-muted-foreground">
-              <strong className="text-foreground">Your data is protected.</strong> We take privacy seriously.
+              <strong className="text-foreground">
+                Your data is protected.
+              </strong>{" "}
+              We take privacy seriously.
             </span>
           </div>
 
@@ -55,7 +58,9 @@ export default function PrivacyPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold">{item.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{item.text}</p>
+                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                        {item.text}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -64,10 +69,11 @@ export default function PrivacyPage() {
           </div>
 
           <p className="mt-8 text-center text-xs text-muted-foreground">
-            This summary will be replaced with a full legal policy in the next update.
+            This summary will be replaced with a full legal policy in the next
+            update.
           </p>
         </Container>
       </Section>
     </>
-  )
+  );
 }

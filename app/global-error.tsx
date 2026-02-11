@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import { Card, CardContent } from '@/components/atoms/card'
-import { Button } from '@/components/atoms/button'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { Card, CardContent } from "@/components/atoms/card";
+import { Button } from "@/components/atoms/button";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function GlobalError({
   error,
   reset,
 }: {
-  error: Error & { digest?: string }
-  reset: () => void
+  error: Error & { digest?: string };
+  reset: () => void;
 }) {
   return (
     <html lang="en">
@@ -32,10 +32,14 @@ export default function GlobalError({
               Try Again
             </Button>
 
-            {error.digest && <p className="text-muted-foreground text-xs">Error ID: {error.digest}</p>}
+            {error.digest && (
+              <p className="text-muted-foreground text-xs">
+                Error ID: {error.digest}
+              </p>
+            )}
           </CardContent>
         </Card>
       </body>
     </html>
-  )
+  );
 }

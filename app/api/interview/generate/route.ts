@@ -1,45 +1,57 @@
 // app/api/interview/generate/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { generateObject } from 'ai'
-import { google } from '@ai-sdk/google'
-import { z } from 'zod'
-import { db } from '@/firebase/admin'
-import { withAuth } from '@/lib/api-middleware'
-import { InterviewTemplate, User } from '@/types'
+import { NextRequest, NextResponse } from "next/server";
+import { generateObject } from "ai";
+import { google } from "@ai-sdk/google";
+import { z } from "zod";
+import { db } from "@/firebase/admin";
+import { withAuth } from "@/lib/api-middleware";
+import { InterviewTemplate, User } from "@/types";
 
-export const runtime = 'nodejs'
+export const runtime = "nodejs";
 
-const MAX_TECH_ITEMS = 20
-const MAX_TECH_ITEM_LENGTH = 50
+const MAX_TECH_ITEMS = 20;
+const MAX_TECH_ITEM_LENGTH = 50;
 
-const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH)
-const techStackArraySchema = z.array(techStackItemSchema).max(MAX_TECH_ITEMS)
+const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
+const techStackArraySchema = z.array(techStackItemSchema).max(MAX_TECH_ITEMS);
 
 // Input validation schema
 const requestSchema = z.object({
-  role: z.string().min(3, 'Role must be at least 3 characters').max(100, 'Role too long'),
-  companyName: z.string().max(100, 'Company name too long').optional(),
-  companyLogoUrl: z.string().url('Invalid logo URL').optional().or(z.literal('')),
-  level: z.enum(['Junior', 'Mid', 'Senior', 'Staff', 'Executive']),
-  type: z.enum(['Technical', 'Behavioral', 'System Design', 'HR', 'Mixed']),
-  jdInput: z.string().min(50, 'Job description too short').max(50000, 'Job description too long'),
-  techStack: z.string().min(2, 'Tech stack is required'),
-  isPublic: z.enum(['true', 'false']),
-})
+  role: z
+    .string()
+    .min(3, "Role must be at least 3 characters")
+    .max(100, "Role too long"),
+  companyName: z.string().max(100, "Company name too long").optional(),
+  companyLogoUrl: z
+    .string()
+    .url("Invalid logo URL")
+    .optional()
+    .or(z.literal("")),
+  level: z.enum(["Junior", "Mid", "Senior", "Staff", "Executive"]),
+  type: z.enum(["Technical", "Behavioral", "System Design", "HR", "Mixed"]),
+  jdInput: z
+    .string()
+    .min(50, "Job description too short")
+    .max(50000, "Job description too long"),
+  techStack: z.string().min(2, "Tech stack is required"),
+  isPublic: z.enum(["true", "false"]),
+});
 
 function parseAndNormalizeTechStack(raw: string): string[] {
-  let parsed: unknown
+  let parsed: unknown;
 
   try {
-    parsed = JSON.parse(raw)
+    parsed = JSON.parse(raw);
   } catch {
-    throw new Error('Invalid tech stack format')
+    throw new Error("Invalid tech stack format");
   }
 
-  const validated = techStackArraySchema.parse(parsed)
+  const validated = techStackArraySchema.parse(parsed);
 
-  const deduped = Array.from(new Set(validated.map((item) => item.trim()))).filter(Boolean)
-  return deduped
+  const deduped = Array.from(
+    new Set(validated.map((item) => item.trim())),
+  ).filter(Boolean);
+  return deduped;
 }
 
 // Schema for AI output - Enhanced with culture analysis and persona
@@ -52,113 +64,113 @@ const templateSchema = z.object({
     .array(z.string())
     .min(1)
     .max(15)
-    .describe('Scenario-based challenges that simulate real-world discussions'),
+    .describe("Scenario-based challenges that simulate real-world discussions"),
   focusArea: z
     .array(z.string())
     .optional()
     .default([])
-    .describe('Core competencies being evaluated'),
+    .describe("Core competencies being evaluated"),
   companyCultureInsights: z
     .object({
       values: z
         .array(z.string())
         .optional()
         .default([])
-        .describe('Identified company values and cultural traits'),
+        .describe("Identified company values and cultural traits"),
       workStyle: z
         .string()
         .optional()
-        .default('collaborative')
-        .describe('Inferred work style: fast-paced, collaborative, etc.'),
+        .default("collaborative")
+        .describe("Inferred work style: fast-paced, collaborative, etc."),
       teamStructure: z
         .string()
         .optional()
-        .default('cross-functional')
-        .describe('Inferred team organization and dynamics'),
+        .default("cross-functional")
+        .describe("Inferred team organization and dynamics"),
     })
     .optional()
-    .describe('Deep analysis of company culture from the job description'),
+    .describe("Deep analysis of company culture from the job description"),
   interviewerPersona: z
     .object({
       name: z
         .string()
         .optional()
-        .default('Alex')
-        .describe('Realistic first name for the interviewer'),
+        .default("Alex")
+        .describe("Realistic first name for the interviewer"),
       title: z
         .string()
         .optional()
-        .default('Senior Engineer')
-        .describe('Job title of the interviewer at the company'),
+        .default("Senior Engineer")
+        .describe("Job title of the interviewer at the company"),
       personality: z
         .string()
         .optional()
-        .default('professional and friendly')
-        .describe('Brief personality description: warm, rigorous, etc.'),
+        .default("professional and friendly")
+        .describe("Brief personality description: warm, rigorous, etc."),
     })
     .optional()
-    .describe('Consistent persona for the AI interviewer'),
+    .describe("Consistent persona for the AI interviewer"),
   systemInstruction: z
     .string()
     .optional()
-    .describe('Complete persona and behavioral directives for the AI agent'),
-})
+    .describe("Complete persona and behavioral directives for the AI agent"),
+});
 
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
     try {
       // 1. Parse and validate form data
-      const formData = await req.formData()
+      const formData = await req.formData();
 
       const rawData = {
-        role: formData.get('role') as string,
-        companyName: formData.get('companyName') as string,
-        companyLogoUrl: formData.get('companyLogoUrl') as string,
-        level: formData.get('level') as string,
-        type: formData.get('type') as string,
-        jdInput: formData.get('jdInput') as string,
-        techStack: formData.get('techStack') as string,
-        isPublic: formData.get('isPublic') as string,
-      }
+        role: formData.get("role") as string,
+        companyName: formData.get("companyName") as string,
+        companyLogoUrl: formData.get("companyLogoUrl") as string,
+        level: formData.get("level") as string,
+        type: formData.get("type") as string,
+        jdInput: formData.get("jdInput") as string,
+        techStack: formData.get("techStack") as string,
+        isPublic: formData.get("isPublic") as string,
+      };
 
       // Validate input
-      const validation = requestSchema.safeParse(rawData)
+      const validation = requestSchema.safeParse(rawData);
 
       if (!validation.success) {
         return NextResponse.json(
           {
-            error: 'Invalid input',
+            error: "Invalid input",
             details: validation.error.issues.map((err) => ({
-              field: err.path.join('.'),
+              field: err.path.join("."),
               message: err.message,
             })),
           },
-          { status: 400 }
-        )
+          { status: 400 },
+        );
       }
 
-      const validatedData = validation.data
-      let userTechStack: string[]
+      const validatedData = validation.data;
+      let userTechStack: string[];
       try {
-        userTechStack = parseAndNormalizeTechStack(validatedData.techStack)
+        userTechStack = parseAndNormalizeTechStack(validatedData.techStack);
       } catch {
         return NextResponse.json(
           {
-            error: 'Invalid input',
+            error: "Invalid input",
             details: [
               {
-                field: 'techStack',
+                field: "techStack",
                 message: `Tech stack must be a JSON array of 1-${MAX_TECH_ITEMS} non-empty strings (max ${MAX_TECH_ITEM_LENGTH} chars each).`,
               },
             ],
           },
-          { status: 400 }
-        )
+          { status: 400 },
+        );
       }
 
       // 2. Generate template with AI - Enhanced deep-context analysis
       const constructedPrompt = `
-You are a Principal Interview Architect specializing in creating high-fidelity technical interview experiences. Your task is to engineer an interview template that feels like a genuine conversation with a senior engineer at ${validatedData.companyName || 'a leading tech company'}.
+You are a Principal Interview Architect specializing in creating high-fidelity technical interview experiences. Your task is to engineer an interview template that feels like a genuine conversation with a senior engineer at ${validatedData.companyName || "a leading tech company"}.
 
 ═══════════════════════════════════════════════════════════════════
 DEEP CONTEXT ANALYSIS
@@ -171,7 +183,7 @@ ${validatedData.jdInput.substring(0, 20000)}
 • Role: ${validatedData.role}
 • Level: ${validatedData.level}
 • Type: ${validatedData.type}  
-• Core Tech Stack: ${userTechStack.join(', ')}
+• Core Tech Stack: ${userTechStack.join(", ")}
 
 ═══════════════════════════════════════════════════════════════════
 ANALYSIS INSTRUCTIONS
@@ -214,54 +226,62 @@ ANALYSIS INSTRUCTIONS
    - Encouraging close regardless of performance
 
 Output JSON matching the schema.
-`.trim()
+`.trim();
 
       const result = await generateObject({
-        model: google('gemini-3-pro-preview'),
+        model: google("gemini-3-pro-preview"),
         schema: templateSchema,
         prompt: constructedPrompt,
-      })
+      });
 
-      const generatedData = result.object
+      const generatedData = result.object;
 
       // 3. Save to Firestore
-      const templateData: Omit<InterviewTemplate, 'id'> = {
+      const templateData: Omit<InterviewTemplate, "id"> = {
         ...generatedData,
         role: validatedData.role,
-        companyName: validatedData.companyName || 'Unknown Company',
+        companyName: validatedData.companyName || "Unknown Company",
         companyLogoUrl: validatedData.companyLogoUrl || undefined,
-        level: validatedData.level as InterviewTemplate['level'],
-        type: validatedData.type as InterviewTemplate['type'],
+        level: validatedData.level as InterviewTemplate["level"],
+        type: validatedData.type as InterviewTemplate["type"],
         techStack: Array.from(
           new Set(
             [...userTechStack, ...(generatedData.techStack || [])]
               .map((item) => String(item).trim())
-              .filter((item) => item.length > 0 && item.length <= MAX_TECH_ITEM_LENGTH)
-          )
+              .filter(
+                (item) =>
+                  item.length > 0 && item.length <= MAX_TECH_ITEM_LENGTH,
+              ),
+          ),
         ).slice(0, MAX_TECH_ITEMS),
         jobDescription: validatedData.jdInput,
         creatorId: user.id,
-        isPublic: validatedData.isPublic === 'true',
+        isPublic: validatedData.isPublic === "true",
         usageCount: 0,
         avgScore: 0,
         createdAt: new Date().toISOString(),
-      }
+      };
 
-      const docRef = await db.collection('interview_templates').add(templateData)
+      const docRef = await db
+        .collection("interview_templates")
+        .add(templateData);
 
-      return NextResponse.json({ success: true, templateId: docRef.id })
+      return NextResponse.json({ success: true, templateId: docRef.id });
     } catch (error) {
-      console.error('Generation Error:', error)
+      console.error("Generation Error:", error);
       return NextResponse.json(
         {
-          error: error instanceof Error ? error.message : 'Failed to generate template',
+          error:
+            error instanceof Error
+              ? error.message
+              : "Failed to generate template",
         },
-        { status: 500 }
-      )
+        { status: 500 },
+      );
     }
   },
   {
     maxRequests: 5,
     windowMs: 60 * 1000,
-  }
-)
+  },
+);

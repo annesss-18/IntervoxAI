@@ -1,26 +1,37 @@
-import Link from 'next/link'
-import { redirect } from 'next/navigation'
-import { ArrowLeft, Briefcase, Sparkles, Target, ShieldCheck, Clock3 } from 'lucide-react'
-import type { ReactNode } from 'react'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { getTemplateById } from '@/lib/actions/interview.action'
-import { Badge } from '@/components/atoms/badge'
-import { Button } from '@/components/atoms/button'
-import { Card, CardContent } from '@/components/atoms/card'
-import { Container } from '@/components/layout/Container'
-import CompanyLogo from '@/components/molecules/CompanyLogo'
-import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
-import StartSessionButton from '@/components/organisms/StartSessionButton'
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import {
+  ArrowLeft,
+  Briefcase,
+  Sparkles,
+  Target,
+  ShieldCheck,
+  Clock3,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { getTemplateById } from "@/lib/actions/interview.action";
+import { Badge } from "@/components/atoms/badge";
+import { Button } from "@/components/atoms/button";
+import { Card, CardContent } from "@/components/atoms/card";
+import { Container } from "@/components/layout/Container";
+import CompanyLogo from "@/components/molecules/CompanyLogo";
+import DisplayTechIcons from "@/components/molecules/DisplayTechIcons";
+import StartSessionButton from "@/components/organisms/StartSessionButton";
 
-const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }> }) => {
-  const { templateId } = await params
-  const user = await getCurrentUser()
+const TemplatePage = async ({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}) => {
+  const { templateId } = await params;
+  const user = await getCurrentUser();
 
   if (!user) {
-    redirect('/sign-in')
+    redirect("/sign-in");
   }
 
-  const template = await getTemplateById(templateId, user.id)
+  const template = await getTemplateById(templateId, user.id);
 
   if (!template) {
     return (
@@ -34,7 +45,7 @@ const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }
           </CardContent>
         </Card>
       </Container>
-    )
+    );
   }
 
   return (
@@ -55,7 +66,7 @@ const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }
             <div className="flex items-start gap-4">
               <div className="bg-surface-2/75 border-border/70 flex size-20 items-center justify-center overflow-hidden rounded-2xl border">
                 <CompanyLogo
-                  companyName={template.companyName || 'Unknown Company'}
+                  companyName={template.companyName || "Unknown Company"}
                   logoUrl={template.companyLogoUrl}
                   size={72}
                   className="rounded-xl object-cover"
@@ -68,9 +79,11 @@ const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }
                   Ready to Practice
                 </Badge>
                 <div>
-                  <h1 className="text-2xl font-semibold sm:text-3xl">{template.role} Interview</h1>
+                  <h1 className="text-2xl font-semibold sm:text-3xl">
+                    {template.role} Interview
+                  </h1>
                   <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                    {template.companyName || 'IntervoxAI'}
+                    {template.companyName || "IntervoxAI"}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -125,14 +138,15 @@ const TemplatePage = async ({ params }: { params: Promise<{ templateId: string }
             <h2 className="text-xl font-semibold">Tech Stack Focus</h2>
             <DisplayTechIcons techStack={template.techStack || []} />
             <p className="text-muted-foreground text-sm">
-              Expect follow-up questions around these technologies during the interview.
+              Expect follow-up questions around these technologies during the
+              interview.
             </p>
           </CardContent>
         </Card>
       </div>
     </Container>
-  )
-}
+  );
+};
 
 function InfoPill({ icon, text }: { icon: ReactNode; text: string }) {
   return (
@@ -140,7 +154,7 @@ function InfoPill({ icon, text }: { icon: ReactNode; text: string }) {
       {icon}
       <span>{text}</span>
     </div>
-  )
+  );
 }
 
-export default TemplatePage
+export default TemplatePage;

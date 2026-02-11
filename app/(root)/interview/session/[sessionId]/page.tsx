@@ -1,30 +1,36 @@
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { AlertCircle, Briefcase, Sparkles, Target, ShieldCheck } from 'lucide-react'
-import { getInterviewsById } from '@/lib/actions/interview.action'
-import { getCurrentUser } from '@/lib/actions/auth.action'
-import { LiveInterviewAgent } from '@/components/organisms/LiveInterviewAgent'
-import CompanyLogo from '@/components/molecules/CompanyLogo'
-import DisplayTechIcons from '@/components/molecules/DisplayTechIcons'
-import { Container } from '@/components/layout/Container'
-import { Badge } from '@/components/atoms/badge'
-import { Button } from '@/components/atoms/button'
-import { Card, CardContent } from '@/components/atoms/card'
-import type { RouteParams } from '@/types'
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import {
+  AlertCircle,
+  Briefcase,
+  Sparkles,
+  Target,
+  ShieldCheck,
+} from "lucide-react";
+import { getInterviewsById } from "@/lib/actions/interview.action";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { LiveInterviewAgent } from "@/components/organisms/LiveInterviewAgent";
+import CompanyLogo from "@/components/molecules/CompanyLogo";
+import DisplayTechIcons from "@/components/molecules/DisplayTechIcons";
+import { Container } from "@/components/layout/Container";
+import { Badge } from "@/components/atoms/badge";
+import { Button } from "@/components/atoms/button";
+import { Card, CardContent } from "@/components/atoms/card";
+import type { RouteParams } from "@/types";
 
 const Page = async ({ params }: RouteParams) => {
-  const user = await getCurrentUser()
-  const { sessionId } = await params
+  const user = await getCurrentUser();
+  const { sessionId } = await params;
 
   if (!user) {
-    redirect('/sign-in')
+    redirect("/sign-in");
   }
 
-  if (!sessionId || typeof sessionId !== 'string') {
-    redirect('/')
+  if (!sessionId || typeof sessionId !== "string") {
+    redirect("/");
   }
 
-  const interview = await getInterviewsById(sessionId, user.id)
+  const interview = await getInterviewsById(sessionId, user.id);
 
   if (!interview) {
     return (
@@ -36,7 +42,7 @@ const Page = async ({ params }: RouteParams) => {
           actionLabel="Create New Interview"
         />
       </Container>
-    )
+    );
   }
 
   if (!interview.questions || interview.questions.length === 0) {
@@ -49,7 +55,7 @@ const Page = async ({ params }: RouteParams) => {
           actionLabel="Create New Interview"
         />
       </Container>
-    )
+    );
   }
 
   return (
@@ -59,7 +65,7 @@ const Page = async ({ params }: RouteParams) => {
           <div className="flex items-start gap-4">
             <div className="bg-surface-1/80 border-border/70 flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border">
               <CompanyLogo
-                companyName={interview.companyName || 'Unknown Company'}
+                companyName={interview.companyName || "Unknown Company"}
                 logoUrl={interview.companyLogoUrl}
                 size={56}
                 className="rounded-lg object-cover"
@@ -75,7 +81,7 @@ const Page = async ({ params }: RouteParams) => {
                 {interview.role}
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base">
-                {interview.companyName || 'IntervoxAI'}
+                {interview.companyName || "IntervoxAI"}
               </p>
               <p className="text-muted-foreground text-sm">
                 Keep answers concise, structured, and technically defensible.
@@ -114,8 +120,8 @@ const Page = async ({ params }: RouteParams) => {
         <LiveInterviewAgent interview={interview} sessionId={sessionId} />
       </section>
     </Container>
-  )
-}
+  );
+};
 
 function HintPill({ text }: { text: string }) {
   return (
@@ -123,7 +129,7 @@ function HintPill({ text }: { text: string }) {
       <ShieldCheck className="text-success size-4" />
       <span>{text}</span>
     </div>
-  )
+  );
 }
 
 function StateCard({
@@ -132,10 +138,10 @@ function StateCard({
   actionHref,
   actionLabel,
 }: {
-  title: string
-  description: string
-  actionHref: string
-  actionLabel: string
+  title: string;
+  description: string;
+  actionHref: string;
+  actionLabel: string;
 }) {
   return (
     <Card variant="gradient" className="py-12">
@@ -146,7 +152,9 @@ function StateCard({
 
         <div className="space-y-2">
           <h2 className="text-foreground text-2xl font-bold">{title}</h2>
-          <p className="text-muted-foreground mx-auto max-w-lg">{description}</p>
+          <p className="text-muted-foreground mx-auto max-w-lg">
+            {description}
+          </p>
         </div>
 
         <Link href={actionHref}>
@@ -157,7 +165,7 @@ function StateCard({
         </Link>
       </CardContent>
     </Card>
-  )
+  );
 }
 
-export default Page
+export default Page;
