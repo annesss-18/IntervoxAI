@@ -72,13 +72,13 @@ export default function LandingPage() {
   return (
     <div className="bg-background">
       {/* Hero Section */}
-      <section className="border-b border-border py-24 sm:py-32">
+      <section className="relative border-b border-border py-28 sm:py-36">
         <div className="container-app">
           <div className="mx-auto max-w-2xl text-center">
-            <h1 className="mb-6 text-4xl font-medium tracking-tight sm:text-5xl">
+            <h1 className="mb-6 text-4xl font-medium leading-[1.15] tracking-tight sm:text-5xl">
               <span className="font-serif italic">Master Your Interview</span>
               <br />
-              <span className="font-serif italic text-primary">
+              <span className="animate-gradient bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text font-serif italic text-transparent">
                 With AI Coaching
               </span>
             </h1>
@@ -88,7 +88,9 @@ export default function LandingPage() {
               and provides structured feedback.
             </p>
 
-            <div className="mb-12 flex flex-wrap items-center justify-center gap-4">
+            <div className="relative mb-12 flex flex-wrap items-center justify-center gap-4">
+              {/* Subtle glow behind CTAs */}
+              <div className="pointer-events-none absolute -inset-x-12 -inset-y-8 rounded-3xl bg-primary/5 blur-2xl" />
               <Link href="/sign-up">
                 <Button size="lg">
                   Get Started
@@ -102,10 +104,13 @@ export default function LandingPage() {
               </Link>
             </div>
 
-            <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
-              {stats.map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <div className="text-xl font-semibold text-foreground">
+            <div className="flex items-center justify-center gap-10 text-sm text-muted-foreground">
+              {stats.map((stat, i) => (
+                <div
+                  key={stat.label}
+                  className={`text-center ${i > 0 ? "border-l border-border/50 pl-10" : ""}`}
+                >
+                  <div className="text-xl font-semibold tabular-nums text-foreground">
                     {stat.value}
                   </div>
                   <div>{stat.label}</div>
@@ -128,12 +133,16 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature) => {
+          <div className="mx-auto grid max-w-4xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature, i) => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="text-center">
-                  <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full border border-border">
+                <div
+                  key={feature.title}
+                  className={`animate-staggerFadeIn surface-glass p-6 text-center transition-all duration-300 hover:-translate-y-1 hover:shadow-md delay-${(i % 3) * 100 + 100}`}
+                  style={{ animationFillMode: "forwards" }}
+                >
+                  <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full border border-primary/20 bg-primary/5 transition-transform duration-300 group-hover:scale-110">
                     <Icon className="size-5 text-primary" />
                   </div>
                   <h3 className="mb-2 font-semibold">{feature.title}</h3>
@@ -159,11 +168,21 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          <div className="mx-auto grid max-w-3xl gap-12 md:grid-cols-3">
-            {howItWorks.map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="mb-4 text-4xl font-light text-primary/30">
-                  {item.step}
+          <div className="relative mx-auto grid max-w-3xl gap-12 md:grid-cols-3">
+            {/* Connecting line (desktop only) */}
+            <div className="pointer-events-none absolute top-8 left-[16.67%] right-[16.67%] hidden h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent md:block" />
+
+            {howItWorks.map((item, i) => (
+              <div
+                key={item.step}
+                className={`animate-fadeInUp opacity-0 text-center delay-${(i + 1) * 100}`}
+                style={{ animationFillMode: "forwards" }}
+              >
+                <div className="relative mx-auto mb-4 flex size-16 items-center justify-center">
+                  <div className="absolute inset-0 rounded-full bg-primary/10 blur-lg" />
+                  <span className="relative bg-gradient-to-br from-primary to-secondary bg-clip-text text-4xl font-light text-transparent">
+                    {item.step}
+                  </span>
                 </div>
                 <h3 className="mb-2 font-semibold">{item.title}</h3>
                 <p className="text-sm text-muted-foreground">
@@ -178,14 +197,14 @@ export default function LandingPage() {
       {/* CTA Section */}
       <section className="py-24 sm:py-32">
         <div className="container-app">
-          <div className="mx-auto max-w-xl text-center">
-            <h2 className="mb-6 text-3xl font-medium tracking-tight sm:text-4xl">
+          <div className="texture-noise gradient-border mx-auto max-w-xl overflow-hidden rounded-2xl bg-gradient-to-br from-surface-1 to-surface-2 p-12 text-center sm:p-16">
+            <h2 className="relative z-10 mb-6 text-3xl font-medium tracking-tight sm:text-4xl">
               <span className="font-serif italic">Ready to start?</span>
             </h2>
-            <p className="mb-8 text-muted-foreground">
+            <p className="relative z-10 mb-8 text-muted-foreground">
               Join thousands who improved their interview skills.
             </p>
-            <Link href="/sign-up">
+            <Link href="/sign-up" className="relative z-10">
               <Button size="lg">
                 <Sparkles className="size-4" />
                 Start Practicing Free

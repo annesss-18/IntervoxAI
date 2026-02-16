@@ -24,7 +24,11 @@ export default function AuthLayout({
       {/* Main Grid */}
       <div className="grid min-h-screen lg:grid-cols-2">
         {/* Left Panel - Subtle Background */}
-        <section className="relative hidden items-center justify-center border-r border-border bg-muted/30 p-12 lg:flex">
+        <section className="texture-noise relative hidden items-center justify-center border-r border-border bg-surface-2/50 p-12 lg:flex">
+          {/* Pulsing glow orb */}
+          <div className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="animate-pulse-slow h-64 w-64 rounded-full bg-primary/8 blur-[100px]" />
+          </div>
           {/* Header */}
           <header className="absolute top-0 right-0 left-0 p-6">
             <Link href="/" className="inline-flex items-center gap-2">
@@ -54,19 +58,27 @@ export default function AuthLayout({
 
             {/* Feature List */}
             <div className="space-y-3">
-              {features.map((item) => (
-                <div key={item} className="flex items-center gap-3">
-                  <CheckCircle2 className="size-4 text-primary" />
+              {features.map((item, i) => (
+                <div
+                  key={item}
+                  className={`animate-slideIn opacity-0 flex items-center gap-3 delay-${(i + 1) * 100}`}
+                  style={{ animationFillMode: "forwards" }}
+                >
+                  <div className="rounded-full bg-primary/10 p-1">
+                    <CheckCircle2 className="size-4 text-primary" />
+                  </div>
                   <span className="text-sm">{item}</span>
                 </div>
               ))}
             </div>
 
             {/* Stats */}
-            <div className="flex gap-8">
+            <div className="flex gap-8 border-t border-border/50 pt-6">
               {stats.map((stat) => (
                 <div key={stat.label}>
-                  <p className="text-2xl font-semibold">{stat.value}</p>
+                  <p className="text-2xl font-semibold tabular-nums">
+                    {stat.value}
+                  </p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
               ))}

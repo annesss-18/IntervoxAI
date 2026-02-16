@@ -152,7 +152,7 @@ const Page = async ({ params }: RouteParams) => {
           <div className="grid gap-6 lg:grid-cols-[auto_1fr] lg:items-center">
             <div className="border-border/65 bg-surface-2/70 mx-auto flex size-48 flex-col items-center justify-center rounded-full border">
               <div
-                className={`text-6xl font-semibold ${scoreTone(feedback.totalScore)}`}
+                className={`text-6xl font-semibold tabular-nums ${scoreTone(feedback.totalScore)}`}
               >
                 {feedback.totalScore}
               </div>
@@ -200,32 +200,38 @@ const Page = async ({ params }: RouteParams) => {
         </h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {Array.isArray(feedback.categoryScoresArray) &&
-            feedback.categoryScoresArray.map((category: CategoryItem) => (
-              <Card key={category.name}>
-                <CardContent className="space-y-4 pt-7">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">{category.name}</h3>
-                    <span
-                      className={`text-2xl font-semibold ${scoreTone(category.score)}`}
-                    >
-                      {category.score}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={category.score}
-                    variant={scoreVariant(category.score)}
-                  />
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {category.comment}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
+            feedback.categoryScoresArray.map(
+              (category: CategoryItem, i: number) => (
+                <Card
+                  key={category.name}
+                  className={`animate-fadeInUp opacity-0 transition-shadow duration-300 hover:shadow-lg delay-${(i + 1) * 100}`}
+                  style={{ animationFillMode: "forwards" }}
+                >
+                  <CardContent className="space-y-4 pt-7">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">{category.name}</h3>
+                      <span
+                        className={`text-2xl font-semibold tabular-nums ${scoreTone(category.score)}`}
+                      >
+                        {category.score}%
+                      </span>
+                    </div>
+                    <Progress
+                      value={category.score}
+                      variant={scoreVariant(category.score)}
+                    />
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {category.comment}
+                    </p>
+                  </CardContent>
+                </Card>
+              ),
+            )}
         </div>
       </section>
 
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="bg-gradient-to-br from-success/8 to-transparent">
+        <Card className="bg-gradient-to-br from-success/8 to-transparent transition-shadow duration-300 hover:shadow-lg">
           <CardContent className="space-y-5 pt-7">
             <div className="flex items-center gap-3">
               <div className="bg-success/15 border-success/30 flex size-12 items-center justify-center rounded-xl border">
@@ -247,7 +253,7 @@ const Page = async ({ params }: RouteParams) => {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-warning/10 to-transparent">
+        <Card className="bg-gradient-to-br from-warning/10 to-transparent transition-shadow duration-300 hover:shadow-lg">
           <CardContent className="space-y-5 pt-7">
             <div className="flex items-center gap-3">
               <div className="bg-warning/20 border-warning/35 flex size-12 items-center justify-center rounded-xl border">

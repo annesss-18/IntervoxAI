@@ -69,7 +69,7 @@ export default function SupportPage() {
                 <div className="space-y-3">
                   <a
                     href="mailto:support@intervoxai.com"
-                    className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-colors hover:bg-surface-2"
+                    className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-all duration-200 hover:bg-surface-2 hover:border-primary/30"
                   >
                     <Mail className="size-4 text-muted-foreground" />
                     support@intervoxai.com
@@ -78,7 +78,7 @@ export default function SupportPage() {
                     href="https://twitter.com/intervoxai"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-colors hover:bg-surface-2"
+                    className="flex items-center gap-3 rounded-lg border border-border p-3 text-sm transition-all duration-200 hover:bg-surface-2 hover:border-primary/30"
                   >
                     <MessageCircle className="size-4 text-muted-foreground" />
                     @intervoxai on Twitter

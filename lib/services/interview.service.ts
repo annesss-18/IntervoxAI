@@ -271,6 +271,32 @@ export const InterviewService = {
 
     logger.info(`Generating feedback for interview ${interviewId}...`);
 
+    // Fetch template context for role-aware evaluation
+    let interviewContext = {
+      role: "Software Engineer",
+      level: "Mid",
+      type: "Technical",
+      techStack: [] as string[],
+      companyName: "the company",
+    };
+    try {
+      const template = await TemplateRepository.findById(session.templateId);
+      if (template) {
+        interviewContext = {
+          role: template.role || interviewContext.role,
+          level: template.level || interviewContext.level,
+          type: template.type || interviewContext.type,
+          techStack: template.techStack || [],
+          companyName: template.companyName || interviewContext.companyName,
+        };
+      }
+    } catch (e) {
+      logger.warn(
+        `Could not fetch template for feedback context (session ${interviewId}), proceeding with defaults`,
+        e,
+      );
+    }
+
     const genResult = await withRetry(
       () =>
         generateObject({
@@ -278,12 +304,29 @@ export const InterviewService = {
           schema: feedbackSchema,
           prompt: `
 ═══════════════════════════════════════════════════════════════════
-DEEP INSIGHT INTERVIEW ANALYSIS
+INTERVIEW EVALUATION
 ═══════════════════════════════════════════════════════════════════
-You are a Senior Interview Coach and Technical Evaluator. Your task is to provide 
-a comprehensive, actionable analysis that helps this candidate grow in their career.
 
-DO NOT BE LENIENT. Provide honest, constructive feedback that genuinely helps.
+You are a Senior Interview Coach and Technical Evaluator. Provide a comprehensive,
+honest, and actionable analysis that helps this candidate grow in their career.
+
+Calibrate your scores as a real hiring committee would — recognize genuine strengths
+and identify real gaps with equal rigor. Avoid grade inflation and avoid unnecessary
+harshness. Ground every observation in specific moments from the transcript.
+
+═══════════════════════════════════════════════════════════════════
+INTERVIEW CONTEXT
+═══════════════════════════════════════════════════════════════════
+
+Position: ${interviewContext.role}
+Level: ${interviewContext.level}
+Type: ${interviewContext.type}
+Tech Stack: ${interviewContext.techStack.join(", ") || "General"}
+Company: ${interviewContext.companyName}
+
+Use this context to calibrate expectations. For a ${interviewContext.level}-level
+${interviewContext.role}, evaluate against what a real hiring panel at this level
+would expect — not entry-level standards and not unreachable ideals.
 
 ═══════════════════════════════════════════════════════════════════
 INTERVIEW TRANSCRIPT
@@ -296,34 +339,79 @@ ANALYSIS FRAMEWORK
 ═══════════════════════════════════════════════════════════════════
 
 1. **BEHAVIORAL SIGNAL ANALYSIS**
-   - Did they structure their thoughts before speaking?
-   - Did they ask clarifying questions?
-   - When stuck, did they think out loud?
-   - Were examples specific and detailed?
+   Watch for these signals in the transcript:
+   - Did they structure their thoughts before answering (STAR method, problem decomposition)?
+   - Did they ask clarifying questions before diving in?
+   - When stuck, did they think out loud and show their reasoning process?
+   - Were their examples specific, detailed, and from real experience (not textbook)?
+   - Did they acknowledge trade-offs and limitations of their approach?
 
 2. **TECHNICAL-BEHAVIORAL CORRELATION**
-   - Connect technical performance to underlying patterns.
-   - Example: Known answer but poor explanation -> communication coaching.
+   Connect technical performance to underlying patterns:
+   - Correct answer but poor explanation → communication coaching needed
+   - Good intuition but no depth → needs deeper study of fundamentals
+   - Strong depth but poor structure → needs practice articulating under pressure
+   - Inconsistent quality → may signal nervousness vs. knowledge gaps
 
-3. **CAREER COACHING (Critical Section)**
-   - Provide SPECIFIC, ACTIONABLE advice (e.g., "Practice LeetCode graph problems").
+3. **CAREER COACHING** (tie to the specific role and level)
+   - Immediate actions: specific, concrete steps for the next 2 weeks
+     (e.g., "Practice system design problems focusing on database scaling patterns")
+   - Learning path: skills to develop over 3-6 months for this role level
+   - Interview tips: specific advice based on patterns observed in this transcript
 
-4. **ROLE READINESS ASSESSMENT**
-   - Honest assessment of standing against role level.
+4. **ROLE READINESS**
+   Honest assessment calibrated to ${interviewContext.level}-level ${interviewContext.role}:
+   - Where they meet expectations for this level
+   - Where they exceed expectations
+   - Where they fall short and what would close the gap
 
 ═══════════════════════════════════════════════════════════════════
-SCORING GUIDELINES
+SCORING CALIBRATION
 ═══════════════════════════════════════════════════════════════════
-0-20: Significant gaps
-20-40: Below expectations
-40-60: Meets some expectations
-60-80: Good performance
-80-100: Excellent performance
+
+Score each category on 0-100 using these anchors:
+
+**Communication Skills:**
+  80-100: Articulates complex ideas clearly, uses analogies, structures answers well
+  60-79: Gets the point across clearly, mostly organized
+  40-59: Understandable but lacks structure or clarity in places
+  20-39: Frequently unclear, rambling, or overly brief
+  0-19: Cannot communicate technical ideas effectively
+
+**Technical Knowledge:**
+  80-100: Deep understanding with edge-case awareness, discusses trade-offs proactively
+  60-79: Solid working knowledge, handles standard scenarios well
+  40-59: Knows the basics but misses nuances or edge cases
+  20-39: Significant gaps in fundamental understanding
+  0-19: Cannot demonstrate basic competency
+
+**Problem Solving:**
+  80-100: Systematic decomposition, considers multiple approaches, optimizes
+  60-79: Reasonable approach, gets to a working solution
+  40-59: Can solve with guidance but misses optimal approaches
+  20-39: Struggles to break down problems, needs heavy hints
+  0-19: Cannot formulate an approach
+
+**Cultural Fit:**
+  80-100: Strong alignment with collaborative engineering culture, growth mindset
+  60-79: Good team player, open to feedback
+  40-59: Adequate but shows some rigidity or isolation tendency
+  20-39: Concerning signals about teamwork or adaptability
+  0-19: Significant misalignment with collaborative work culture
+
+**Confidence and Clarity:**
+  80-100: Composed under pressure, thinks clearly, owns uncertainty gracefully
+  60-79: Generally confident, occasional hesitation on tough questions
+  40-59: Inconsistent — confident on some topics, uncertain on others
+  20-39: Frequently hesitant, lacks conviction even on known territory
+  0-19: Unable to express confidence in any area
+
+Total Score: weighted average reflecting overall interview performance.
 
 HIRING RECOMMENDATION: Strong No, No, Lean No, Lean Yes, Yes, Strong Yes
         `.trim(),
           system:
-            "You are a senior interview coach providing deep, actionable feedback. Be honest but constructive. Your goal is to help candidates grow, not just evaluate them.",
+            "You are a senior interview evaluator on a hiring committee. Your feedback will be read by the candidate to help them improve. Be honest and specific — reference exact moments from the transcript to support your assessments. Every strength you cite should include what made it strong. Every area for improvement should include a concrete suggestion for how to improve. Your career coaching should be specific to the role and level, not generic advice.",
         }),
       { maxRetries: 3, operationName: "AI feedback generation" },
     );
@@ -357,7 +445,7 @@ HIRING RECOMMENDATION: Strong No, No, Lean No, Lean Yes, Yes, Strong Yes
       userId,
       totalScore: validatedFeedback.totalScore,
       hiringRecommendation: validatedFeedback.hiringRecommendation,
-      categoryScores: validatedFeedback.categoryScores,
+      categoryScores: categoryScoresArray,
       categoryScoresArray,
       behavioralInsights: validatedFeedback.behavioralInsights,
       strengths: validatedFeedback.strengths,

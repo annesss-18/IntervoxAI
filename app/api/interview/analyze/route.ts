@@ -121,30 +121,48 @@ export const POST = withAuth(
         schema: analysisSchema,
         prompt: `
             Analyze this job posting and extract structured information.
-            
+
             [RAW TEXT START]
             ${jdText.substring(0, MAX_JD_LENGTH)}
             [RAW TEXT END]
-            
-            CRITICAL TASKS:
-            1. **COMPANY NAME**: Look for:
-               - "About [Company]" sections
-               - Company name in header/title (e.g. "Google - Software Engineer")
-               - Metadata like "Posted by [Company]"
-               - Domain name hints (e.g. stripe.com → Stripe)
-               If truly not found, return "Unknown Company"
-            
-            2. **ROLE**: Extract exact title (e.g. "Senior DevOps Engineer")
-            
-            3. **TECH STACK**: Extract ALL mentioned technologies:
-               - Programming languages (Python, JavaScript, etc.)
-               - Frameworks (React, Django, Spring Boot, etc.)
-               - Databases (PostgreSQL, MongoDB, Redis, etc.)
-               - Tools (Docker, Kubernetes, Jenkins, etc.)
-               - Cloud platforms (AWS, GCP, Azure)
-            
-            4. **CLEAN JD**: Remove all navigation, "Sign In", "Apply Now" buttons, 
-               cookie notices, "Similar Jobs", footers. Keep ONLY the actual job description.
+
+            EXTRACTION TASKS (in priority order):
+
+            1. **COMPANY NAME** — Search in this priority order:
+               a. Page header or title (e.g., "Google — Software Engineer" → "Google")
+               b. "About [Company]" or "About Us" sections
+               c. "Posted by [Company]" or "Hiring for [Company]" metadata
+               d. Domain name in URLs (e.g., stripe.com/careers → "Stripe")
+               e. Logo alt-text or footer branding
+               If none of these yield a result, return "Unknown Company".
+
+            2. **ROLE** — Extract the exact job title as written (e.g., "Senior DevOps Engineer").
+               Normalize minor variations: "Sr." → "Senior", "SW" → "Software".
+
+            3. **TECH STACK** — Extract ALL explicitly mentioned technologies:
+               - Languages: Python, JavaScript, TypeScript, Go, Rust, Java, C++, etc.
+               - Frameworks: React, Next.js, Django, Spring Boot, Flask, Express, etc.
+               - Databases: PostgreSQL, MongoDB, Redis, DynamoDB, MySQL, etc.
+               - Infrastructure: Docker, Kubernetes, Terraform, Jenkins, CI/CD, etc.
+               - Cloud: AWS, GCP, Azure (include specific services like S3, Lambda, BigQuery)
+               Also include technologies that are strongly implied (e.g., "microservices" implies containerization).
+
+            4. **LEVEL** — Infer seniority using these signals:
+               - "Junior/Entry/Associate" or "0-2 years" → Junior
+               - "3-5 years" or "Mid-level" with no leadership scope → Mid
+               - "5-8 years", "mentor", "lead technical decisions", "own a system" → Senior
+               - "8+ years", "define technical strategy", "cross-team influence", "principal" → Staff
+               - "VP", "CTO", "Director of Engineering", "org-wide technical vision" → Executive
+               When signals conflict, weight scope-of-impact over years-of-experience.
+
+            5. **SUGGESTED TYPE** — Infer interview type:
+               - Heavy emphasis on system design, architecture, scalability → "System Design"
+               - Focus on algorithms, coding, specific tech depth → "Technical"
+               - Emphasis on leadership, teamwork, communication, culture → "Behavioral"
+               - Recruiting/screening focus, compensation, benefits → "HR"
+               - Balanced mix of technical and soft skills → "Mixed"
+
+            6. **CLEAN JD** — Remove all non-content elements: navigation menus, "Sign In"/"Apply Now" buttons, cookie banners, "Similar Jobs" sections, and page footers. Keep ONLY the actual job description content.
             `,
       });
 

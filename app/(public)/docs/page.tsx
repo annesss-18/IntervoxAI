@@ -68,7 +68,7 @@ export default function DocsPage() {
                   className="group"
                 >
                   <CardContent className="flex items-start gap-4 p-6">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform group-hover:scale-110">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 transition-transform duration-300 group-hover:scale-110">
                       <Icon className="size-5 text-primary" />
                     </div>
                     <div>

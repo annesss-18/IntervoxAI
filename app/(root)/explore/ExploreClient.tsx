@@ -76,7 +76,7 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
               <button
                 key={filter}
                 type="button"
-                className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
+                className="rounded-full border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-foreground"
                 onClick={() => setSearchQuery(filter)}
               >
                 {filter}
@@ -97,14 +97,20 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
 
       {filteredTemplates.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredTemplates.map((template) => (
-            <TemplateCard key={template.id} template={template} />
+          {filteredTemplates.map((template, i) => (
+            <div
+              key={template.id}
+              className={`animate-staggerFadeIn delay-${(i % 3) * 100 + 100}`}
+              style={{ animationFillMode: "forwards" }}
+            >
+              <TemplateCard template={template} />
+            </div>
           ))}
         </div>
       ) : (
         <Card variant="gradient" className="py-12 text-center">
           <CardContent>
-            <div className="bg-surface-2 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
+            <div className="bg-primary/5 mx-auto mb-4 flex size-16 items-center justify-center rounded-full">
               <Compass className="text-muted-foreground size-8" />
             </div>
             {searchQuery ? (

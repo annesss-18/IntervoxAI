@@ -4,38 +4,79 @@ import { db } from "@/firebase/admin";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import type { InterviewTemplate, User } from "@/types";
+import { z } from "zod";
+
+const VALID_LEVELS = ["Junior", "Mid", "Senior", "Staff", "Executive"] as const;
+const VALID_TYPES = [
+  "Technical",
+  "System Design",
+  "Behavioral",
+  "HR",
+  "Mixed",
+] as const;
+
+const templateCreateSchema = z.object({
+  role: z.string().trim().min(1, "Role is required").max(100),
+  companyName: z.string().trim().max(100).default(""),
+  companyLogoUrl: z
+    .string()
+    .url("Invalid logo URL format")
+    .refine((url) => url.startsWith("https://"), {
+      message: "Logo URL must use HTTPS",
+    })
+    .optional(),
+  level: z.enum(VALID_LEVELS).default("Mid"),
+  type: z.enum(VALID_TYPES).default("Technical"),
+  techStack: z.array(z.string().trim().max(50)).max(20).default([]),
+  focusArea: z.array(z.string().trim().max(100)).max(10).default([]),
+  isPublic: z.boolean().default(false),
+  jobDescription: z.string().trim().max(5000).default(""),
+  baseQuestions: z
+    .array(z.string().trim().min(1).max(1000))
+    .min(1, "At least one question is required")
+    .max(20),
+  systemInstruction: z.string().trim().max(10000).optional(),
+  interviewerPersona: z
+    .object({
+      name: z.string().trim().max(50),
+      title: z.string().trim().max(100),
+      personality: z.string().trim().max(500),
+    })
+    .optional(),
+});
 
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
     try {
       const body = await req.json();
+      const validation = templateCreateSchema.safeParse(body);
 
-      // Validate required fields
-      if (
-        !body.role ||
-        !body.baseQuestions ||
-        !Array.isArray(body.baseQuestions)
-      ) {
+      if (!validation.success) {
         return NextResponse.json(
-          { error: "Invalid template data: role and baseQuestions required" },
+          {
+            error: "Invalid template data",
+            details: validation.error.issues,
+          },
           { status: 400 },
         );
       }
 
+      const data = validation.data;
+
       const templateData: Omit<InterviewTemplate, "id"> = {
-        role: body.role,
-        companyName: body.companyName || "",
-        companyLogoUrl: body.companyLogoUrl,
-        level: body.level || "Mid",
-        type: body.type || "Technical",
-        techStack: body.techStack || [],
-        focusArea: body.focusArea || [],
-        isPublic: typeof body.isPublic === "boolean" ? body.isPublic : false,
-
-        jobDescription: body.jobDescription || "",
-        baseQuestions: body.baseQuestions,
+        role: data.role,
+        companyName: data.companyName,
+        companyLogoUrl: data.companyLogoUrl,
+        level: data.level,
+        type: data.type,
+        techStack: data.techStack,
+        focusArea: data.focusArea,
+        isPublic: data.isPublic,
+        jobDescription: data.jobDescription,
+        baseQuestions: data.baseQuestions,
+        systemInstruction: data.systemInstruction,
+        interviewerPersona: data.interviewerPersona,
         creatorId: user.id,
-
         usageCount: 0,
         avgScore: 0,
         createdAt: new Date().toISOString(),

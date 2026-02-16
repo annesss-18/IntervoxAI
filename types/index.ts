@@ -1,10 +1,8 @@
-// types/index.ts (rename from index.d.ts)
 export interface Feedback {
   id: string;
   interviewId: string;
   userId: string;
   totalScore: number;
-  // NEW: Hiring recommendation
   hiringRecommendation?:
     | "Strong Yes"
     | "Yes"
@@ -12,24 +10,16 @@ export interface Feedback {
     | "Lean No"
     | "No"
     | "Strong No";
-  categoryScores:
-    | {
-        [key: string]: {
-          score: number;
-          comment: string;
-        };
-      }
-    | Array<{
-        name: string;
-        score: number;
-        comment: string;
-      }>;
+  categoryScores: Array<{
+    name: string;
+    score: number;
+    comment: string;
+  }>;
   categoryScoresArray?: Array<{
     name: string;
     score: number;
     comment: string;
   }>;
-  // NEW: Behavioral insights from Deep Insight Engine
   behavioralInsights?: {
     confidenceLevel: "High" | "Moderate" | "Low" | "Variable";
     clarityOfThought: "Excellent" | "Good" | "Developing" | "Needs Improvement";
@@ -40,7 +30,6 @@ export interface Feedback {
   };
   strengths: string[];
   areasForImprovement: string[];
-  // NEW: Actionable career coaching
   careerCoaching?: {
     immediateActions: string[];
     learningPath: string[];
@@ -72,14 +61,14 @@ export interface InterviewTemplate {
   baseQuestions: string[];
   systemInstruction?: string;
 
-  // NEW: Company Culture Analysis (optional for backward compatibility)
+  // Company Culture Analysis (optional)
   companyCultureInsights?: {
     values: string[];
     workStyle: string;
     teamStructure: string;
   };
 
-  // NEW: Interviewer Persona
+  // Interviewer Persona
   interviewerPersona?: {
     name: string;
     title: string;

@@ -37,23 +37,24 @@ export const POST = withAuth(
         );
       }
 
-      // 2. Create Session
-      // We can copy some data for easier querying if needed, but strict relational is safer
-      const sessionRef = await db.collection("interview_sessions").add({
-        templateId,
-        userId: user.id,
-        status: "setup",
-        feedbackStatus: "idle",
-        feedbackError: null,
-        startedAt: new Date().toISOString(),
+      // 2. Create Session + Increment Usage Count (Atomic Transaction)
+      const sessionId = await db.runTransaction(async (transaction) => {
+        const newSessionRef = db.collection("interview_sessions").doc();
+        transaction.set(newSessionRef, {
+          templateId,
+          userId: user.id,
+          status: "setup",
+          feedbackStatus: "idle",
+          feedbackError: null,
+          startedAt: new Date().toISOString(),
+        });
+        transaction.update(templateRef, {
+          usageCount: FieldValue.increment(1),
+        });
+        return newSessionRef.id;
       });
 
-      // 3. Increment Usage Count (Atomic)
-      await templateRef.update({
-        usageCount: FieldValue.increment(1),
-      });
-
-      return NextResponse.json({ sessionId: sessionRef.id });
+      return NextResponse.json({ sessionId });
     } catch (error) {
       logger.error("Create Session Error:", error);
       return NextResponse.json(

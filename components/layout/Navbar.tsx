@@ -43,7 +43,15 @@ const navLinks = [
 export function Navbar({ user: initialUser }: NavbarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isScrolled, setIsScrolled] = React.useState(false);
   const { user: authUser, loading: authLoading } = useAuth();
+
+  React.useEffect(() => {
+    const onScroll = () => setIsScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const user = authLoading
     ? initialUser
@@ -71,14 +79,19 @@ export function Navbar({ user: initialUser }: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl">
+    <header
+      className={cn(
+        "sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-xl saturate-[1.1] transition-[border-color,box-shadow] duration-300",
+        isScrolled ? "border-border/50 shadow-sm" : "border-transparent",
+      )}
+    >
       <div className="container-app flex h-16 items-center justify-between gap-4">
         {/* Logo */}
         <Link
           href={user ? "/dashboard" : "/"}
           className="group flex items-center gap-2.5"
         >
-          <div className="rounded-xl border border-border bg-card p-1.5 transition-colors group-hover:border-primary/30">
+          <div className="rounded-xl bg-surface-2/80 p-1.5 transition-colors group-hover:bg-surface-2">
             <Image
               src="/icon.png"
               alt="IntervoxAI"
@@ -143,7 +156,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                   </SheetTrigger>
                   <SheetContent
                     side="left"
-                    className="w-72 border-border bg-background"
+                    className="w-80 border-border bg-background"
                   >
                     <SheetHeader className="pb-6">
                       <SheetTitle className="flex items-center gap-2.5 text-left">
@@ -159,7 +172,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
 
                     <div className="flex flex-col gap-6">
                       {/* User Info */}
-                      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 p-3">
+                      <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-3">
                         <Avatar size="sm">
                           <AvatarFallback>
                             {getInitials(user.name)}

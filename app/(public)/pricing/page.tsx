@@ -36,7 +36,10 @@ export default function PricingPage() {
         <Container>
           <div className="grid gap-8 lg:grid-cols-2">
             {/* Free Plan */}
-            <Card variant="interactive" className="relative overflow-hidden">
+            <Card
+              variant="interactive"
+              className="gradient-border relative overflow-hidden"
+            >
               <CardContent className="space-y-6 p-8">
                 <div>
                   <Badge variant="success" className="mb-4">
@@ -44,7 +47,7 @@ export default function PricingPage() {
                   </Badge>
                   <h2 className="text-2xl font-semibold">Early Access</h2>
                   <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">$0</span>
+                    <span className="text-4xl font-bold tabular-nums">$0</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 </div>
@@ -55,10 +58,11 @@ export default function PricingPage() {
                 </p>
 
                 <ul className="space-y-3">
-                  {features.map((feature) => (
+                  {features.map((feature, i) => (
                     <li
                       key={feature}
-                      className="flex items-center gap-3 text-sm"
+                      className={`animate-fadeIn opacity-0 flex items-center gap-3 text-sm delay-${(i + 1) * 100}`}
+                      style={{ animationFillMode: "forwards" }}
                     >
                       <Check className="size-4 text-success" />
                       {feature}
@@ -76,7 +80,7 @@ export default function PricingPage() {
             </Card>
 
             {/* Pro Plan (Coming Soon) */}
-            <Card className="relative overflow-hidden border-dashed opacity-75">
+            <Card className="relative overflow-hidden border-dashed opacity-60">
               <CardContent className="space-y-6 p-8">
                 <div>
                   <Badge variant="secondary" className="mb-4">
@@ -84,7 +88,7 @@ export default function PricingPage() {
                   </Badge>
                   <h2 className="text-2xl font-semibold">Pro</h2>
                   <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">$19</span>
+                    <span className="text-4xl font-bold tabular-nums">$19</span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 </div>

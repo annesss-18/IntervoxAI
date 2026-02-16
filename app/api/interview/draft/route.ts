@@ -86,8 +86,8 @@ export const POST = withAuth(
 
       // 3. Deep Research Prompt
       const constructedPrompt = `
-        You are an Expert Technical Recruiter and Engineering Manager. 
-        Perform a deep research analysis on the following Job Description (JD) to build a rigorous interview template.
+        You are a Senior Technical Hiring Manager building a rigorous interview template.
+        Perform a deep analysis of the Job Description to create a template that accurately targets the role's core competencies.
 
         INPUT CONTEXT:
         ${safeRoleContext}
@@ -98,14 +98,35 @@ export const POST = withAuth(
         ${safeJdText}
         [JOB DESCRIPTION END]
 
-        Your Goal: Create the most efficient and rigorous interview template possible.
-        
-        CRITICAL INSTRUCTIONS:
-        1. **Role Extraction:** If the "Target Role" is UNKNOWN, you MUST extract the exact job title from the JD. If the JD is vague, infer the most likely technical role (e.g. "Full Stack Developer").
-        2. **Tech Stack Extraction:** Identify critical tools. Extract specific frameworks (e.g., "Next.js" instead of just "JS").
-        3. **Competency Mapping (Focus Areas):** Identify 3-5 "Focus Areas". For a Senior role, focus on Architecture/Scalability. For a Junior, focus on Syntax/Logic.
-        4. **Question Generation:** Generate 5-10 questions that probe these Focus Areas. *Do not make them generic.*
-        5. **Agent Persona:** Write a "System Instruction" for the AI Agent that will conduct the interview. Include specific behaviors (e.g., "Ask about their experience with X").
+        ANALYSIS STEPS:
+
+        1. **Role Extraction**: If the "Target Role" is UNKNOWN, extract the exact job title from the JD. If the JD is vague, infer the most likely technical role (e.g., "Full Stack Developer"). Normalize variations ("Sr." → "Senior").
+
+        2. **Tech Stack Extraction**: Identify all critical technologies. Be specific — extract "Next.js" rather than "JavaScript framework". Include tools that are strongly implied by responsibilities (e.g., "CI/CD pipelines" implies Jenkins/GitHub Actions/etc.).
+
+        3. **Focus Area Identification** (3-5 core competencies to evaluate):
+           Calibrate focus areas to the candidate level:
+           - Junior: Syntax fluency, debugging fundamentals, code readability, learning aptitude
+           - Mid: Design patterns, testing strategies, code review quality, collaboration
+           - Senior: System architecture, scalability thinking, mentorship, technical leadership
+           - Staff: Cross-team technical strategy, organizational impact, ambiguity resolution
+           - Executive: Engineering vision, team building, business-technical alignment
+
+        4. **Question Generation** (5-10 questions):
+           Distribute difficulty intentionally:
+           - ~30% warm-up / rapport-building (open-ended, about their experience)
+           - ~50% core competency probes (scenario-based, targeting focus areas)
+           - ~20% stretch / challenge questions (push beyond comfort zone)
+           Every question should be grounded in a concrete, realistic scenario relevant to the role.
+
+        5. **System Instruction for the AI Interviewer Agent**:
+           Write a detailed behavioral specification that covers:
+           - **Opening**: How to greet the candidate, introduce yourself, and set a relaxed, conversational tone. Start with a warm-up question about their recent work.
+           - **Conversational style**: Use natural bridges between topics ("That actually connects to..."), echo the candidate's terminology, vary sentence length, and use thinking pauses ("Let me think about that...").
+           - **Active listening**: Ask follow-ups based on what the candidate said — probe vague answers ("Can you walk me through a specific example?"), celebrate strong answers ("Nice, that's exactly the kind of thinking we look for").
+           - **Difficulty adaptation**: Increase complexity if the candidate is strong; simplify and offer hints if they struggle. Give at most one hint per question.
+           - **Silence handling**: Wait patiently for 3-5 seconds. After 5-8 seconds, offer encouragement ("Take your time"). After 8+ seconds, rephrase or offer a sub-question.
+           - **Closing**: Wind down naturally, give genuine encouragement referencing something specific the candidate did well, and ask if they have questions.
 
         Output the result as a structured JSON object matching the schema.
         `.trim();

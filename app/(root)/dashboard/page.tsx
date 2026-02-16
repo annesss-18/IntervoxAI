@@ -196,24 +196,28 @@ function MetricCard({
 }) {
   const toneClass =
     tone === "success"
-      ? "from-success/14 to-transparent"
+      ? "from-success/10 to-transparent"
       : tone === "info"
-        ? "from-info/14 to-transparent"
+        ? "from-info/10 to-transparent"
         : tone === "accent"
-          ? "from-accent/12 to-transparent"
-          : "from-primary/12 to-transparent";
+          ? "from-accent/10 to-transparent"
+          : "from-primary/10 to-transparent";
 
   return (
-    <Card className={`bg-gradient-to-br ${toneClass}`}>
+    <Card
+      className={`bg-gradient-to-br ${toneClass} transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}
+    >
       <CardContent className="pt-6">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-muted-foreground text-xs font-semibold tracking-[0.14em] uppercase">
               {label}
             </p>
-            <p className="mt-2 text-3xl font-semibold">{value}</p>
+            <p className="mt-2 text-3xl font-semibold tracking-tight tabular-nums">
+              {value}
+            </p>
           </div>
-          <div className="border-border/65 bg-surface-1/80 rounded-xl border p-2.5">
+          <div className="border-border/65 bg-muted rounded-xl border p-2.5">
             {icon}
           </div>
         </div>
@@ -233,11 +237,14 @@ function EmptyState({
 }) {
   return (
     <Card variant="gradient" className="py-10 text-center">
-      <CardContent className="space-y-5">
-        <Badge variant="secondary" className="mx-auto w-fit">
-          <LayoutTemplate className="size-3.5" />
-          Workspace Empty
-        </Badge>
+      <CardContent className="space-y-6">
+        <div className="relative mx-auto w-fit">
+          <div className="pointer-events-none absolute -inset-4 rounded-full bg-primary/8 blur-xl" />
+          <Badge variant="secondary" className="relative w-fit">
+            <LayoutTemplate className="size-3.5" />
+            Workspace Empty
+          </Badge>
+        </div>
         <div className="space-y-2">
           <h3 className="text-xl font-semibold">{title}</h3>
           <p className="text-muted-foreground mx-auto max-w-lg">

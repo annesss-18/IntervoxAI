@@ -110,9 +110,9 @@ const Page = async ({ params }: RouteParams) => {
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <HintPill text="Stay focused on one problem at a time" />
-          <HintPill text="State assumptions before diving deep" />
-          <HintPill text="Ask clarifying questions when needed" />
+          <HintPill text="Stay focused on one problem at a time" delay={100} />
+          <HintPill text="State assumptions before diving deep" delay={200} />
+          <HintPill text="Ask clarifying questions when needed" delay={300} />
         </div>
       </section>
 
@@ -123,9 +123,12 @@ const Page = async ({ params }: RouteParams) => {
   );
 };
 
-function HintPill({ text }: { text: string }) {
+function HintPill({ text, delay = 0 }: { text: string; delay?: number }) {
   return (
-    <div className="border-border/65 bg-surface-1/75 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm">
+    <div
+      className={`animate-slideIn opacity-0 border-border/65 bg-surface-1/75 flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm delay-${delay}`}
+      style={{ animationFillMode: "forwards" }}
+    >
       <ShieldCheck className="text-success size-4" />
       <span>{text}</span>
     </div>

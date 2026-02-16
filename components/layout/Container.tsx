@@ -67,22 +67,22 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f0d1a] via-[#1a1625] to-[#0f0d1a] px-8 py-12 sm:px-12 sm:py-16",
+        "texture-noise relative mb-12 overflow-hidden rounded-2xl bg-gradient-to-br from-surface-3 via-surface-2 to-surface-3 px-8 py-14 sm:px-12 sm:py-18",
         className,
       )}
     >
       <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-3">
           {badge && (
-            <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-neutral-400">
+            <span className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-muted-foreground">
               {badge}
             </span>
           )}
-          <h1 className="text-3xl font-normal tracking-tight text-white md:text-4xl">
+          <h1 className="text-3xl font-normal tracking-tight text-foreground md:text-4xl">
             <span className="font-serif italic">{title}</span>
           </h1>
           {description && (
-            <p className="max-w-2xl text-neutral-400">{description}</p>
+            <p className="max-w-2xl text-muted-foreground">{description}</p>
           )}
         </div>
         {children && <div className="flex items-center gap-3">{children}</div>}
@@ -90,9 +90,12 @@ export function PageHeader({
 
       {/* Background Glow */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -left-20 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-primary/20 blur-[80px]" />
-        <div className="absolute -right-20 bottom-0 h-32 w-32 rounded-full bg-secondary/15 blur-[60px]" />
+        <div className="absolute -left-20 top-1/2 h-40 w-40 -translate-y-1/2 rounded-full bg-primary/10 blur-[120px]" />
+        <div className="absolute -right-20 bottom-0 h-32 w-32 rounded-full bg-secondary/10 blur-[100px]" />
       </div>
+
+      {/* Bottom gradient line */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
     </div>
   );
 }

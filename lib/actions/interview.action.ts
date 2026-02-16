@@ -33,7 +33,12 @@ export async function getLatestInterviews(params: GetLatestInterviewsParams) {
 }
 
 export async function getInterviewsById(id: string, userId?: string) {
-  return await InterviewService.getSessionById(id, userId);
+  try {
+    return await InterviewService.getSessionById(id, userId);
+  } catch (error) {
+    logger.error("Error fetching session by ID:", error);
+    return null;
+  }
 }
 
 export async function getFeedbackByInterviewId(

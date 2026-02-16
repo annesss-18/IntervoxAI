@@ -46,9 +46,9 @@ export default function BlogPage() {
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="size-4 text-info" />
               <span className="text-muted-foreground">
-                <strong className="text-foreground">Coming soon.</strong> We're
-                preparing practical, example-driven content focused on real
-                interview scenarios.
+                <strong className="text-foreground">Coming soon.</strong>{" "}
+                We&apos;re preparing practical, example-driven content focused
+                on real interview scenarios.
               </span>
             </div>
           </div>
@@ -56,7 +56,10 @@ export default function BlogPage() {
           <h2 className="mb-6 text-lg font-semibold">Upcoming topics</h2>
           <div className="grid gap-4">
             {upcomingTopics.map((topic) => (
-              <Card key={topic.title} className="group">
+              <Card
+                key={topic.title}
+                className="group transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              >
                 <CardContent className="flex items-center justify-between gap-4 p-5">
                   <div className="flex items-center gap-4">
                     <Badge variant="outline">{topic.category}</Badge>

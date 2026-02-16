@@ -33,7 +33,7 @@ export function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-border py-12">
+    <footer className="relative border-t border-border py-16">
       <div className="container-app">
         <div className="grid gap-8 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           {/* Brand Column */}
@@ -54,7 +54,7 @@ export function Footer() {
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-muted-foreground transition-colors hover:text-foreground"
+                    className="text-muted-foreground transition-colors hover:text-foreground p-1.5 rounded-lg hover:bg-surface-2"
                     aria-label={link.label}
                   >
                     <Icon className="size-4" />
@@ -71,7 +71,7 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="mt-10 border-t border-border pt-6 text-sm text-muted-foreground">
+        <div className="mt-12 border-t border-border pt-6 text-sm text-muted-foreground">
           <p>© {currentYear} IntervoxAI. All rights reserved.</p>
         </div>
       </div>
@@ -96,7 +96,7 @@ function FooterColumn({
           <li key={link.href}>
             <Link
               href={link.href}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="relative text-sm text-muted-foreground transition-colors hover:text-foreground after:absolute after:bottom-0 after:left-0 after:h-px after:w-0 after:bg-primary after:transition-all after:duration-300 hover:after:w-full"
             >
               {link.label}
             </Link>

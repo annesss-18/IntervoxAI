@@ -8,12 +8,13 @@ const Card = React.forwardRef<
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variants = {
-    default: "bg-card border border-border",
-    elevated: "bg-card shadow-md border border-border/50",
+    default: "bg-card border border-border transition-colors duration-200",
+    elevated:
+      "bg-card shadow-md border border-border/50 transition-colors duration-200",
     interactive:
-      "bg-card border border-border cursor-pointer transition-all duration-200 hover:border-primary/40 hover:shadow-lg",
+      "bg-card border border-border cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5",
     gradient:
-      "bg-gradient-to-br from-surface-1 to-surface-2 border border-border/60 shadow-sm",
+      "bg-gradient-to-br from-surface-1 to-surface-2 border border-border/60 shadow-sm transition-colors duration-200",
   };
 
   return (

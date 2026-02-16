@@ -87,13 +87,16 @@ function ScoreRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className={cn(
-            "transition-all duration-700 ease-out",
-            getColor(score),
-          )}
+          className={cn("animate-scoreRingFill", getColor(score))}
+          style={
+            {
+              "--ring-circumference": circumference,
+              "--ring-offset": offset,
+            } as React.CSSProperties
+          }
         />
       </svg>
-      <span className="text-foreground absolute text-xl font-bold">
+      <span className="text-foreground absolute text-xl font-bold tabular-nums">
         {score}
       </span>
     </div>

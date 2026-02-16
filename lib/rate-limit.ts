@@ -17,9 +17,11 @@ const isRedisConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
+// Enforce Redis in production — in-memory rate limiting is per-instance and ineffective
 if (!isRedisConfigured && process.env.NODE_ENV === "production") {
-  logger.warn(
-    "UPSTASH_REDIS_REST_URL/TOKEN not set in production. Rate limiting will use per-instance in-memory storage, which is ineffective at scale.",
+  throw new Error(
+    "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production for rate limiting. " +
+      "In-memory rate limiting is per-instance and provides no protection in serverless environments.",
   );
 }
 
