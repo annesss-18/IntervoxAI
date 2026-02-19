@@ -13,17 +13,18 @@
   </p>
 
   <p>
-    <a href="#-features">Features</a> &bull;
-    <a href="#-tech-stack">Tech Stack</a> &bull;
-    <a href="#-getting-started">Getting Started</a> &bull;
-    <a href="#-deployment">Deployment</a> &bull;
-    <a href="#-contributing">Contributing</a>
+    <a href="#features">Features</a> &bull;
+    <a href="#tech-stack">Tech Stack</a> &bull;
+    <a href="#getting-started">Getting Started</a> &bull;
+    <a href="#deployment">Deployment</a> &bull;
+    <a href="#contributing">Contributing</a>
   </p>
 </div>
 
 ---
 
-## :sparkles: Overview
+<a id="overview"></a>
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/file-text.svg" alt="" width="18" /> Overview
 
 **IntervoxAI** is an AI-powered mock interview platform built for realistic, voice-first technical interview practice.
 
@@ -38,7 +39,8 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 ---
 
-## :rocket: Features
+<a id="features"></a>
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/sparkles.svg" alt="" width="18" /> Features
 
 ### Core product capabilities
 
@@ -71,7 +73,8 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 ---
 
-## :toolbox: Tech Stack
+<a id="tech-stack"></a>
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cpu.svg" alt="" width="18" /> Tech Stack
 
 | Layer | Technologies |
 |---|---|
@@ -86,7 +89,7 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 ---
 
-## :building_construction: Architecture
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/network.svg" alt="" width="18" /> Architecture
 
 ```text
 Client (Next.js App Router UI)
@@ -106,7 +109,7 @@ Interview end -> /api/feedback -> /api/feedback/process -> feedback document
 
 ---
 
-## :file_folder: Project Structure
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/folder-tree.svg" alt="" width="18" /> Project Structure
 
 ```text
 app/
@@ -139,7 +142,7 @@ firestore.indexes.json       Firestore indexes
 
 ---
 
-## :arrows_clockwise: Core Workflows
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/workflow.svg" alt="" width="18" /> Core Workflows
 
 ### 1. Template generation
 
@@ -164,7 +167,7 @@ firestore.indexes.json       Firestore indexes
 
 ---
 
-## :satellite: API Summary
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/radio.svg" alt="" width="18" /> API Summary
 
 | Route | Method | Auth | Purpose |
 |---|---|---|---|
@@ -184,7 +187,7 @@ firestore.indexes.json       Firestore indexes
 
 ---
 
-## :card_file_box: Data Model (Firestore)
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/database.svg" alt="" width="18" /> Data Model (Firestore)
 
 ### Collections
 
@@ -212,7 +215,7 @@ firestore.indexes.json       Firestore indexes
 
 ---
 
-## :shield: Security and Privacy
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/shield-check.svg" alt="" width="18" /> Security and Privacy
 
 - **AuthZ checks**: session/template ownership is validated before reads/writes.
 - **CSRF mitigation**: mutation routes enforce expected `Content-Type`.
@@ -223,7 +226,8 @@ firestore.indexes.json       Firestore indexes
 
 ---
 
-## :hammer_and_wrench: Getting Started
+<a id="getting-started"></a>
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/play-circle.svg" alt="" width="18" /> Getting Started
 
 ### Prerequisites
 
@@ -257,7 +261,7 @@ Open `http://localhost:3000`.
 
 ---
 
-## :lock: Environment Variables
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
 | Variable | Required | Description |
 |---|---|---|
@@ -279,7 +283,7 @@ Open `http://localhost:3000`.
 
 ---
 
-## :scroll: Available Scripts
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/terminal-square.svg" alt="" width="18" /> Available Scripts
 
 | Script | Command | Purpose |
 |---|---|---|
@@ -294,7 +298,8 @@ Open `http://localhost:3000`.
 
 ---
 
-## :ship: Deployment
+<a id="deployment"></a>
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cloud-upload.svg" alt="" width="18" /> Deployment
 
 1. Set all required env vars on your hosting platform.
 2. Deploy Firestore rules and indexes:
@@ -305,7 +310,8 @@ Open `http://localhost:3000`.
 
 ---
 
-## :handshake: Contributing
+<a id="contributing"></a>
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/handshake.svg" alt="" width="18" /> Contributing
 
 Contributions are welcome. For meaningful changes:
 
@@ -315,7 +321,7 @@ Contributions are welcome. For meaningful changes:
 
 ---
 
-## :fire_extinguisher: Troubleshooting
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/alert-circle.svg" alt="" width="18" /> Troubleshooting
 
 - **Unauthorized route errors**
   - Check Firebase auth/session cookie setup.
