@@ -4,23 +4,28 @@ import { cn } from "@/lib/utils";
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & {
-    variant?: "default" | "elevated" | "interactive" | "gradient";
+    variant?: "default" | "elevated" | "interactive" | "inset";
   }
 >(({ className, variant = "default", ...props }, ref) => {
   const variants = {
-    default: "bg-card border border-border transition-colors duration-200",
+    default:
+      "bg-card border border-border shadow-[var(--shadow-sm)] transition-colors duration-200",
     elevated:
-      "bg-card shadow-md border border-border/50 transition-colors duration-200",
+      "bg-card border border-border/70 shadow-[var(--shadow-md)] transition-colors duration-200",
     interactive:
-      "bg-card border border-border cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5",
-    gradient:
-      "bg-gradient-to-br from-surface-1 to-surface-2 border border-border/60 shadow-sm transition-colors duration-200",
+      "bg-card border border-border shadow-[var(--shadow-sm)] cursor-pointer transition-all duration-300 hover:border-primary/40 hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5",
+    inset:
+      "bg-surface-2 border border-border/60 transition-colors duration-200",
   };
 
   return (
     <div
       ref={ref}
-      className={cn("overflow-hidden rounded-xl", variants[variant], className)}
+      className={cn(
+        "overflow-hidden rounded-2xl",
+        variants[variant],
+        className,
+      )}
       {...props}
     />
   );
@@ -33,7 +38,7 @@ const CardHeader = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex flex-col gap-1.5 p-5", className)}
+    className={cn("flex flex-col gap-1.5 p-6", className)}
     {...props}
   />
 ));
@@ -46,7 +51,7 @@ const CardTitle = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "text-lg font-semibold text-foreground tracking-tight",
+      "text-lg font-semibold text-foreground tracking-tight leading-snug",
       className,
     )}
     {...props}
@@ -60,7 +65,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm text-muted-foreground leading-relaxed", className)}
     {...props}
   />
 ));
@@ -70,7 +75,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-5 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
@@ -80,7 +85,7 @@ const CardFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("flex items-center p-5 pt-0", className)}
+    className={cn("flex items-center p-6 pt-0", className)}
     {...props}
   />
 ));

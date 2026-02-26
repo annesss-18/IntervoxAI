@@ -2,11 +2,7 @@
 const isDev = process.env.NODE_ENV === "development";
 const nextConfig = {
   reactStrictMode: true,
-
-  // Remove X-Powered-By header for security
   poweredByHeader: false,
-
-  // Keep unpdf as external package to avoid bundling issues
   serverExternalPackages: ["unpdf"],
 
   experimental: {
@@ -18,38 +14,32 @@ const nextConfig = {
   images: {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    // External image sources used for logos, avatars, and profile photos.
     remotePatterns: [
-      // Simple Icons (legacy, kept for fallback)
       {
         protocol: "https",
         hostname: "cdn.simpleicons.org",
       },
-      // Google user profile images
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
       },
-      // Brandfetch CDN - Company logos (primary)
       {
         protocol: "https",
         hostname: "cdn.brandfetch.io",
       },
-      // Google Favicon API (fallback)
       {
         protocol: "https",
         hostname: "www.google.com",
       },
-      // UI Avatars (fallback placeholder)
       {
         protocol: "https",
         hostname: "ui-avatars.com",
       },
-      // Devicon CDN via jsDelivr - Tech icons (primary)
       {
         protocol: "https",
         hostname: "cdn.jsdelivr.net",
       },
-      // Clearbit Logo API
       {
         protocol: "https",
         hostname: "logo.clearbit.com",
@@ -59,7 +49,7 @@ const nextConfig = {
 
   async headers() {
     return [
-      // Security headers for all routes
+      // Global security headers.
       {
         source: "/(.*)",
         headers: [
@@ -98,7 +88,7 @@ const nextConfig = {
           },
         ],
       },
-      // Cache control for static assets
+      // Immutable cache headers for static assets.
       {
         source: "/:all*(svg|jpg|png|webp|gif|ico)",
         headers: [

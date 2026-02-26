@@ -7,21 +7,22 @@ import { cn } from "@/lib/utils";
 const Avatar = React.forwardRef<
   React.ElementRef<typeof AvatarPrimitive.Root>,
   React.ComponentPropsWithoutRef<typeof AvatarPrimitive.Root> & {
-    size?: "sm" | "md" | "lg" | "xl";
+    size?: "xs" | "sm" | "md" | "lg" | "xl";
   }
 >(({ className, size = "md", ...props }, ref) => {
   const sizes = {
-    sm: "h-8 w-8",
-    md: "h-10 w-10",
-    lg: "h-12 w-12",
-    xl: "h-16 w-16",
+    xs: "size-7",
+    sm: "size-8",
+    md: "size-10",
+    lg: "size-12",
+    xl: "size-16",
   };
 
   return (
     <AvatarPrimitive.Root
       ref={ref}
       className={cn(
-        "ring-border relative flex shrink-0 overflow-hidden rounded-full ring-2",
+        "ring-border/60 relative flex shrink-0 overflow-hidden rounded-full ring-1",
         sizes[size],
         className,
       )}
@@ -50,7 +51,7 @@ const AvatarFallback = React.forwardRef<
   <AvatarPrimitive.Fallback
     ref={ref}
     className={cn(
-      "from-primary to-accent flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br font-semibold text-white",
+      "flex h-full w-full items-center justify-center rounded-full bg-brand-gradient font-semibold text-white text-sm tracking-wide",
       className,
     )}
     {...props}

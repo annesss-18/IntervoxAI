@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/atoms/button";
 import { Loader2, PlayCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -19,9 +19,7 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
       setLoading(true);
       const response = await fetch("/api/interview/session/create", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ templateId }),
       });
 
@@ -36,17 +34,15 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
             message = errorData.error;
           }
         } catch {
-          // Ignore JSON parse failure and use default message.
+          throw new Error(message);
         }
-        throw new Error(message);
-      }
 
-      const data = await response.json();
-      if (data.sessionId) {
-        router.push(`/interview/session/${data.sessionId}`);
+        const data = await response.json();
+        if (data.sessionId) {
+          router.push(`/interview/session/${data.sessionId}`);
+        }
       }
     } catch (error) {
-      console.error("Error starting session:", error);
       const message =
         error instanceof Error ? error.message : "Unable to start interview";
       toast.error(message);
@@ -59,22 +55,22 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
     <Button
       onClick={handleStart}
       disabled={loading}
-      className="w-full py-3 font-semibold"
+      variant="gradient"
       size="lg"
+      className="w-full "
     >
       {loading ? (
         <>
-          <Loader2 className="mr-2 size-4 animate-spin" />
-          Initializing...
+          <Loader2 className="size-5 animate-spin" />
+          Initializing…
         </>
       ) : (
         <>
-          <PlayCircle className="mr-2 size-5" />
+          <PlayCircle className="size-5" />
           Start Interview
         </>
       )}
     </Button>
   );
 };
-
 export default StartSessionButton;

@@ -1,4 +1,3 @@
-// lib/server-utils.ts
 import * as cheerio from "cheerio";
 import { URL } from "url";
 import { extractText } from "unpdf";
@@ -38,9 +37,9 @@ function isPrivateOrSpecialIPv4(ip: string): boolean {
   if (a === 169 && b === 254) return true;
   if (a === 172 && b >= 16 && b <= 31) return true;
   if (a === 192 && b === 168) return true;
-  if (a === 100 && b >= 64 && b <= 127) return true; // carrier-grade NAT
-  if (a === 198 && (b === 18 || b === 19)) return true; // benchmark/testing
-  if (a >= 224) return true; // multicast/reserved
+  if (a === 100 && b >= 64 && b <= 127) return true; // Carrier-grade NAT range.
+  if (a === 198 && (b === 18 || b === 19)) return true; // Benchmark/test range.
+  if (a >= 224) return true; // Multicast and reserved ranges.
   return false;
 }
 
@@ -94,6 +93,7 @@ async function assertPublicHostname(hostname: string): Promise<void> {
   let secondLookup: Array<{ address: string; family: number }>;
   try {
     firstLookup = await dns.lookup(hostname, { all: true, verbatim: true });
+    // Perform a second lookup after a short delay to reduce DNS rebinding risk.
     await new Promise((resolve) =>
       setTimeout(resolve, DNS_REBINDING_CHECK_DELAY_MS),
     );
@@ -169,19 +169,12 @@ async function fetchWithSafeRedirects(parsedUrl: URL): Promise<Response> {
   throw new Error("Too many redirects while fetching URL.");
 }
 
-/**
- * Extract text from PDF using the unpdf library
- * This provides reliable extraction including compressed streams and encoded fonts
- */
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
-    // Use unpdf for reliable text extraction with merged pages
     const result = await extractText(buffer, { mergePages: true });
 
-    // With mergePages: true, result.text is a single string
     let extractedText = result.text;
 
-    // Clean up the extracted text
     extractedText = extractedText
       .replace(/\r\n/g, "\n")
       .replace(/\r/g, "\n")
@@ -207,10 +200,6 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   }
 }
 
-/**
- * Extract text from DOCX file
- * DOCX is essentially a ZIP file containing XML
- */
 async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
   try {
     const { value } = await mammoth.extractRawText({ buffer });
@@ -251,7 +240,6 @@ export async function extractTextFromFile(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Handle PDF files
     if (
       file.type === "application/pdf" ||
       file.name.toLowerCase().endsWith(".pdf")
@@ -275,7 +263,6 @@ export async function extractTextFromFile(
       return text;
     }
 
-    // Handle DOCX files
     if (
       file.type ===
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
@@ -300,7 +287,6 @@ export async function extractTextFromFile(
       return text;
     }
 
-    // Handle plain text files
     const text = buffer.toString("utf-8");
 
     if (text.length > MAX_TEXT_LENGTH) {
@@ -348,11 +334,33 @@ export async function extractTextFromUrl(url: string): Promise<string> {
       );
     }
 
-    const html = await response.text();
-
-    if (html.length > 500000) {
-      throw new Error("Page is too large to process (max 500KB).");
+    const maxBodyBytes = 500_000;
+    const reader = response.body?.getReader();
+    if (!reader) {
+      throw new Error("Response body is not readable.");
     }
+
+    const chunks: Uint8Array[] = [];
+    let totalBytes = 0;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        totalBytes += value.byteLength;
+        if (totalBytes > maxBodyBytes) {
+          reader.cancel();
+          throw new Error("Page is too large to process (max 500KB).");
+        }
+
+        chunks.push(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    const html = new TextDecoder().decode(Buffer.concat(chunks));
 
     const $ = cheerio.load(html);
 

@@ -1,22 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 import { logger } from "@/lib/logger";
 
 interface UseAudioPlaybackReturn {
-  isPlaying: boolean;
   queueAudio: (base64Data: string) => void;
   clearQueue: () => void;
   stop: () => void;
 }
-
-/**
- * Hook for playing audio received from Gemini Live API.
- * Handles 24kHz 16-bit PCM audio in base64 format with seamless playback.
- */
 export function useAudioPlayback(): UseAudioPlaybackReturn {
-  const [isPlaying, setIsPlaying] = useState(false);
-
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioQueueRef = useRef<{ buffer: AudioBuffer; timestamp: number }[]>(
     [],
@@ -38,7 +30,6 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           .webkitAudioContext;
       if (!AudioContextClass) throw new Error("AudioContext not supported");
 
-      // Create context at system rate; incoming audio is resampled on decode.
       audioContextRef.current = new AudioContextClass();
     }
 
@@ -58,7 +49,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     source.buffer = buffer;
     source.connect(ctx.destination);
 
-    // Schedule based on previous end time to keep playback gapless when possible.
+    // Chain playback timestamps to reduce audible gaps between chunks.
     const startTime = Math.max(
       playbackStartTimeRef.current ?? ctx.currentTime,
       ctx.currentTime,
@@ -66,14 +57,11 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     source.start(startTime);
     playbackStartTimeRef.current = startTime + buffer.duration;
 
-    setIsPlaying(true);
-
     source.onended = () => {
       if (audioQueueRef.current.length > 0) {
         playNextInQueue();
       } else {
         playbackStartTimeRef.current = null;
-        setIsPlaying(false);
       }
     };
   }, []);
@@ -84,14 +72,12 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
         const ctx = getAudioContext();
         isActiveRef.current = true;
 
-        // Decode base64 to bytes.
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
 
-        // Interpret as 16-bit signed integers (little-endian).
         const dataView = new DataView(bytes.buffer);
         const numSamples = bytes.length / 2;
         const float32Array = new Float32Array(numSamples);
@@ -101,7 +87,6 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           float32Array[i] = int16 / 32768.0;
         }
 
-        // Resample from 24kHz to system sample rate if needed.
         const incomingSampleRate = 24000;
         const systemSampleRate = ctx.sampleRate;
         const finalSamples =
@@ -129,7 +114,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
         );
 
         if (!playbackStartTimeRef.current) {
-          // Prefer two chunks buffered for smoothness.
+          // Wait for two chunks when possible to smooth initial playback.
           if (audioQueueRef.current.length >= 2) {
             if (playbackStartTimeoutRef.current) {
               clearTimeout(playbackStartTimeoutRef.current);
@@ -138,7 +123,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             logger.debug("Starting audio playback");
             playNextInQueue();
           } else if (!playbackStartTimeoutRef.current) {
-            // Ensure short single-chunk responses are still played.
+            // Fallback for short responses that only produce a single chunk.
             playbackStartTimeoutRef.current = setTimeout(() => {
               playbackStartTimeoutRef.current = null;
               if (
@@ -166,9 +151,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
       clearTimeout(playbackStartTimeoutRef.current);
       playbackStartTimeoutRef.current = null;
     }
-    setIsPlaying(false);
 
-    // Close and recreate context to stop all scheduled audio.
     if (audioContextRef.current && audioContextRef.current.state !== "closed") {
       void audioContextRef.current.close();
       audioContextRef.current = null;
@@ -180,7 +163,6 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
   }, [clearQueue]);
 
   return {
-    isPlaying,
     queueAudio,
     clearQueue,
     stop,

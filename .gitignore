@@ -8,7 +8,7 @@
 !.yarn/releases
 !.yarn/versions
 
-# Next.js
+# Next.js build output
 /.next/
 /out/
 build/
@@ -18,7 +18,7 @@ dist/
 *.tsbuildinfo
 next-env.d.ts
 
-# Testing
+# Test artifacts
 /coverage
 *.lcov
 .nyc_output
@@ -28,14 +28,14 @@ blob-report/
 playwright/.cache/
 junit.xml
 
-# Environment variables
+# Local environment files
 .env
 .env.*
 !.env.example
 .env.production
 .env.test
 
-# Debug logs
+# Logs
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -43,7 +43,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Firebase credentials (KEEP SECRET!)
+# Firebase credentials
 *-firebase-adminsdk-*.json
 firebase-service-account*.json
 serviceAccountKey.json
@@ -55,7 +55,7 @@ ui-debug.log*
 # Vercel
 .vercel
 
-# System Files
+# OS files
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -64,7 +64,7 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 
-# IDEs and Editors
+# IDE files
 .idea/
 .vscode/*
 !.vscode/settings.json
@@ -75,12 +75,12 @@ $RECYCLE.BIN/
 *.sublime-workspace
 *.sublime-project
 
-# Secrets (extra safety)
+# Key material
 *.pem
 *.key
 
 # Turborepo
 .turbo
 
-# Miscellaneous
+# Misc
 *.local

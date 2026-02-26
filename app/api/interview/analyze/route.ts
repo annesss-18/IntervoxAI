@@ -1,20 +1,17 @@
-// app/api/interview/analyze/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { withAuth } from "@/lib/api-middleware";
 import { extractTextFromUrl, extractTextFromFile } from "@/lib/server-utils";
-import { getCompanyLogoUrl } from "@/lib/company-utils";
+import { getCompanyLogoUrl } from "@/lib/icon-utils";
 import { logger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
-// Constants for input validation
 const MIN_JD_LENGTH = 50;
 const MAX_JD_LENGTH = 25000;
 
-// Enhanced schema with company extraction
 const analysisSchema = z.object({
   role: z
     .string()
@@ -52,7 +49,7 @@ export const POST = withAuth(
       jdType = formData.get("jdType") as string;
       const jdInput = formData.get("jdInput");
 
-      // 1. Extract Raw Text
+      // Normalize all input modes into plain JD text before analysis.
       if (jdType === "url" && typeof jdInput === "string") {
         try {
           jdText = await extractTextFromUrl(jdInput);
@@ -94,7 +91,6 @@ export const POST = withAuth(
         jdText = jdInput;
       }
 
-      // 2. Input Validation
       if (!jdText || jdText.length < MIN_JD_LENGTH) {
         return NextResponse.json(
           {
@@ -115,69 +111,66 @@ export const POST = withAuth(
         );
       }
 
-      // 3. AI Extraction
       const result = await generateObject({
-        model: google("gemini-3-pro-preview"),
+        model: google(process.env.GEMINI_MODEL || "gemini-3.1-pro-preview"),
         schema: analysisSchema,
         prompt: `
-            Analyze this job posting and extract structured information.
+You are extracting structured information from a job posting. Be precise and literal — extract what's actually there, don't infer unless the instructions say to.
 
-            [RAW TEXT START]
-            ${jdText.substring(0, MAX_JD_LENGTH)}
-            [RAW TEXT END]
+[JOB POSTING START]
+${jdText.substring(0, MAX_JD_LENGTH)}
+[JOB POSTING END]
 
-            EXTRACTION TASKS (in priority order):
+EXTRACTION TASKS (in priority order):
 
-            1. **COMPANY NAME** — Search in this priority order:
-               a. Page header or title (e.g., "Google — Software Engineer" → "Google")
-               b. "About [Company]" or "About Us" sections
-               c. "Posted by [Company]" or "Hiring for [Company]" metadata
-               d. Domain name in URLs (e.g., stripe.com/careers → "Stripe")
-               e. Logo alt-text or footer branding
-               If none of these yield a result, return "Unknown Company".
+1. **COMPANY NAME** — Search in this priority order:
+   a. Page header or title (e.g., "Google — Software Engineer" → "Google")
+   b. "About [Company]" or "About Us" sections
+   c. "Posted by [Company]" or "Hiring for [Company]" metadata
+   d. Domain name in URLs (e.g., stripe.com/careers → "Stripe")
+   e. Logo alt-text or footer branding
+   If none of these yield a result, return "Unknown Company".
 
-            2. **ROLE** — Extract the exact job title as written (e.g., "Senior DevOps Engineer").
-               Normalize minor variations: "Sr." → "Senior", "SW" → "Software".
+2. **ROLE** — Extract the exact job title as written (e.g., "Senior DevOps Engineer").
+   Normalize minor variations: "Sr." → "Senior", "SW" → "Software".
 
-            3. **TECH STACK** — Extract ALL explicitly mentioned technologies:
-               - Languages: Python, JavaScript, TypeScript, Go, Rust, Java, C++, etc.
-               - Frameworks: React, Next.js, Django, Spring Boot, Flask, Express, etc.
-               - Databases: PostgreSQL, MongoDB, Redis, DynamoDB, MySQL, etc.
-               - Infrastructure: Docker, Kubernetes, Terraform, Jenkins, CI/CD, etc.
-               - Cloud: AWS, GCP, Azure (include specific services like S3, Lambda, BigQuery)
-               Also include technologies that are strongly implied (e.g., "microservices" implies containerization).
+3. **TECH STACK** — Extract ALL explicitly mentioned technologies:
+   - Languages: Python, JavaScript, TypeScript, Go, Rust, Java, C++, etc.
+   - Frameworks: React, Next.js, Django, Spring Boot, Flask, Express, etc.
+   - Databases: PostgreSQL, MongoDB, Redis, DynamoDB, MySQL, etc.
+   - Infrastructure: Docker, Kubernetes, Terraform, Jenkins, CI/CD, etc.
+   - Cloud: AWS, GCP, Azure (include specific services like S3, Lambda, BigQuery)
+   Also include technologies that are strongly implied (e.g., "microservices" implies containerization).
 
-            4. **LEVEL** — Infer seniority using these signals:
-               - "Junior/Entry/Associate" or "0-2 years" → Junior
-               - "3-5 years" or "Mid-level" with no leadership scope → Mid
-               - "5-8 years", "mentor", "lead technical decisions", "own a system" → Senior
-               - "8+ years", "define technical strategy", "cross-team influence", "principal" → Staff
-               - "VP", "CTO", "Director of Engineering", "org-wide technical vision" → Executive
-               When signals conflict, weight scope-of-impact over years-of-experience.
+4. **LEVEL** — Infer seniority using these signals:
+   - "Junior/Entry/Associate" or "0-2 years" → Junior
+   - "3-5 years" or "Mid-level" with no leadership scope → Mid
+   - "5-8 years", "mentor", "lead technical decisions", "own a system" → Senior
+   - "8+ years", "define technical strategy", "cross-team influence", "principal" → Staff
+   - "VP", "CTO", "Director of Engineering", "org-wide technical vision" → Executive
+   When signals conflict, weight scope-of-impact over years-of-experience.
 
-            5. **SUGGESTED TYPE** — Infer interview type:
-               - Heavy emphasis on system design, architecture, scalability → "System Design"
-               - Focus on algorithms, coding, specific tech depth → "Technical"
-               - Emphasis on leadership, teamwork, communication, culture → "Behavioral"
-               - Recruiting/screening focus, compensation, benefits → "HR"
-               - Balanced mix of technical and soft skills → "Mixed"
+5. **SUGGESTED TYPE** — Infer interview type:
+   - Heavy emphasis on system design, architecture, scalability → "System Design"
+   - Focus on algorithms, coding, specific tech depth → "Technical"
+   - Emphasis on leadership, teamwork, communication, culture → "Behavioral"
+   - Recruiting/screening focus, compensation, benefits → "HR"
+   - Balanced mix of technical and soft skills → "Mixed"
 
-            6. **CLEAN JD** — Remove all non-content elements: navigation menus, "Sign In"/"Apply Now" buttons, cookie banners, "Similar Jobs" sections, and page footers. Keep ONLY the actual job description content.
-            `,
+6. **CLEAN JD** — Remove all non-content elements: navigation menus, "Sign In"/"Apply Now" buttons, cookie banners, "Similar Jobs" sections, and page footers. Keep ONLY the actual job description content.
+        `,
       });
 
       const extractedData = result.object;
 
-      // 4. Generate Company Logo URL
+      // Precompute a stable logo URL so the client can render immediately.
       const companyLogoUrl = getCompanyLogoUrl(extractedData.companyName);
 
-      // 5. Return enriched data
       return NextResponse.json({
         ...extractedData,
         companyLogoUrl,
       });
     } catch (error) {
-      // Structured error logging
       const errorContext = {
         timestamp: new Date().toISOString(),
         jdType,
@@ -187,11 +180,9 @@ export const POST = withAuth(
       };
       logger.error("Job analysis failed", errorContext);
 
-      // Differentiated error responses
       if (error instanceof Error) {
         const errorMsg = error.message.toLowerCase();
 
-        // AI SDK rate limit / quota errors
         if (
           errorMsg.includes("rate") ||
           errorMsg.includes("quota") ||
@@ -207,7 +198,6 @@ export const POST = withAuth(
           );
         }
 
-        // AI model unavailable
         if (
           errorMsg.includes("model") ||
           errorMsg.includes("unavailable") ||
@@ -223,7 +213,6 @@ export const POST = withAuth(
           );
         }
 
-        // Network / timeout issues
         if (
           errorMsg.includes("timeout") ||
           errorMsg.includes("network") ||
@@ -239,7 +228,6 @@ export const POST = withAuth(
         }
       }
 
-      // Generic fallback
       return NextResponse.json(
         {
           error:

@@ -5,21 +5,14 @@ import type { ConnectionStatus } from "@/lib/hooks/useLiveInterview";
 import { cn } from "@/lib/utils";
 
 interface SpeakerIndicatorProps {
-  /** Current connection status */
   connectionStatus: ConnectionStatus;
-  /** Indicator role */
   role: "interviewer" | "candidate";
-  /** Whether the AI is currently responding */
   isAIResponding: boolean;
-  /** Whether the user is currently speaking */
   isUserSpeaking: boolean;
-  /** Whether the microphone is muted */
   isMuted: boolean;
 }
+const BAR_HEIGHTS = [14, 28, 20, 36, 26, 32, 18, 30, 22];
 
-/**
- * Compact waveform-style voice activity indicator.
- */
 export function SpeakerIndicator({
   connectionStatus,
   role,
@@ -36,9 +29,8 @@ export function SpeakerIndicator({
   const isMutedCandidate = !isInterviewer && isMuted;
   const isActive =
     isConnecting || (isInterviewer ? isAIResponding : isUserSpeaking);
-
-  const statusText = isConnecting
-    ? "Connecting..."
+  const statusLabel = isConnecting
+    ? "Connecting…"
     : isDisconnected
       ? "Connection unavailable"
       : isMutedCandidate
@@ -50,62 +42,92 @@ export function SpeakerIndicator({
           : isInterviewer
             ? "Waiting to respond"
             : "Ready for your answer";
+  const iconEl = isConnecting ? (
+    <Loader2 className="size-5 animate-spin" />
+  ) : isMutedCandidate ? (
+    <MicOff className="size-5" />
+  ) : isInterviewer ? (
+    <Sparkles className="size-5" />
+  ) : isActive ? (
+    <Mic className="size-5" />
+  ) : (
+    <Volume2 className="size-5" />
+  );
+  const iconRing = isConnecting
+    ? "border-warning/30 bg-warning/10 text-warning"
+    : isMutedCandidate
+      ? "border-error/30 bg-error/10 text-error"
+      : isActive
+        ? isInterviewer
+          ? "border-primary/40 bg-primary/15 text-primary shadow-[0_0_16px_-4px_color-mix(in_srgb,var(--primary)_60%,transparent)]"
+          : "border-info/40 bg-info/15 text-info shadow-[0_0_16px_-4px_color-mix(in_srgb,var(--info)_60%,transparent)]"
+        : "border-border bg-surface-2 text-muted-foreground";
+  const barGradient = isInterviewer
+    ? "from-primary/50 to-primary"
+    : "from-info/50 to-info";
 
   return (
-    <div className="flex min-h-[168px] flex-col items-center justify-center rounded-2xl border border-border bg-muted/30 px-4 py-4">
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-xl border px-4 py-5 transition-colors duration-300",
+        "min-h-[160px]",
+        isActive
+          ? isInterviewer
+            ? "border-primary/20 bg-primary/5"
+            : "border-info/20 bg-info/5"
+          : isMutedCandidate
+            ? "border-error/15 bg-error/5"
+            : "border-border bg-surface-2/40",
+      )}
+    >
       <div
         className={cn(
-          "mb-3 flex size-11 items-center justify-center rounded-full border text-sm font-semibold transition-colors",
-          isConnecting
-            ? "border-warning/30 bg-warning/10 text-warning"
-            : isMutedCandidate
-              ? "border-error/30 bg-error/10 text-error"
-              : isActive
-                ? "border-primary/40 bg-primary/15 text-primary"
-                : "border-border bg-card text-muted-foreground",
+          "mb-4 flex size-12 items-center justify-center rounded-full border-2 transition-all duration-400",
+          iconRing,
+          isActive && "scale-110",
         )}
       >
-        {isConnecting ? (
-          <Loader2 className="size-5 animate-spin" />
-        ) : isMutedCandidate ? (
-          <MicOff className="size-5" />
-        ) : isInterviewer ? (
-          <Sparkles className="size-5" />
-        ) : isActive ? (
-          <Mic className="size-5" />
-        ) : (
-          <Volume2 className="size-5" />
-        )}
+        {iconEl}
       </div>
 
       <div
-        className="mb-3 flex h-12 items-end justify-center gap-1.5"
+        className="mb-3.5 flex h-10 items-end justify-center gap-1"
         aria-hidden
       >
-        {[18, 34, 24, 40, 30, 36, 22].map((height, index) => (
+        {BAR_HEIGHTS.map((h, i) => (
           <span
-            key={index}
+            key={i}
             className={cn(
               "w-1.5 rounded-full transition-all duration-300",
               isActive
-                ? isInterviewer
-                  ? "from-primary-400/80 to-primary animate-pulse bg-gradient-to-t"
-                  : "from-info/80 to-info-400 animate-pulse bg-gradient-to-t"
-                : "bg-border/70",
+                ? `bg-gradient-to-t ${barGradient} animate-pulse`
+                : "bg-border",
             )}
             style={{
-              height: `${isActive ? Math.max(10, Math.round(height * 0.55)) : 8 + (index % 2) * 4}px`,
-              animationDelay: `${index * 120}ms`,
+              height: isActive
+                ? `${Math.max(6, Math.round(h * 0.65))}px`
+                : `${4 + (i % 3) * 3}px`,
+              animationDelay: `${i * 110}ms`,
+              animationDuration: `${700 + (i % 3) * 200}ms`,
             }}
           />
         ))}
       </div>
 
-      <p className="text-foreground text-center text-xs font-medium sm:text-sm">
-        {statusText}
+      <p
+        className={cn(
+          "text-center text-xs font-medium transition-colors duration-300",
+          isActive
+            ? isInterviewer
+              ? "text-primary"
+              : "text-info"
+            : isMutedCandidate
+              ? "text-error"
+              : "text-muted-foreground",
+        )}
+      >
+        {statusLabel}
       </p>
     </div>
   );
 }
-
-export default SpeakerIndicator;

@@ -35,6 +35,7 @@ type ClaimResult =
   | { type: "already_completed"; feedbackId: string | null }
   | { type: "claimed"; transcript: TranscriptSentence[] };
 
+// Runs model generation outside the request lifecycle and writes final status.
 async function runFeedbackGeneration(
   interviewId: string,
   userId: string,
@@ -133,6 +134,7 @@ export const POST = withAuth(
 
       const sessionRef = db.collection("interview_sessions").doc(interviewId);
 
+      // Claim processing inside a transaction to keep retries idempotent.
       const claim = await db.runTransaction<ClaimResult>(
         async (transaction) => {
           const sessionDoc = await transaction.get(sessionRef);
@@ -225,8 +227,7 @@ export const POST = withAuth(
         });
       }
 
-      // Schedule feedback generation after response is sent.
-      // Errors inside the callback are handled by runFeedbackGeneration() itself.
+      // Queue async work after the HTTP response has been committed.
       after(async () => {
         await runFeedbackGeneration(interviewId, user.id, claim.transcript);
       });

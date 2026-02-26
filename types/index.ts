@@ -15,11 +15,6 @@ export interface Feedback {
     score: number;
     comment: string;
   }>;
-  categoryScoresArray?: Array<{
-    name: string;
-    score: number;
-    comment: string;
-  }>;
   behavioralInsights?: {
     confidenceLevel: "High" | "Moderate" | "Low" | "Variable";
     clarityOfThought: "Excellent" | "Good" | "Developing" | "Needs Improvement";
@@ -44,38 +39,27 @@ export interface InterviewTemplate {
   id: string;
   creatorId: string;
   isPublic: boolean;
-
-  // Core Fields
   role: string;
   companyName: string;
   companyLogoUrl?: string;
   level: "Junior" | "Mid" | "Senior" | "Staff" | "Executive";
   type: "Technical" | "System Design" | "Behavioral" | "HR" | "Mixed";
-
-  // Technical Details
   techStack: string[];
   focusArea: string[];
-
-  // Content
   jobDescription: string;
   baseQuestions: string[];
   systemInstruction?: string;
-
-  // Company Culture Analysis (optional)
   companyCultureInsights?: {
     values: string[];
     workStyle: string;
     teamStructure: string;
   };
-
-  // Interviewer Persona
   interviewerPersona?: {
     name: string;
     title: string;
     personality: string;
+    voice?: string;
   };
-
-  // Metadata
   usageCount: number;
   avgScore: number;
   createdAt: string;
@@ -86,17 +70,11 @@ export interface InterviewSession {
   id: string;
   templateId: string;
   userId: string;
-
-  // Personalization
   resumeText?: string;
   transcript?: Array<{ role: string; content: string }>;
-
-  // State
   status: "setup" | "active" | "completed";
   startedAt: string;
   completedAt?: string;
-
-  // Result
   feedbackId?: string;
   finalScore?: number;
   feedbackStatus?: "idle" | "pending" | "processing" | "completed" | "failed";
@@ -105,8 +83,6 @@ export interface InterviewSession {
   feedbackProcessingAt?: string;
   feedbackCompletedAt?: string;
 }
-
-// View Models for UI Components
 export interface TemplateCardData {
   id: string;
   role: string;
@@ -123,46 +99,45 @@ export interface TemplateCardData {
 
 export interface SessionCardData {
   id: string;
-  // From Template
   role: string;
   companyName: string;
   companyLogoUrl?: string;
   level: string;
   type: string;
   techStack: string[];
-  // From Session
   status: "setup" | "active" | "completed";
   startedAt: string;
   completedAt?: string;
-  // From Feedback
   finalScore?: number;
   feedbackId?: string;
   hasResume: boolean;
 }
 
-// Legacy type - Keep for backward compatibility
-export interface Interview {
+export interface InterviewSessionDetail {
   id: string;
+  userId: string;
+  createdAt: string;
+  status: "setup" | "active" | "completed";
+  resumeText?: string;
   role: string;
   level: string;
+  type: string;
   companyName?: string;
   companyLogoUrl?: string;
   questions: string[];
-  techstack: string[];
-  createdAt: string;
-  userId: string;
-  type: string;
-  finalized: boolean;
+  techStack: string[];
   jobDescription?: string;
-  resumeText?: string;
-  status?: string;
   focusArea?: string[];
   systemInstruction?: string;
+  interviewerPersona?: {
+    name: string;
+    title: string;
+    personality: string;
+    voice?: string;
+  };
   finalScore?: number;
   feedbackId?: string;
 }
-
-// API Types
 export interface CreateFeedbackParams {
   interviewId: string;
   userId: string;
@@ -175,11 +150,6 @@ export interface GetFeedbackByInterviewIdParams {
   userId: string;
 }
 
-export interface GetLatestInterviewsParams {
-  userId: string;
-  limit?: number;
-}
-
 export interface User {
   name: string;
   email: string;
@@ -187,18 +157,18 @@ export interface User {
 }
 
 export interface SignInParams {
-  email: string;
   idToken: string;
 }
 
 export interface SignUpParams {
-  uid: string;
-  name: string;
-  email: string;
-  idToken?: string;
+  name?: string;
+  idToken: string;
 }
 
-export type FormType = "sign-in" | "sign-up";
+export interface GoogleAuthParams {
+  name?: string;
+  idToken: string;
+}
 
 export interface RouteParams {
   params: Promise<Record<string, string>>;

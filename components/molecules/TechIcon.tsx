@@ -1,5 +1,3 @@
-// components/TechIcon.tsx
-// Smart wrapper component for tech stack icons with built-in error handling and fallbacks
 "use client";
 
 import React, { useState, useCallback } from "react";
@@ -12,18 +10,10 @@ interface TechIconProps {
   tech: string;
   size?: number;
   className?: string;
-  /** Show tech name tooltip on hover */
   showTooltip?: boolean;
 }
 
-/**
- * TechIcon component with automatic fallback handling
- *
- * Fallback chain:
- * 1. Devicon CDN (primary)
- * 2. Simple Icons CDN
- * 3. Generic code icon (Lucide)
- */
+// Tries icon provider fallbacks, then renders a generic glyph.
 const TechIcon: React.FC<TechIconProps> = ({
   tech,
   size = 24,
@@ -40,15 +30,12 @@ const TechIcon: React.FC<TechIconProps> = ({
 
   const handleError = useCallback(() => {
     if (currentUrlIndex < allUrls.length - 1) {
-      // Try next fallback
       setCurrentUrlIndex((prev) => prev + 1);
     } else {
-      // All fallbacks exhausted
       setHasError(true);
     }
   }, [currentUrlIndex, allUrls.length]);
 
-  // If all fallbacks failed or URL is undefined, show a generic code icon
   if (hasError || !currentUrl) {
     return (
       <div

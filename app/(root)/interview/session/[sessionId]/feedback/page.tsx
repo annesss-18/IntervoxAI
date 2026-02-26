@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = { title: "Feedback · IntervoxAI" };
+
 import {
   AlertCircle,
   Award,
@@ -10,78 +14,77 @@ import {
   Target,
   TrendingDown,
   TrendingUp,
+  BarChart3,
+  ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 import type { RouteParams } from "@/types";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import {
   getFeedbackByInterviewId,
-  getInterviewsById,
+  getInterviewById,
 } from "@/lib/actions/interview.action";
 import { Button } from "@/components/atoms/button";
-import { Card, CardContent } from "@/components/atoms/card";
 import { Progress } from "@/components/atoms/progress";
 import { Badge } from "@/components/atoms/badge";
+import { ScoreRing } from "@/components/atoms/progress";
 import { Container } from "@/components/layout/Container";
 import { FeedbackGenerationStatus } from "@/components/organisms/FeedbackGenerationStatus";
 
 const Page = async ({ params }: RouteParams) => {
   const { sessionId } = await params;
-
-  if (!sessionId || typeof sessionId !== "string") {
-    redirect("/");
-  }
+  if (!sessionId || typeof sessionId !== "string") redirect("/");
 
   const user = await getCurrentUser();
-  if (!user) {
-    redirect("/sign-in");
-  }
+  if (!user) redirect("/sign-in");
 
-  const interview = await getInterviewsById(sessionId, user.id);
+  const interview = await getInterviewById(sessionId, user.id);
   if (!interview) redirect("/");
 
   const feedback = await getFeedbackByInterviewId({
     interviewId: sessionId,
     userId: user.id,
   });
-
   if (!feedback) {
     if (interview.status === "completed") {
       return <FeedbackGenerationStatus sessionId={sessionId} />;
     }
-
     return (
-      <Container size="md" className="animate-fadeIn p-6">
-        <Card variant="gradient" className="py-12">
-          <CardContent className="space-y-6 text-center">
-            <div className="bg-primary/10 border-primary/30 mx-auto flex size-24 items-center justify-center rounded-full border-2">
-              <AlertCircle className="text-primary size-12" />
+      <Container size="md" className="animate-fade-up">
+        <div className="relative overflow-hidden rounded-2xl border border-dashed border-border py-16 text-center">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-25"
+            style={{ background: "var(--gradient-brand-subtle)" }}
+          />
+          <div className="relative flex flex-col items-center gap-5 px-8">
+            <div className="flex size-16 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10">
+              <AlertCircle className="size-8 text-primary" />
             </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-semibold">No Feedback Available</h2>
-              <p className="text-muted-foreground">
-                Complete the interview to receive detailed feedback on your
-                performance.
+            <div>
+              <h2 className="text-xl font-semibold">No Feedback Yet</h2>
+              <p className="mt-1 text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                Complete the interview first to receive a detailed performance
+                report.
               </p>
             </div>
-            <Button asChild>
+            <Button asChild variant="gradient">
               <Link href={`/interview/session/${sessionId}`}>
-                <Target className="size-5" />
-                <span>Take Interview</span>
+                <Target className="size-4" />
+                Resume Interview
               </Link>
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </Container>
     );
   }
-
   type CategoryItem = { name: string; score: number; comment: string };
 
   const formatDate = (iso?: string) => {
     if (!iso) return "N/A";
-    const date = new Date(iso);
-    if (isNaN(date.getTime())) return "Invalid date";
-    return date.toLocaleString("en-US", {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "Invalid date";
+    return d.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -90,224 +93,252 @@ const Page = async ({ params }: RouteParams) => {
     });
   };
 
-  const scoreVariant = (score: number): "success" | "warning" | "error" => {
-    if (score >= 80) return "success";
-    if (score >= 60) return "warning";
-    return "error";
-  };
+  const scoreVariant = (s: number): "success" | "warning" | "error" =>
+    s >= 80 ? "success" : s >= 60 ? "warning" : "error";
 
-  const scoreTone = (score: number) => {
-    if (score >= 80) return "text-success";
-    if (score >= 60) return "text-warning";
-    return "text-error";
-  };
+  const scoreTone = (s: number) =>
+    s >= 80 ? "text-success" : s >= 60 ? "text-warning" : "text-error";
+
+  const { totalScore } = feedback;
+
+  const hiringRec =
+    totalScore >= 80
+      ? { label: "Strong Hire", variant: "success" as const }
+      : totalScore >= 70
+        ? { label: "Lean Hire", variant: "secondary" as const }
+        : totalScore >= 55
+          ? { label: "Borderline", variant: "warning" as const }
+          : { label: "Not Recommended", variant: "error" as const };
 
   const scoreMessage =
-    feedback.totalScore >= 80
-      ? "Outstanding performance. You demonstrated clear reasoning and confident communication."
-      : feedback.totalScore >= 60
-        ? "Solid progress with room to improve. Keep tightening structure and clarity."
-        : "There is clear room for growth. Focus on the improvement areas below and iterate.";
-
+    totalScore >= 80
+      ? "Outstanding. Clear reasoning, confident delivery, and strong technical depth."
+      : totalScore >= 60
+        ? "Solid progress — tighten structure and reduce hedging to close the gap."
+        : "Clear room for growth. Focus on the areas below and run another session.";
   return (
-    <Container size="xl" className="animate-fadeIn space-y-7 p-6">
-      <Card variant="gradient" className="animate-slideInLeft">
-        <CardContent className="space-y-4 pt-7">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-3">
-              <Badge variant="success" className="w-fit">
-                <Sparkles className="size-3" />
-                Interview Completed
+    <Container size="xl" className="animate-fade-up space-y-6">
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 py-5">
+        <div
+          className="pointer-events-none absolute -top-10 right-12 h-32 w-48 rounded-full opacity-12 blur-[60px]"
+          style={{ background: "var(--gradient-brand)" }}
+        />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-2">
+            <Badge variant="success" dot>
+              <Sparkles className="size-3" />
+              Interview Completed
+            </Badge>
+            <h1 className="font-serif italic font-normal text-3xl text-foreground sm:text-4xl">
+              Performance Report
+            </h1>
+            <p className="text-sm text-muted-foreground font-mono">
+              ID: {feedback.interviewId}
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <Badge variant="outline" className="w-fit gap-1.5">
+              <Calendar className="size-3.5" />
+              {formatDate(feedback.createdAt)}
+            </Badge>
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-1.5 text-sm text-primary hover:underline underline-offset-4 font-medium"
+            >
+              <Home className="size-3.5" />
+              Back to Dashboard
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[auto_1fr]">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-8">
+          <ScoreRing score={totalScore} size={180} strokeWidth={12} />
+          <p className="mt-4 text-sm text-muted-foreground text-center max-w-[12rem]">
+            Overall score
+          </p>
+        </div>
+
+        <div className="flex flex-col justify-center rounded-2xl border border-border bg-card p-6 space-y-5">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Award className={`size-6 ${scoreTone(totalScore)}`} />
+              <h2 className="text-xl font-semibold">Overall Performance</h2>
+              <Badge
+                variant={hiringRec.variant}
+                className="ml-auto text-xs font-semibold tracking-wide"
+              >
+                {hiringRec.label}
               </Badge>
-              <div>
-                <h1 className="text-3xl font-semibold sm:text-4xl">
-                  Performance Report
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                  Interview ID:{" "}
-                  <span className="font-mono">{feedback.interviewId}</span>
+            </div>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {scoreMessage}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground label-caps">Score</span>
+              <span className={`font-mono font-bold ${scoreTone(totalScore)}`}>
+                {totalScore}/100
+              </span>
+            </div>
+            <Progress
+              value={totalScore}
+              variant={scoreVariant(totalScore)}
+              className="h-2"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 border-t border-border/50 pt-4">
+            {[
+              {
+                label: "Score",
+                val: `${totalScore}`,
+                color: scoreTone(totalScore),
+              },
+              {
+                label: "Areas",
+                val: String(
+                  Array.isArray(feedback.categoryScores)
+                    ? feedback.categoryScores.length
+                    : 0,
+                ),
+                color: "text-foreground",
+              },
+              {
+                label: "Strengths",
+                val: String(
+                  Array.isArray(feedback.strengths)
+                    ? feedback.strengths.length
+                    : 0,
+                ),
+                color: "text-success",
+              },
+            ].map((s) => (
+              <div key={s.label} className="text-center">
+                <p className={`font-mono text-2xl font-bold ${s.color}`}>
+                  {s.val}
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {s.label}
                 </p>
               </div>
-            </div>
-
-            <div className="flex flex-col gap-2 lg:items-end">
-              <Badge variant="secondary" className="w-fit">
-                <Calendar className="size-3.5" />
-                {formatDate(feedback.createdAt)}
-              </Badge>
-              <Link
-                href="/dashboard"
-                className="text-primary hover:text-primary/80 inline-flex items-center gap-2 text-sm font-medium"
-              >
-                <Home className="size-4" />
-                Back to Dashboard
-              </Link>
-            </div>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card className="animate-slideInLeft">
-        <CardContent className="pt-7">
-          <div className="grid gap-6 lg:grid-cols-[auto_1fr] lg:items-center">
-            <div className="border-border/65 bg-surface-2/70 mx-auto flex size-48 flex-col items-center justify-center rounded-full border">
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <BarChart3 className="size-5 text-primary" />
+          <h2 className="text-xl font-semibold">Performance Breakdown</h2>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.isArray(feedback.categoryScores) &&
+            feedback.categoryScores.map((cat: CategoryItem, i: number) => (
               <div
-                className={`text-6xl font-semibold tabular-nums ${scoreTone(feedback.totalScore)}`}
+                key={cat.name}
+                className={`animate-fade-up fill-both rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[var(--shadow-md)] delay-${(i + 1) * 75}`}
               >
-                {feedback.totalScore}
-              </div>
-              <div className="text-muted-foreground text-lg">/100</div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Award
-                    className={`size-6 ${scoreTone(feedback.totalScore)}`}
-                  />
-                  <h2 className="text-2xl font-semibold">
-                    Overall Performance
-                  </h2>
-                </div>
-                <p className="text-muted-foreground">{scoreMessage}</p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Score Distribution
-                  </span>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <h3 className="font-semibold leading-snug">{cat.name}</h3>
                   <span
-                    className={`font-semibold ${scoreTone(feedback.totalScore)}`}
+                    className={`font-mono text-xl font-bold shrink-0 ${scoreTone(cat.score)}`}
                   >
-                    {feedback.totalScore}%
+                    {cat.score}
+                    <span className="text-sm text-muted-foreground font-normal">
+                      /100
+                    </span>
                   </span>
                 </div>
                 <Progress
-                  value={feedback.totalScore}
-                  variant={scoreVariant(feedback.totalScore)}
+                  value={cat.score}
+                  variant={scoreVariant(cat.score)}
+                  className="mb-3 h-1.5"
                 />
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  {cat.comment}
+                </p>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <section className="space-y-4">
-        <h2 className="flex items-center gap-2 text-2xl font-semibold">
-          <Target className="text-primary size-6" />
-          Performance Breakdown
-        </h2>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {Array.isArray(feedback.categoryScoresArray) &&
-            feedback.categoryScoresArray.map(
-              (category: CategoryItem, i: number) => (
-                <Card
-                  key={category.name}
-                  className={`animate-fadeInUp opacity-0 transition-shadow duration-300 hover:shadow-lg delay-${(i + 1) * 100}`}
-                  style={{ animationFillMode: "forwards" }}
-                >
-                  <CardContent className="space-y-4 pt-7">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold">{category.name}</h3>
-                      <span
-                        className={`text-2xl font-semibold tabular-nums ${scoreTone(category.score)}`}
-                      >
-                        {category.score}%
-                      </span>
-                    </div>
-                    <Progress
-                      value={category.score}
-                      variant={scoreVariant(category.score)}
-                    />
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {category.comment}
-                    </p>
-                  </CardContent>
-                </Card>
-              ),
-            )}
+            ))}
         </div>
       </section>
 
-      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card className="bg-gradient-to-br from-success/8 to-transparent transition-shadow duration-300 hover:shadow-lg">
-          <CardContent className="space-y-5 pt-7">
-            <div className="flex items-center gap-3">
-              <div className="bg-success/15 border-success/30 flex size-12 items-center justify-center rounded-xl border">
-                <TrendingUp className="text-success size-6" />
-              </div>
-              <h3 className="text-xl font-semibold">Key Strengths</h3>
-            </div>
-            <ul className="space-y-3">
-              {Array.isArray(feedback.strengths) &&
-                feedback.strengths.map((strength: string, index: number) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <CheckCircle2 className="text-success mt-0.5 size-5 shrink-0" />
-                    <span className="text-muted-foreground text-sm leading-relaxed">
-                      {strength}
-                    </span>
-                  </li>
-                ))}
-            </ul>
-          </CardContent>
-        </Card>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="rounded-2xl border border-success/25 bg-success/5 p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-success/15 ring-1 ring-success/25">
+              <TrendingUp className="size-5 text-success" />
+            </span>
+            <h3 className="text-lg font-semibold">Key Strengths</h3>
+          </div>
+          <ul className="space-y-3">
+            {Array.isArray(feedback.strengths) &&
+              feedback.strengths.map((s: string, i: number) => (
+                <li key={i} className="flex items-start gap-3">
+                  <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+                  <span className="text-sm text-muted-foreground leading-relaxed">
+                    {s}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
 
-        <Card className="bg-gradient-to-br from-warning/10 to-transparent transition-shadow duration-300 hover:shadow-lg">
-          <CardContent className="space-y-5 pt-7">
-            <div className="flex items-center gap-3">
-              <div className="bg-warning/20 border-warning/35 flex size-12 items-center justify-center rounded-xl border">
-                <TrendingDown className="text-warning size-6" />
-              </div>
-              <h3 className="text-xl font-semibold">Areas for Improvement</h3>
-            </div>
-            <ul className="space-y-3">
-              {Array.isArray(feedback.areasForImprovement) &&
-                feedback.areasForImprovement.map(
-                  (item: string, index: number) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <AlertCircle className="text-warning mt-0.5 size-5 shrink-0" />
-                      <span className="text-muted-foreground text-sm leading-relaxed">
-                        {item}
-                      </span>
-                    </li>
-                  ),
-                )}
-            </ul>
-          </CardContent>
-        </Card>
-      </section>
+        <div className="rounded-2xl border border-warning/25 bg-warning/5 p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-warning/15 ring-1 ring-warning/25">
+              <TrendingDown className="size-5 text-warning" />
+            </span>
+            <h3 className="text-lg font-semibold">Areas to Improve</h3>
+          </div>
+          <ul className="space-y-3">
+            {Array.isArray(feedback.areasForImprovement) &&
+              feedback.areasForImprovement.map((item: string, i: number) => (
+                <li key={i} className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />
+                  <span className="text-sm text-muted-foreground leading-relaxed">
+                    {item}
+                  </span>
+                </li>
+              ))}
+          </ul>
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="space-y-6 pt-7">
+      <div className="gradient-border overflow-hidden rounded-2xl p-px">
+        <div className="rounded-2xl bg-card p-6 space-y-4">
           <div className="flex items-start gap-4">
-            <div className="bg-primary/15 border-primary/30 flex size-12 shrink-0 items-center justify-center rounded-xl border">
-              <Sparkles className="text-primary size-6" />
-            </div>
-            <div className="space-y-2">
-              <h3 className="text-xl font-semibold">Final Assessment</h3>
-              <p className="text-muted-foreground leading-relaxed">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-gradient shadow-[0_4px_16px_-4px_color-mix(in_srgb,var(--primary)_50%,var(--accent)_50%)]">
+              <Sparkles className="size-5 text-white" />
+            </span>
+            <div>
+              <h3 className="text-lg font-semibold">Final Assessment</h3>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                 {feedback.finalAssessment}
               </p>
             </div>
           </div>
 
-          <div className="border-border/65 flex flex-col gap-4 border-t pt-6 sm:flex-row">
-            <Button asChild variant="secondary" className="flex-1">
+          <div className="flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row">
+            <Button asChild variant="outline" className="flex-1">
               <Link href="/dashboard">
-                <Home className="size-5" />
-                <span>Return to Dashboard</span>
+                <Home className="size-4" />
+                Return to Dashboard
               </Link>
             </Button>
-            <Button asChild className="flex-1">
+            <Button asChild variant="gradient" className="flex-1">
               <Link href="/explore">
-                <Target className="size-5" />
-                <span>Practice More</span>
+                <RefreshCw className="size-4" />
+                Practice Again
+                <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Container>
   );
 };

@@ -1,25 +1,39 @@
 import type { Metadata } from "next";
-import { FileText } from "lucide-react";
+import Link from "next/link";
+import {
+  FileText,
+  Scroll,
+  ShieldCheck,
+  RefreshCcw,
+  AlertTriangle,
+} from "lucide-react";
 import { Container, PageHeader, Section } from "@/components/layout/Container";
-import { Card, CardContent } from "@/components/atoms/card";
 
 export const metadata: Metadata = {
-  title: "Terms of Service",
+  title: "Terms of Service · IntervoxAI",
   description: "Terms for using IntervoxAI.",
 };
 
 const terms = [
   {
+    icon: Scroll,
     title: "Service scope",
-    text: "IntervoxAI provides AI-assisted mock interview practice and performance feedback features.",
+    body: "IntervoxAI provides AI-assisted mock interview practice and performance feedback. The platform is intended for personal preparation and skill development, not for commercial redistribution.",
   },
   {
+    icon: ShieldCheck,
     title: "User responsibility",
-    text: "Users are responsible for content submitted to the platform, including resumes and interview responses.",
+    body: "You are responsible for all content submitted to the platform, including resume data and interview responses. Do not submit sensitive personal data belonging to third parties.",
   },
   {
+    icon: RefreshCcw,
     title: "Platform evolution",
-    text: "Features and pricing may evolve as the service matures and we release stable commercial tiers.",
+    body: "Features and pricing may change as the service matures from early access to stable commercial tiers. We will communicate significant changes with reasonable notice.",
+  },
+  {
+    icon: AlertTriangle,
+    title: "Limitation of liability",
+    body: "IntervoxAI is provided as-is for preparation purposes. We make no guarantees about interview outcomes. The platform is not a substitute for professional career coaching.",
   },
 ];
 
@@ -38,37 +52,49 @@ export default function TermsPage() {
 
       <Section spacing="md" className="pt-0">
         <Container size="md">
-          <div className="mb-8 flex items-center gap-3 rounded-xl border border-info/20 bg-info/5 p-4">
-            <FileText className="size-5 text-info" />
-            <span className="text-sm text-muted-foreground">
-              <strong className="text-foreground">Early access terms.</strong>{" "}
-              Updated terms for commercial launch coming soon.
+          <div className="mb-10 flex items-start gap-4 rounded-2xl border border-info/25 bg-info/8 p-5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-info/15 ring-1 ring-info/25">
+              <FileText className="size-4 text-info" />
             </span>
+            <div>
+              <p className="font-semibold text-sm">Early-access terms</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Full legal terms for the commercial launch are in preparation.
+                These points summarise your rights and responsibilities today.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4">
-            {terms.map((term, index) => (
-              <Card key={term.title}>
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{term.title}</h3>
-                      <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                        {term.text}
-                      </p>
-                    </div>
+            {terms.map((term, i) => {
+              const Icon = term.icon;
+              return (
+                <div
+                  key={term.title}
+                  className={`animate-fade-up fill-both flex items-start gap-5 rounded-2xl border border-border bg-card p-6 delay-${(i + 1) * 75}`}
+                >
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 ring-1 ring-accent/20">
+                    <Icon className="size-4.5 text-accent" />
+                  </span>
+                  <div>
+                    <h3 className="font-semibold">{term.title}</h3>
+                    <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
+                      {term.body}
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                </div>
+              );
+            })}
           </div>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
-            This summary will be replaced with full legal terms in the next
-            update.
+          <p className="mt-10 text-center text-xs text-muted-foreground">
+            Last updated: early-access period.{" "}
+            <Link
+              href="/privacy"
+              className="text-primary hover:underline underline-offset-4"
+            >
+              View Privacy Policy
+            </Link>
           </p>
         </Container>
       </Section>

@@ -77,7 +77,7 @@ export const GET = withAuth(
           session.feedbackId !== feedback.id ||
           session.finalScore !== feedback.totalScore
         ) {
-          // Fire-and-forget metadata repair — non-critical, idempotent update
+          // Best-effort metadata repair keeps session state aligned with feedback docs.
           InterviewRepository.update(interviewId, {
             status: "completed",
             completedAt: session.completedAt || new Date().toISOString(),

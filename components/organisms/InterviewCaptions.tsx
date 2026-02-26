@@ -1,43 +1,28 @@
 "use client";
 
-import { MicOff } from "lucide-react";
+import { MicOff, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InterviewCaptionsProps {
-  /** Current caption text */
   currentCaption: string | null;
-  /** Who is currently speaking */
   currentSpeaker: "user" | "model" | null;
-  /** Whether the microphone is muted */
   isMuted: boolean;
-  /** Panel this caption belongs to */
   focus: "user" | "model";
-  /** Last known caption fallback for this panel */
   fallbackCaption?: string | null;
-  /** Extra className */
   className?: string;
 }
 
-function getDisplayCaption(text: string, maxChars: number = 280): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-
-  if (normalized.length <= maxChars) {
-    return normalized;
-  }
-
-  const tail = normalized.slice(-maxChars);
-  const sentenceBreakIndex = tail.search(/[.!?]\s/);
-
-  if (sentenceBreakIndex > 0 && sentenceBreakIndex < tail.length - 32) {
-    return `...${tail.slice(sentenceBreakIndex + 2)}`;
-  }
-
-  return `...${tail}`;
+// Truncate long captions at a sentence boundary.
+function getDisplayCaption(text: string, maxChars = 280): string {
+  const norm = text.replace(/\s+/g, " ").trim();
+  if (norm.length <= maxChars) return norm;
+  const tail = norm.slice(-maxChars);
+  const breakIdx = tail.search(/[.!?]\s/);
+  return breakIdx > 0 && breakIdx < tail.length - 32
+    ? `…${tail.slice(breakIdx + 2)}`
+    : `…${tail}`;
 }
 
-/**
- * Caption panel for one interview participant.
- */
 export function InterviewCaptions({
   currentCaption,
   currentSpeaker,
@@ -47,51 +32,59 @@ export function InterviewCaptions({
   className,
 }: InterviewCaptionsProps) {
   const isUserPanel = focus === "user";
-  const isLiveSpeaker = currentSpeaker === focus && !!currentCaption;
-  const activeText = isLiveSpeaker ? currentCaption : fallbackCaption;
-  const displayCaption = activeText ? getDisplayCaption(activeText) : "";
+  const isLive = currentSpeaker === focus && !!currentCaption;
+  const activeText = isLive ? currentCaption : fallbackCaption;
+  const displayText = activeText ? getDisplayCaption(activeText) : "";
 
-  let placeholder = isUserPanel
-    ? "Your response will appear here as you speak."
-    : "The interviewer prompt will appear here.";
-
-  if (isUserPanel && isMuted) {
-    placeholder = "Microphone is muted. Unmute to respond.";
-  }
+  const placeholder =
+    isUserPanel && isMuted
+      ? "Microphone is muted — unmute to respond."
+      : isUserPanel
+        ? "Your answer will appear here as you speak."
+        : "The interviewer's prompt will appear here.";
 
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-muted/30 px-4 py-3 transition-colors",
-        isLiveSpeaker && "border-primary/35 bg-primary/5",
+        "relative overflow-hidden rounded-xl border px-4 py-3 transition-all duration-300",
+        isLive
+          ? isUserPanel
+            ? "border-info/30 bg-info/5"
+            : "border-primary/30 bg-primary/5"
+          : "border-border bg-surface-2/40",
         className,
       )}
     >
-      <div className="mb-2 flex justify-end">
-        <span
-          className={cn(
-            "text-muted-foreground text-[11px] font-medium",
-            isLiveSpeaker && "text-primary",
-          )}
-        >
-          {isLiveSpeaker ? "Live" : "Recent"}
-        </span>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        {isLive ? (
+          <span
+            className={cn(
+              "flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider",
+              isUserPanel ? "text-info" : "text-primary",
+            )}
+          >
+            <Radio className="size-2.5 animate-pulse" />
+            Live
+          </span>
+        ) : (
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+            Recent
+          </span>
+        )}
       </div>
 
-      {displayCaption ? (
-        <p className="custom-scrollbar text-foreground/90 max-h-[92px] overflow-y-auto pr-1 text-sm leading-relaxed">
-          {displayCaption}
+      {displayText ? (
+        <p className="custom-scrollbar max-h-[88px] overflow-y-auto pr-1 text-sm leading-relaxed text-foreground/90">
+          {displayText}
         </p>
       ) : (
-        <div className="flex min-h-[56px] items-center gap-2.5">
+        <div className="flex min-h-[52px] items-center gap-2.5">
           {isUserPanel && isMuted && (
-            <MicOff className="text-error size-4 shrink-0" />
+            <MicOff className="size-4 shrink-0 text-error" />
           )}
-          <p className="text-muted-foreground text-sm">{placeholder}</p>
+          <p className="text-sm text-muted-foreground">{placeholder}</p>
         </div>
       )}
     </div>
   );
 }
-
-export default InterviewCaptions;

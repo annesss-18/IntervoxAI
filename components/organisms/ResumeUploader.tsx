@@ -17,112 +17,92 @@ interface UploadState {
   textPreview?: string;
 }
 
+const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const TXT_MIME = "text/plain";
+
+function isAllowedResumeFile(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return (
+    file.type === "application/pdf" ||
+    file.type === DOCX_MIME ||
+    file.type === TXT_MIME ||
+    name.endsWith(".pdf") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".txt")
+  );
+}
+
 export function ResumeUploader({
   onResumeUploaded,
   onResumeClear,
   initialResumeText,
 }: ResumeUploaderProps) {
-  const [uploadState, setUploadState] = useState<UploadState>(() => {
-    if (initialResumeText) {
-      return {
-        status: "success",
-        fileName: "Previously uploaded resume",
-        textPreview: initialResumeText.slice(0, 100),
-      };
-    }
-    return { status: "idle" };
-  });
+  const [uploadState, setUploadState] = useState<UploadState>(() =>
+    initialResumeText
+      ? {
+          status: "success",
+          fileName: "Previously uploaded resume",
+          textPreview: initialResumeText.slice(0, 100),
+        }
+      : { status: "idle" },
+  );
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (file.type !== "application/pdf") {
-        setUploadState({ status: "error", error: "Please upload a PDF file" });
-        toast.error("Please upload a PDF file");
+      if (!isAllowedResumeFile(file)) {
+        toast.error("Please upload a PDF, DOCX, or TXT file");
+        setUploadState({ status: "error", error: "PDF, DOCX, or TXT only" });
         return;
       }
-
-      if (file.size > 5 * 1024 * 1024) {
-        setUploadState({
-          status: "error",
-          error: "File size must be under 5MB",
-        });
-        toast.error("File size must be under 5MB");
+      if (file.size > MAX_RESUME_SIZE_BYTES) {
+        toast.error("File must be under 5 MB");
+        setUploadState({ status: "error", error: "File too large (max 5 MB)" });
         return;
       }
-
       setUploadState({ status: "uploading", fileName: file.name });
-
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/resume/parse", {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/resume/parse", {
           method: "POST",
-          body: formData,
+          body: fd,
         });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || "Failed to parse resume");
-        }
-
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to parse resume");
         setUploadState({
           status: "success",
           fileName: file.name,
           textPreview: data.text.slice(0, 100),
         });
-
         onResumeUploaded(data.text);
         toast.success("Resume uploaded!");
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to upload";
-        setUploadState({
-          status: "error",
-          fileName: file.name,
-          error: errorMessage,
-        });
-        toast.error(errorMessage);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Upload failed";
+        setUploadState({ status: "error", fileName: file.name, error: msg });
+        toast.error(msg);
       }
     },
     [onResumeUploaded],
   );
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragOver(false);
-  }, []);
-
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
-      e.stopPropagation();
       setIsDragOver(false);
-
-      const files = e.dataTransfer.files;
-      if (files && files.length > 0 && files[0]) {
-        handleFile(files[0]);
-      }
+      const f = e.dataTransfer.files[0];
+      if (f) handleFile(f);
     },
     [handleFile],
   );
 
-  const handleFileInput = useCallback(
+  const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files;
-      if (files && files.length > 0 && files[0]) {
-        handleFile(files[0]);
-      }
+      const f = e.target.files?.[0];
+      if (f) handleFile(f);
     },
     [handleFile],
   );
@@ -130,142 +110,115 @@ export function ResumeUploader({
   const handleClear = useCallback(() => {
     setUploadState({ status: "idle" });
     onResumeClear();
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, [onResumeClear]);
-
-  const handleClick = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLDivElement>) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        handleClick();
-      }
-    },
-    [handleClick],
-  );
-
-  // Idle state - compact upload zone
   if (uploadState.status === "idle") {
     return (
-      <div className="w-full">
-        <div
-          onClick={handleClick}
-          onKeyDown={handleKeyDown}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          role="button"
-          tabIndex={0}
-          className={`group cursor-pointer rounded-xl p-4 transition-all duration-200 ${
-            isDragOver
-              ? "bg-primary/10 border-primary scale-[1.02] border-2"
-              : "bg-secondary/50 border-border hover:border-primary/50 border-2 border-dashed"
-          } `}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileInput}
-            className="hidden"
-          />
-
-          <div className="flex items-center gap-3">
-            <div
-              className={`flex size-10 items-center justify-center rounded-lg transition-all ${
-                isDragOver
-                  ? "bg-primary/20"
-                  : "bg-card border-border group-hover:border-primary/40 border"
-              }`}
-            >
-              <FileUp
-                className={`size-5 ${isDragOver ? "text-primary" : "text-muted-foreground group-hover:text-primary"}`}
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-foreground text-sm font-medium">
-                {isDragOver ? "Drop here" : "Upload resume"}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                PDF, max 5MB (optional)
-              </p>
-            </div>
+      <div
+        onClick={() => fileInputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInputRef.current?.click();
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+        }}
+        onDrop={handleDrop}
+        role="button"
+        tabIndex={0}
+        aria-label="Upload resume file (PDF, DOCX, or TXT). Click or drag and drop."
+        className={`cursor-pointer rounded-xl border-2 border-dashed p-5 transition-all duration-200 ${
+          isDragOver
+            ? "scale-[1.01] border-primary bg-primary/8"
+            : "border-border bg-surface-2/50 hover:border-primary/50 hover:bg-primary/5"
+        }`}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          onChange={handleChange}
+          className="hidden"
+        />
+        <div className="flex items-center gap-4">
+          <span
+            className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+              isDragOver
+                ? "bg-primary/20 text-primary"
+                : "bg-surface-1 border border-border text-muted-foreground"
+            }`}
+          >
+            <FileUp className="size-5" />
+          </span>
+          <div>
+            <p className="text-sm font-medium">
+              {isDragOver ? "Drop to upload" : "Upload resume"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              PDF, DOCX, or TXT | Max 5 MB | Optional
+            </p>
           </div>
         </div>
       </div>
     );
   }
-
-  // Uploading state
   if (uploadState.status === "uploading") {
     return (
-      <div className="border-primary/30 bg-primary/5 w-full rounded-xl border p-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 flex size-10 items-center justify-center rounded-lg">
-            <Loader2 className="text-primary size-5 animate-spin" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-foreground truncate text-sm font-medium">
-              {uploadState.fileName}
-            </p>
-            <p className="text-muted-foreground text-xs">Analyzing...</p>
-          </div>
+      <div className="flex items-center gap-4 rounded-xl border border-primary/25 bg-primary/6 p-4">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+          <Loader2 className="size-5 text-primary animate-spin" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium">{uploadState.fileName}</p>
+          <p className="text-xs text-muted-foreground">Parsing resumeâ€¦</p>
         </div>
       </div>
     );
   }
-
-  // Error state
   if (uploadState.status === "error") {
     return (
-      <div className="border-error/30 bg-error/5 w-full rounded-xl border p-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-error/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
-            <AlertCircle className="text-error size-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-foreground text-sm font-medium">Upload failed</p>
-            <p className="text-error text-xs">{uploadState.error}</p>
-          </div>
-          <button
-            onClick={handleClear}
-            className="hover:bg-secondary rounded-lg p-1.5"
-          >
-            <X className="text-muted-foreground size-4" />
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Success state - compact
-  return (
-    <div className="border-success/30 bg-success/5 w-full rounded-xl border p-4">
-      <div className="flex items-center gap-3">
-        <div className="bg-success/10 flex size-10 shrink-0 items-center justify-center rounded-lg">
-          <FileCheck className="text-success size-5" />
-        </div>
+      <div className="flex items-center gap-4 rounded-xl border border-error/25 bg-error/6 p-4">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-error/15">
+          <AlertCircle className="size-5 text-error" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="text-foreground truncate text-sm font-medium">
-            {uploadState.fileName}
-          </p>
-          <p className="text-success text-xs">Ready for personalization</p>
+          <p className="text-sm font-medium">Upload failed</p>
+          <p className="text-xs text-error">{uploadState.error}</p>
         </div>
         <button
           onClick={handleClear}
-          className="hover:bg-secondary rounded-lg p-1.5"
-          title="Remove"
+          className="rounded-lg p-1.5 hover:bg-surface-2 transition-colors"
+          aria-label="Dismiss and retry"
         >
-          <X className="text-muted-foreground size-4" />
+          <X className="size-4 text-muted-foreground" />
         </button>
       </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-success/25 bg-success/6 p-4">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-success/15">
+        <FileCheck className="size-5 text-success" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{uploadState.fileName}</p>
+        <p className="text-xs text-success">Ready for personalisation</p>
+      </div>
+      <button
+        onClick={handleClear}
+        className="rounded-lg p-1.5 hover:bg-surface-2 transition-colors"
+        title="Remove"
+        aria-label="Remove uploaded resume"
+      >
+        <X className="size-4 text-muted-foreground" />
+      </button>
     </div>
   );
 }
-
-export default ResumeUploader;

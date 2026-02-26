@@ -2,7 +2,7 @@ class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.TargetSampleRate = 16000;
-    this.BufferSize = 4096; // larger buffer for network efficiency (approx 250ms at 16kHz)
+    this.BufferSize = 4096; // ~250ms buffer at 16kHz to reduce message overhead.
     this.buffer = new Float32Array(this.BufferSize);
     this.bufferIndex = 0;
     this.VadThreshold = 0.005;
@@ -23,25 +23,15 @@ class AudioProcessor extends AudioWorkletProcessor {
     if (!input || !input.length) return true;
 
     const inputChannel = input[0];
-    // If no input data, keep processor alive
+    // Keep node active even when an input frame has no channel data.
     if (!inputChannel) return true;
 
-    // Downsample and process
-    // We assume input is standard 44.1 or 48kHz, we need 16kHz
-    // Simple linear interpolation / decimation
-
-    // Note: sampleRate is a global in AudioWorkletScope
+    // Downsample from the hardware rate to 16kHz using linear interpolation.
     const ratio = sampleRate / this.TargetSampleRate;
-
-    // We process the input chunk and fill our internal buffer
-    // This is a simplified downsampler that works on the current chunk
-    // For production "perfect" audio we'd need a more complex ring buffer/filter
-    // but for speech recognition this is usually sufficient and very fast.
 
     const newSamples = Math.floor(inputChannel.length / ratio);
 
     for (let i = 0; i < newSamples; i++) {
-      // Linear interpolation
       const srcIndex = i * ratio;
       const srcIndexFloor = Math.floor(srcIndex);
       const fraction = srcIndex - srcIndexFloor;
@@ -61,7 +51,7 @@ class AudioProcessor extends AudioWorkletProcessor {
   }
 
   flush() {
-    // Drop near-silent chunks to reduce background noise and unnecessary network traffic.
+    // Skip near-silent buffers to reduce noise and bandwidth.
     let rms = 0;
     for (let i = 0; i < this.bufferIndex; i++) {
       const sample = this.buffer[i] || 0;
@@ -73,17 +63,14 @@ class AudioProcessor extends AudioWorkletProcessor {
       return;
     }
 
-    // Convert to 16-bit PCM
     const pcmData = new Int16Array(this.bufferIndex);
     for (let i = 0; i < this.bufferIndex; i++) {
       const s = Math.max(-1, Math.min(1, this.buffer[i]));
       pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
     }
 
-    // Send to main thread
     this.port.postMessage(pcmData);
 
-    // Reset buffer
     this.bufferIndex = 0;
   }
 }

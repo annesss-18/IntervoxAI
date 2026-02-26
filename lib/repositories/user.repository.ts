@@ -14,25 +14,6 @@ export const UserRepository = {
     }
   },
 
-  exists: async (uid: string): Promise<boolean> => {
-    try {
-      const doc = await db.collection("users").doc(uid).get();
-      return doc.exists;
-    } catch (error) {
-      logger.error(`Error checking user existence ${uid}:`, error);
-      throw error;
-    }
-  },
-
-  create: async (uid: string, data: Omit<User, "id">): Promise<void> => {
-    try {
-      await db.collection("users").doc(uid).set(data);
-    } catch (error) {
-      logger.error(`Error creating user ${uid}:`, error);
-      throw new Error("Failed to create user");
-    }
-  },
-
   createTransactionally: async (
     uid: string,
     data: Omit<User, "id">,

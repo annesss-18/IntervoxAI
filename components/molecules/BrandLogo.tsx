@@ -1,81 +1,98 @@
-"use client";
-
 import Image from "next/image";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-interface BrandLogoProps {
-  /** Show full wordmark or just the icon */
-  variant?: "full" | "icon";
-  /** Size preset */
-  size?: "sm" | "md" | "lg";
-  /** Link to dashboard/home when clicked */
-  href?: string;
-  /** Additional styles */
-  className?: string;
-}
+// Keep brand assets at native aspect ratios to avoid visual distortion.
+const WORDMARK_RATIO = 3687 / 561;
+const LOGOFULL_RATIO = 3134 / 2269;
 
-const sizeMap = {
-  sm: { icon: 24, wordmark: { width: 100, height: 24 } },
-  md: { icon: 32, wordmark: { width: 130, height: 32 } },
-  lg: { icon: 40, wordmark: { width: 160, height: 40 } },
-};
+const scale = {
+  xs: { icon: 20, wordmarkH: 16, gap: "gap-1.5" },
+  sm: { icon: 26, wordmarkH: 20, gap: "gap-2" },
+  md: { icon: 32, wordmarkH: 24, gap: "gap-2.5" },
+  lg: { icon: 40, wordmarkH: 28, gap: "gap-3" },
+} as const;
 
-/**
- * Unified brand logo component using assets from the /assets folder.
- * Supports full wordmark or icon-only variants.
- */
-export function BrandLogo({
-  variant = "full",
-  size = "md",
-  href,
+type Size = keyof typeof scale;
+
+export function BrandIcon({
+  size = 28,
   className,
-}: BrandLogoProps) {
-  const dimensions = sizeMap[size];
-
-  const logoContent = (
-    <div className={cn("flex items-center gap-2", className)}>
-      {variant === "icon" ? (
-        <Image
-          src="/icon.png"
-          alt="IntervoxAI"
-          width={dimensions.icon}
-          height={dimensions.icon}
-          className="transition-transform hover:scale-105"
-          priority
-        />
-      ) : (
-        <div className="flex items-center gap-3">
-          <Image
-            src="/icon.png"
-            alt="IntervoxAI"
-            width={dimensions.icon}
-            height={dimensions.icon}
-            className="transition-transform group-hover:scale-105"
-            priority
-          />
-          <Image
-            src="/wordmark.png"
-            alt="IntervoxAI"
-            width={dimensions.wordmark.width}
-            height={dimensions.wordmark.height}
-            className="hidden sm:block dark:brightness-0 dark:invert"
-            priority
-          />
-        </div>
-      )}
-    </div>
+  priority,
+}: {
+  size?: number;
+  className?: string;
+  priority?: boolean;
+}) {
+  return (
+    <Image
+      src="/icon.svg"
+      alt="IntervoxAI icon"
+      width={size}
+      height={size}
+      className={cn("shrink-0", className)}
+      priority={priority}
+      unoptimized
+    />
   );
-
-  if (href) {
-    return (
-      <Link href={href} className="group">
-        {logoContent}
-      </Link>
-    );
-  }
-
-  return logoContent;
 }
 
-export default BrandLogo;
+export function BrandWordmark({
+  height = 20,
+  className,
+}: {
+  height?: number;
+  className?: string;
+}) {
+  const width = Math.round(height * WORDMARK_RATIO);
+
+  return (
+    <Image
+      src="/wordmark.svg"
+      alt="IntervoxAI"
+      width={width}
+      height={height}
+      className={cn("shrink-0", "dark:brightness-0 dark:invert", className)}
+      unoptimized
+    />
+  );
+}
+
+export function BrandLogoFull({
+  height = 64,
+  className,
+}: {
+  height?: number;
+  className?: string;
+}) {
+  const width = Math.round(height * LOGOFULL_RATIO);
+
+  return (
+    <Image
+      src="/logo-full.svg"
+      alt="IntervoxAI"
+      width={width}
+      height={height}
+      className={cn("shrink-0", className)}
+      unoptimized
+    />
+  );
+}
+
+export function BrandLogo({
+  size = "sm",
+  className,
+  priority,
+}: {
+  size?: Size;
+  className?: string;
+  priority?: boolean;
+}) {
+  const s = scale[size];
+
+  return (
+    <span className={cn("inline-flex items-center", s.gap, className)}>
+      <BrandIcon size={s.icon} priority={priority} />
+      <BrandWordmark height={s.wordmarkH} />
+    </span>
+  );
+}

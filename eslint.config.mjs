@@ -1,20 +1,10 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import nextTypescript from "eslint-config-next/typescript";
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...nextTypescript,
   {
     rules: {
-      // Prevent console.log in production code - use logger utility instead
-      // console.warn and console.error are allowed (used by logger)
+      // Keep console usage limited to explicit warning/error paths.
       "no-console": ["warn", { allow: ["warn", "error"] }],
     },
   },

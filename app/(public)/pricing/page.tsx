@@ -1,22 +1,39 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  Sparkles,
+  BarChart3,
+  MessageSquare,
+  Target,
+  Mic,
+  Lock,
+} from "lucide-react";
 import { Container, PageHeader, Section } from "@/components/layout/Container";
-import { Card, CardContent } from "@/components/atoms/card";
 import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: "Pricing",
+  title: "Pricing · IntervoxAI",
   description: "IntervoxAI pricing and plan information.",
 };
 
-const features = [
-  "Unlimited practice sessions",
-  "AI-powered feedback",
-  "Voice and text interviews",
-  "Progress tracking",
-  "Role-specific templates",
+const freeTier = [
+  { icon: Mic, label: "Unlimited voice interview sessions" },
+  { icon: MessageSquare, label: "AI-driven real-time feedback" },
+  { icon: Target, label: "Role-specific question templates" },
+  { icon: BarChart3, label: "Session history & progress tracking" },
+  { icon: Sparkles, label: "Resume-aware interview context" },
+];
+
+const proTier = [
+  "Everything in Early Access",
+  "Advanced analytics & trend charts",
+  "Custom interview libraries",
+  "Team & recruiter mode",
+  "Priority support & SLA",
+  "API access",
 ];
 
 export default function PricingPage() {
@@ -27,101 +44,108 @@ export default function PricingPage() {
           <PageHeader
             badge="Pricing"
             title="Simple, transparent pricing"
-            description="Start practicing for free. Upgrade when you need more."
+            description="Full access while we're in early access. Upgrade when paid plans launch."
           />
         </Container>
       </Section>
 
       <Section spacing="md" className="pt-0">
         <Container>
-          <div className="grid gap-8 lg:grid-cols-2">
-            {/* Free Plan */}
-            <Card
-              variant="interactive"
-              className="gradient-border relative overflow-hidden"
-            >
-              <CardContent className="space-y-6 p-8">
+          <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-2">
+            <div className="gradient-border animate-fade-up relative overflow-hidden rounded-2xl bg-card p-8">
+              <div
+                className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 h-40 w-60 rounded-full opacity-20 blur-[60px]"
+                style={{ background: "var(--gradient-brand)" }}
+              />
+
+              <div className="relative space-y-6">
                 <div>
-                  <Badge variant="success" className="mb-4">
+                  <Badge variant="primary" className="mb-4">
                     Current Plan
                   </Badge>
                   <h2 className="text-2xl font-semibold">Early Access</h2>
-                  <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold tabular-nums">$0</span>
+                  <div className="mt-3 flex items-baseline gap-1.5">
+                    <span className="font-mono text-5xl font-bold text-foreground">
+                      $0
+                    </span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Full access while we collect feedback and finalise paid
+                    plans.
+                  </p>
                 </div>
 
-                <p className="text-muted-foreground">
-                  Full access to core features while we collect feedback and
-                  finalize paid plans.
-                </p>
-
                 <ul className="space-y-3">
-                  {features.map((feature, i) => (
-                    <li
-                      key={feature}
-                      className={`animate-fadeIn opacity-0 flex items-center gap-3 text-sm delay-${(i + 1) * 100}`}
-                      style={{ animationFillMode: "forwards" }}
-                    >
-                      <Check className="size-4 text-success" />
-                      {feature}
+                  {freeTier.map(({ icon: Icon, label }) => (
+                    <li key={label} className="flex items-center gap-3 text-sm">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/10 ring-1 ring-success/20">
+                        <Icon className="size-3.5 text-success" />
+                      </span>
+                      {label}
                     </li>
                   ))}
                 </ul>
 
-                <Button asChild size="lg" className="w-full">
+                <Button asChild size="lg" variant="gradient" className="w-full">
                   <Link href="/sign-up">
                     Start Practicing Free
                     <ArrowRight className="size-4" />
                   </Link>
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            {/* Pro Plan (Coming Soon) */}
-            <Card className="relative overflow-hidden border-dashed opacity-60">
-              <CardContent className="space-y-6 p-8">
+            <div className="animate-fade-up delay-100 fill-both relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/50 p-8 opacity-60">
+              <div className="space-y-6">
                 <div>
                   <Badge variant="secondary" className="mb-4">
                     Coming Soon
                   </Badge>
-                  <h2 className="text-2xl font-semibold">Pro</h2>
-                  <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold tabular-nums">$19</span>
+                  <h2 className="text-2xl font-semibold text-muted-foreground">
+                    Pro
+                  </h2>
+                  <div className="mt-3 flex items-baseline gap-1.5">
+                    <span className="font-mono text-5xl font-bold text-muted-foreground">
+                      $19
+                    </span>
                     <span className="text-muted-foreground">/month</span>
                   </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Advanced features for serious preparation and career growth.
+                  </p>
                 </div>
 
-                <p className="text-muted-foreground">
-                  Advanced features for serious interview preparation and career
-                  growth.
-                </p>
-
-                <ul className="space-y-3 text-muted-foreground">
-                  <li className="flex items-center gap-3 text-sm">
-                    <Check className="size-4" />
-                    Everything in Free
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <Check className="size-4" />
-                    Detailed analytics & history
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <Check className="size-4" />
-                    Custom interview libraries
-                  </li>
-                  <li className="flex items-center gap-3 text-sm">
-                    <Check className="size-4" />
-                    Priority support
-                  </li>
+                <ul className="space-y-3">
+                  {proTier.map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-center gap-3 text-sm text-muted-foreground"
+                    >
+                      <Check className="size-4 shrink-0 text-muted-foreground/50" />
+                      {item}
+                    </li>
+                  ))}
                 </ul>
 
                 <Button variant="outline" size="lg" className="w-full" disabled>
+                  <Lock className="size-4" />
                   Coming Soon
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-16 max-w-2xl text-center">
+            <p className="text-sm text-muted-foreground">
+              Questions about pricing or the roadmap?{" "}
+              <Link
+                href="/support"
+                className="text-primary font-medium hover:underline underline-offset-4"
+              >
+                Contact us
+              </Link>
+            </p>
           </div>
         </Container>
       </Section>

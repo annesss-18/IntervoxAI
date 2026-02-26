@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  Sparkles,
+  ArrowRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/atoms/button";
-import { Card, CardContent } from "@/components/atoms/card";
 import { Badge } from "@/components/atoms/badge";
+import { Container } from "@/components/layout/Container";
 
 type FeedbackJobStatus =
   | "idle"
@@ -51,20 +57,14 @@ export function FeedbackGenerationStatus({
   const checkStatus = useCallback(async () => {
     if (inFlightRef.current) return;
     inFlightRef.current = true;
-
     try {
-      const response = await fetch(
+      const res = await fetch(
         `/api/feedback/status?interviewId=${encodeURIComponent(sessionId)}`,
-        {
-          method: "GET",
-          cache: "no-store",
-        },
+        { method: "GET", cache: "no-store" },
       );
-
-      const data = (await response.json()) as FeedbackStatusResponse;
-      if (!response.ok || !data.success || !data.status) {
+      const data = (await res.json()) as FeedbackStatusResponse;
+      if (!res.ok || !data.success || !data.status)
         throw new Error(data.error || "Failed to fetch feedback status");
-      }
 
       setStatus(data.status);
       setError(data.error || null);
@@ -73,19 +73,14 @@ export function FeedbackGenerationStatus({
         clearPolling();
         if (!completionToastShownRef.current) {
           completionToastShownRef.current = true;
-          toast.success("Your interview feedback is ready.");
+          toast.success("Your interview feedback is ready!");
         }
         router.refresh();
       }
-
-      if (data.status === "failed") {
-        clearPolling();
-      }
-    } catch (statusError) {
+      if (data.status === "failed") clearPolling();
+    } catch (err) {
       setError(
-        statusError instanceof Error
-          ? statusError.message
-          : "Unable to check feedback status right now",
+        err instanceof Error ? err.message : "Unable to check feedback status",
       );
     } finally {
       inFlightRef.current = false;
@@ -93,51 +88,41 @@ export function FeedbackGenerationStatus({
   }, [clearPolling, router, sessionId]);
 
   const triggerProcessing = useCallback(async () => {
-    const response = await fetch("/api/feedback/process", {
+    const res = await fetch("/api/feedback/process", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ interviewId: sessionId }),
     });
-
-    const data = (await response.json()) as FeedbackStatusResponse;
-    if (!response.ok || !data.success || !data.status) {
+    const data = (await res.json()) as FeedbackStatusResponse;
+    if (!res.ok || !data.success || !data.status)
       throw new Error(data.error || "Failed to start feedback processing");
-    }
-
     setStatus(data.status);
     setError(data.error || null);
   }, [sessionId]);
 
   useEffect(() => {
     let isMounted = true;
-
-    const initialize = async () => {
+    const init = async () => {
       try {
         await triggerProcessing();
-      } catch (processingError) {
+      } catch (err) {
         if (isMounted) {
           setStatus("failed");
           setError(
-            processingError instanceof Error
-              ? processingError.message
-              : "Failed to start feedback processing",
+            err instanceof Error ? err.message : "Failed to start processing",
           );
           return;
         }
       }
-
       if (!isMounted) return;
       await checkStatus();
-
       if (pollTimerRef.current === null) {
         pollTimerRef.current = window.setInterval(() => {
           void checkStatus();
         }, POLL_INTERVAL_MS);
       }
     };
-
-    void initialize();
-
+    void init();
     return () => {
       isMounted = false;
       clearPolling();
@@ -148,7 +133,6 @@ export function FeedbackGenerationStatus({
     setIsRetrying(true);
     setError(null);
     setStatus("pending");
-
     try {
       await triggerProcessing();
       await checkStatus();
@@ -157,102 +141,97 @@ export function FeedbackGenerationStatus({
           void checkStatus();
         }, POLL_INTERVAL_MS);
       }
-    } catch (retryError) {
+    } catch (err) {
       setStatus("failed");
-      setError(
-        retryError instanceof Error ? retryError.message : "Retry failed",
-      );
+      setError(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setIsRetrying(false);
     }
   }, [checkStatus, triggerProcessing]);
 
-  const title =
-    status === "processing"
-      ? "Analyzing Interview"
-      : status === "failed"
-        ? "Feedback Generation Failed"
-        : "Feedback Queued";
+  const isFailed = status === "failed";
 
-  const description =
-    status === "processing"
-      ? "Your transcript is being analyzed. This usually takes under a minute."
-      : status === "pending"
-        ? "Your transcript is queued. Processing starts automatically in a moment."
+  const copy = {
+    title:
+      status === "processing"
+        ? "Analysing your interview…"
         : status === "failed"
-          ? "Something went wrong while generating feedback. You can retry now."
-          : "Your interview is complete. We are preparing your detailed report.";
-
-  const statusVariant =
-    status === "failed"
-      ? "error"
-      : status === "completed"
-        ? "success"
-        : status === "processing"
-          ? "info"
-          : "secondary";
+          ? "Feedback generation failed"
+          : "Feedback queued",
+    desc:
+      status === "processing"
+        ? "Your transcript is being evaluated across five dimensions. This usually takes under a minute."
+        : status === "pending"
+          ? "Your transcript is in the queue. Processing starts automatically."
+          : status === "failed"
+            ? "Something went wrong generating your feedback. You can retry below."
+            : "Interview complete. Preparing your detailed performance report.",
+  };
 
   return (
-    <div className="animate-fadeIn mx-auto max-w-3xl p-6">
-      <Card variant="gradient">
-        <CardContent className="space-y-6 px-7 py-10 text-center sm:px-10 sm:py-12">
-          <div className="mx-auto">
-            {status === "failed" ? (
-              <div className="border-error/30 bg-error/10 flex size-24 items-center justify-center rounded-full border-2">
-                <AlertCircle className="text-error size-12" />
+    <Container size="sm" className="animate-fade-up py-16">
+      <div className="gradient-border rounded-2xl p-px">
+        <div className="rounded-2xl bg-card px-8 py-14 text-center space-y-6">
+          <div className="mx-auto flex size-24 items-center justify-center rounded-2xl">
+            {isFailed ? (
+              <div className="flex size-20 items-center justify-center rounded-2xl border border-error/30 bg-error/10">
+                <AlertCircle className="size-10 text-error" />
               </div>
             ) : (
-              <div className="border-primary/30 bg-primary/10 flex size-24 items-center justify-center rounded-full border-2">
-                <Loader2 className="text-primary size-12 animate-spin" />
+              <div className="flex size-20 items-center justify-center rounded-2xl bg-brand-gradient shadow-[0_8px_32px_-8px_color-mix(in_srgb,var(--primary)_60%,var(--accent)_40%)]">
+                <Loader2 className="size-10 text-white animate-spin" />
               </div>
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3" role={isFailed ? "alert" : undefined}>
             <Badge
-              variant={statusVariant}
-              className="mx-auto inline-flex uppercase"
+              variant={
+                isFailed
+                  ? "error"
+                  : status === "processing"
+                    ? "info"
+                    : "secondary"
+              }
+              className="mx-auto"
             >
               <Sparkles className="size-3" />
-              Feedback Status: {status}
+              {status.charAt(0).toUpperCase() + status.slice(1)}
             </Badge>
-            <h2 className="text-2xl font-semibold">{title}</h2>
-            <p className="text-muted-foreground">{description}</p>
-            {error && <p className="text-error text-sm">{error}</p>}
+            <h2 className="font-serif italic font-normal text-2xl">
+              {copy.title}
+            </h2>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+              {copy.desc}
+            </p>
+            {error && <p className="text-xs text-error">{error}</p>}
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-            {status === "failed" ? (
-              <Button onClick={handleRetry}>
+            {isFailed ? (
+              <Button onClick={handleRetry} variant="gradient">
                 {isRetrying ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : (
                   <RefreshCw className="size-4" />
                 )}
-                <span>{isRetrying ? "Retrying..." : "Retry Generation"}</span>
+                {isRetrying ? "Retrying…" : "Retry Generation"}
               </Button>
             ) : (
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  void checkStatus();
-                }}
-              >
+              <Button variant="outline" onClick={() => void checkStatus()}>
                 <RefreshCw className="size-4" />
-                <span>Check Now</span>
+                Check Now
               </Button>
             )}
-
-            <Button asChild variant="outline">
+            <Button asChild variant="ghost">
               <Link href={`/interview/session/${sessionId}`}>
                 Back to Session
+                <ArrowRight className="size-4" />
               </Link>
             </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+    </Container>
   );
 }
-
-export default FeedbackGenerationStatus;

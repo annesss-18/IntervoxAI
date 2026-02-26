@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { Button } from "@/components/atoms/button";
-import { Card, CardContent } from "@/components/atoms/card";
-import { Container } from "@/components/layout/Container";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 export default function Error({
@@ -14,43 +12,54 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Container size="sm">
-        <Card variant="gradient" className="py-12 text-center">
-          <CardContent className="space-y-6">
-            <div className="bg-error/10 border-error/30 mx-auto flex size-16 items-center justify-center rounded-full border">
-              <AlertTriangle className="text-error size-8" />
-            </div>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6 text-center">
+      <div
+        className="pointer-events-none absolute -top-40 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full opacity-10 blur-[100px]"
+        style={{
+          background: "radial-gradient(ellipse, #c0607a, transparent 70%)",
+        }}
+      />
 
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold">Something went wrong</h1>
-              <p className="text-muted-foreground mx-auto max-w-md">
-                An unexpected error occurred. Please try again or return to the
-                home page.
-              </p>
-            </div>
+      <div className="relative animate-fade-up max-w-md space-y-8">
+        <div className="relative mx-auto flex size-24 items-center justify-center">
+          <div className="absolute inset-0 rounded-2xl bg-error/20 blur-xl" />
+          <div className="relative flex size-24 items-center justify-center rounded-2xl border border-error/30 bg-error/10 shadow-[var(--shadow-lg)]">
+            <AlertTriangle className="size-10 text-error" />
+          </div>
+        </div>
 
-            <div className="flex flex-col justify-center gap-4 sm:flex-row">
-              <Button onClick={reset} variant="secondary">
-                <RefreshCw className="size-4" />
-                Try Again
-              </Button>
-              <Link href="/">
-                <Button>
-                  <Home className="size-4" />
-                  Go Home
-                </Button>
-              </Link>
-            </div>
+        <div className="space-y-3">
+          <p className="font-mono text-sm font-semibold tracking-widest text-error/80 uppercase">
+            Something went wrong
+          </p>
+          <h1 className="font-serif italic font-normal text-4xl text-foreground">
+            Unexpected error
+          </h1>
+          <p className="text-muted-foreground leading-relaxed">
+            An unexpected error occurred. You can try again or return home —
+            your interview data is safe.
+          </p>
+        </div>
 
-            {error.digest && (
-              <p className="text-muted-foreground text-xs">
-                Error ID: {error.digest}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </Container>
+        <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+          <Button onClick={reset} variant="gradient" size="lg">
+            <RefreshCw className="size-4" />
+            Try Again
+          </Button>
+          <Button asChild variant="outline" size="lg">
+            <Link href="/">
+              <Home className="size-4" />
+              Go Home
+            </Link>
+          </Button>
+        </div>
+
+        {error.digest && (
+          <p className="font-mono text-xs text-muted-foreground/60">
+            Error ID: {error.digest}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

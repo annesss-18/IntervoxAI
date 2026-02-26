@@ -5,34 +5,34 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.97]",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[0_2px_8px_-2px_var(--primary)] hover:shadow-[0_4px_16px_-2px_var(--primary)] hover:brightness-110 active:scale-[0.98]",
+          "bg-primary text-primary-foreground shadow-[0_2px_12px_-2px_color-mix(in_srgb,var(--primary)_60%,transparent)] hover:shadow-[0_4px_20px_-2px_color-mix(in_srgb,var(--primary)_70%,transparent)] hover:brightness-105",
         gradient:
-          "bg-gradient-to-r from-primary via-secondary to-accent text-white shadow-[0_4px_16px_-4px_var(--primary)] hover:shadow-[0_6px_24px_-4px_var(--primary)] hover:brightness-110 active:scale-[0.97]",
+          "bg-brand-gradient text-white shadow-[0_4px_18px_-4px_color-mix(in_srgb,var(--primary)_55%,transparent)] hover:shadow-[0_6px_24px_-4px_color-mix(in_srgb,var(--primary)_65%,transparent)] hover:brightness-110 active:brightness-95",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 active:scale-[0.98]",
+          "bg-secondary/15 text-secondary border border-secondary/30 hover:bg-secondary/22 hover:border-secondary/50 shadow-sm",
         outline:
-          "border border-border bg-transparent text-foreground shadow-[inset_0_1px_0_oklch(1_0_0/0.04)] hover:bg-surface-2 hover:border-primary/50 hover:shadow-sm",
+          "border border-border bg-transparent text-foreground hover:bg-surface-2 hover:border-primary/40 shadow-sm",
         ghost: "text-muted-foreground hover:text-foreground hover:bg-surface-2",
         destructive:
-          "bg-error text-error-foreground shadow-sm hover:bg-error/90 active:scale-[0.98]",
-        link: "text-primary underline-offset-4 hover:underline p-0 h-auto",
+          "bg-error text-error-foreground shadow-sm hover:bg-error/90 hover:shadow-[0_4px_16px_-4px_color-mix(in_srgb,var(--error)_60%,transparent)]",
+        link: "text-primary underline-offset-4 hover:underline p-0 h-auto rounded-none active:scale-100",
       },
       size: {
-        sm: "h-9 px-3 text-xs",
-        md: "h-10 px-4",
-        lg: "h-11 px-6",
-        xl: "h-12 px-8 text-base rounded-xl",
+        sm: "h-8 px-3.5 text-xs",
+        default: "h-10 px-5",
+        lg: "h-11 px-7",
+        xl: "h-12 px-8 text-base",
         icon: "size-10",
       },
     },
     defaultVariants: {
       variant: "default",
-      size: "md",
+      size: "default",
     },
   },
 );

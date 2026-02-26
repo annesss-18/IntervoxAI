@@ -14,7 +14,6 @@ export interface InterviewSessionRecord extends InterviewSession {
 
 export const InterviewRepository = {
   async findByUserId(userId: string): Promise<InterviewSessionRecord[]> {
-    // returning raw data, mapped in service
     try {
       const snapshot = await db
         .collection("interview_sessions")

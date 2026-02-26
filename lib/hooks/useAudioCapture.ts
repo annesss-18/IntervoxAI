@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import { logger } from "@/lib/logger";
 
 interface UseAudioCaptureReturn {
-  isCapturing: boolean;
   error: string | null;
   startCapture: (
     onAudioChunk: (chunk: string) => void,
@@ -13,13 +12,7 @@ interface UseAudioCaptureReturn {
   stopCapture: () => void;
 }
 
-/**
- * Hook for capturing audio from the browser microphone and converting to PCM format.
- * Outputs base64-encoded 16-bit PCM audio chunks suitable for Gemini Live API.
- * Uses MediaRecorder with PCM conversion for reliable cross-browser support.
- */
 export function useAudioCapture(): UseAudioCaptureReturn {
-  const [isCapturing, setIsCapturing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -39,13 +32,10 @@ export function useAudioCapture(): UseAudioCaptureReturn {
         setError(null);
         callbackRef.current = onAudioChunk;
 
-        // Create AudioContext immediately to capture user gesture
-        // This prevents the context from starting in 'suspended' state on some browsers
         if (!audioContextRef.current) {
           audioContextRef.current = new AudioContext();
         }
 
-        // Ensure context is running
         if (audioContextRef.current.state === "suspended") {
           await audioContextRef.current.resume();
         }
@@ -57,7 +47,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
         const nativeSampleRate = audioContextRef.current.sampleRate;
         logger.debug(`AudioContext running at ${nativeSampleRate}Hz`);
 
-        // Request microphone access
         if (!navigator?.mediaDevices?.getUserMedia) {
           throw new Error(
             "Microphone API unavailable in this browser context. Use HTTPS (or localhost) and a supported browser.",
@@ -92,7 +81,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
 
         mediaStreamRef.current = stream;
 
-        // Create source from microphone
         sourceRef.current =
           audioContextRef.current.createMediaStreamSource(stream);
 
@@ -102,7 +90,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
 
         let captureNode: AudioNode | null = null;
 
-        // Primary path: AudioWorklet processor
+        // Prefer AudioWorklet for lower-latency chunk handling.
         try {
           const moduleUrl = new URL(
             "/worklets/audio-processor.js",
@@ -193,7 +181,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
 
         sourceRef.current.connect(captureNode);
 
-        // Keep graph active without audible feedback.
+        // Connect to destination through a muted gain so the processing graph stays active.
         outputMonitorGainRef.current = audioContextRef.current.createGain();
         outputMonitorGainRef.current.gain.value = 0;
         captureNode.connect(outputMonitorGainRef.current);
@@ -201,7 +189,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           audioContextRef.current.destination,
         );
 
-        setIsCapturing(true);
         logger.info(
           `Audio capture started at ${nativeSampleRate}Hz (VAD threshold: ${vadThreshold.toFixed(4)})`,
         );
@@ -219,10 +206,9 @@ export function useAudioCapture(): UseAudioCaptureReturn {
   const stopCapture = useCallback(() => {
     callbackRef.current = null;
 
-    // Disconnect processor
     if (processorRef.current) {
       processorRef.current.disconnect();
-      processorRef.current.port.onmessage = null; // Clean up event listener
+      processorRef.current.port.onmessage = null;
       processorRef.current = null;
     }
 
@@ -232,7 +218,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
       scriptProcessorRef.current = null;
     }
 
-    // Disconnect source
     if (sourceRef.current) {
       sourceRef.current.disconnect();
       sourceRef.current = null;
@@ -243,34 +228,26 @@ export function useAudioCapture(): UseAudioCaptureReturn {
       outputMonitorGainRef.current = null;
     }
 
-    // Stop all tracks
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
     }
 
-    // Close audio context
     if (audioContextRef.current) {
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
 
-    setIsCapturing(false);
     logger.info("Audio capture stopped");
   }, []);
 
   return {
-    isCapturing,
     error,
     startCapture,
     stopCapture,
   };
 }
 
-/**
- * Convert Uint8Array to base64 string
- * Compatible with browser environments
- */
 function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = "";
   const len = bytes.byteLength;
@@ -282,7 +259,7 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 function mapSensitivityToVadThreshold(sensitivity: number): number {
   const normalized = Math.max(1, Math.min(100, sensitivity));
-  // Higher sensitivity should capture quieter audio (lower threshold).
+  // Higher sensitivity maps to a lower RMS threshold.
   const minThreshold = 0.002;
   const maxThreshold = 0.02;
   const ratio = (100 - normalized) / 99;

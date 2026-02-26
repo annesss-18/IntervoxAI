@@ -26,10 +26,19 @@ export default async function RootLayout({
       <main className="relative flex-1 py-8 md:py-10">{children}</main>
       <FooterCompact />
 
-      {/* Subtle background glow */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-primary/5 blur-[100px]" />
-        <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-accent/5 blur-[100px]" />
+        <div
+          className="absolute -top-48 -right-32 h-[480px] w-[480px] rounded-full opacity-[0.07] blur-[130px]"
+          style={{
+            background: "radial-gradient(ellipse, #7050b0, transparent 70%)",
+          }}
+        />
+        <div
+          className="absolute -bottom-48 -left-32 h-[400px] w-[400px] rounded-full opacity-[0.06] blur-[110px]"
+          style={{
+            background: "radial-gradient(ellipse, #48a8b8, transparent 70%)",
+          }}
+        />
       </div>
     </div>
   );

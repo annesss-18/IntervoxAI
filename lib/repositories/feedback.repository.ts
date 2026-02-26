@@ -58,36 +58,4 @@ export const FeedbackRepository = {
       return null;
     }
   },
-
-  async findManyByInterviewIds(
-    interviewIds: string[],
-    userId: string,
-  ): Promise<Map<string, number>> {
-    if (interviewIds.length === 0) return new Map();
-
-    const feedbackMap = new Map<string, number>();
-
-    // Batch fetch (limit 10 for 'in' queries)
-    const uniqueIds = Array.from(new Set(interviewIds));
-
-    for (let i = 0; i < uniqueIds.length; i += 10) {
-      const batch = uniqueIds.slice(i, i + 10);
-      try {
-        const snapshot = await db
-          .collection("feedback")
-          .where("interviewId", "in", batch)
-          .where("userId", "==", userId)
-          .get();
-
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          feedbackMap.set(data.interviewId, data.totalScore);
-        });
-      } catch (error) {
-        logger.error("Error batch fetching feedback:", error);
-      }
-    }
-
-    return feedbackMap;
-  },
 };

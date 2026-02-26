@@ -1,31 +1,25 @@
-// app/api/resume/parse/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
+import { extractTextFromFile } from "@/lib/server-utils";
 import type { User } from "@/types";
 
-// Maximum file size: 5MB
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-// Maximum text length to return (for AI token efficiency)
 const MAX_TEXT_LENGTH = 5000;
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const TXT_MIME = "text/plain";
 
-// Lazy load the PDF extraction function to avoid build-time issues
-async function extractTextFromPDF(
-  buffer: Uint8Array,
-): Promise<{ text: string; pageCount: number }> {
-  // Dynamic import at runtime only
-  const { extractText } = await import("unpdf");
-  const result = await extractText(buffer);
-
-  // unpdf returns text as string or string[] depending on version
-  const textContent = Array.isArray(result.text)
-    ? result.text.join("\n\n")
-    : result.text;
-
-  return {
-    text: textContent,
-    pageCount: result.totalPages,
-  };
+function isAllowedResumeType(file: File): boolean {
+  const name = file.name.toLowerCase();
+  return (
+    file.type === "application/pdf" ||
+    file.type === DOCX_MIME ||
+    file.type === TXT_MIME ||
+    name.endsWith(".pdf") ||
+    name.endsWith(".docx") ||
+    name.endsWith(".txt")
+  );
 }
 
 export const POST = withAuth(
@@ -41,15 +35,13 @@ export const POST = withAuth(
         );
       }
 
-      // Validate file type
-      if (file.type !== "application/pdf") {
+      if (!isAllowedResumeType(file)) {
         return NextResponse.json(
-          { error: "Only PDF files are accepted" },
+          { error: "Only PDF, DOCX, or TXT files are accepted" },
           { status: 400 },
         );
       }
 
-      // Validate file size
       if (file.size > MAX_FILE_SIZE) {
         return NextResponse.json(
           { error: "File size exceeds 5MB limit" },
@@ -58,54 +50,53 @@ export const POST = withAuth(
       }
 
       logger.info(
-        `Parsing PDF resume for user ${user.id}, file size: ${file.size} bytes`,
+        `Parsing resume for user ${user.id}, file size: ${file.size} bytes`,
       );
 
-      // Convert file to Uint8Array
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(arrayBuffer);
-
-      // Extract text from PDF
-      const { text, pageCount } = await extractTextFromPDF(uint8Array);
+      const text = await extractTextFromFile(file, 5);
 
       if (!text || text.trim().length === 0) {
         return NextResponse.json(
           {
             error:
-              "Could not extract text from PDF. The file may be scanned or contain only images.",
+              "Could not extract text from the file. It may be scanned, empty, or image-only.",
           },
           { status: 422 },
         );
       }
 
-      // Clean up and truncate text
+      // Normalize whitespace and control characters before truncation.
       const cleanedText = text
-        .replace(/\s+/g, " ") // Normalize whitespace
+        .replace(/[^\S\n]+/g, " ")
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
         .trim()
         .slice(0, MAX_TEXT_LENGTH);
 
       logger.info(
-        `Successfully parsed PDF: ${pageCount} pages, ${cleanedText.length} characters extracted`,
+        `Successfully parsed resume: ${cleanedText.length} characters extracted`,
       );
 
       return NextResponse.json({
         success: true,
         text: cleanedText,
-        pageCount,
         truncated: text.length > MAX_TEXT_LENGTH,
         originalLength: text.trim().length,
       });
     } catch (error) {
-      logger.error("Error parsing PDF:", error);
+      logger.error("Error parsing resume:", error);
 
       if (error instanceof Error) {
-        // Handle specific errors
         if (
           error.message.includes("Invalid PDF") ||
-          error.message.includes("Failed to parse")
+          error.message.includes("Failed to parse") ||
+          error.message.includes("not a valid")
         ) {
           return NextResponse.json(
-            { error: "Invalid PDF file. Please upload a valid PDF document." },
+            {
+              error:
+                "Invalid file. Please upload a valid PDF, DOCX, or TXT document.",
+            },
             { status: 400 },
           );
         }
@@ -113,7 +104,7 @@ export const POST = withAuth(
       }
 
       return NextResponse.json(
-        { error: "Failed to parse PDF file" },
+        { error: "Failed to parse resume file" },
         { status: 500 },
       );
     }

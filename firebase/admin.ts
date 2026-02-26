@@ -13,8 +13,7 @@ const initFirebaseAdmin = () => {
       !process.env.FIREBASE_CLIENT_EMAIL ||
       !process.env.FIREBASE_PROJECT_ID
     ) {
-      // During local dev or CI the service account may not be available. Avoid throwing during module init
-      // so build/time-checks don't fail. Server-side runtime will still error if these are required.
+      // Skip admin init when service-account env vars are missing.
       console.warn(
         "Firebase service account not found. Skipping initialization - set FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL and FIREBASE_PROJECT_ID to enable Firebase admin features.",
       );
@@ -31,7 +30,7 @@ const initFirebaseAdmin = () => {
     }
   }
 
-  // If the app was initialized, provide real clients, otherwise provide lazy proxies that throw when used
+  // Return throw-on-access proxies when admin SDK is unavailable.
   if (getApps().length) {
     return {
       auth: getAuth(),

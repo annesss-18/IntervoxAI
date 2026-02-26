@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Menu,
@@ -14,7 +13,13 @@ import {
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/client";
 import { Button } from "@/components/atoms/button";
-import { ThemeToggle, UserMenu } from "@/components/molecules";
+import { ThemeToggle } from "@/components/molecules/ThemeToggle";
+import { UserMenu } from "@/components/molecules/UserMenu";
+import {
+  BrandLogo,
+  BrandIcon,
+  BrandWordmark,
+} from "@/components/molecules/BrandLogo";
 import { Avatar, AvatarFallback } from "@/components/atoms/avatar";
 import {
   Sheet,
@@ -27,11 +32,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 interface NavbarProps {
-  user?: {
-    name: string;
-    email: string;
-    id: string;
-  } | null;
+  user?: { name: string; email: string; id: string } | null;
 }
 
 const navLinks = [
@@ -47,7 +48,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
   const { user: authUser, loading: authLoading } = useAuth();
 
   React.useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 10);
+    const onScroll = () => setIsScrolled(window.scrollY > 12);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -69,49 +70,40 @@ export function Navbar({ user: initialUser }: NavbarProps) {
     window.location.href = "/sign-in";
   };
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
 
   return (
     <header
       className={cn(
-        "sticky top-0 z-50 w-full border-b bg-background/80 backdrop-blur-xl saturate-[1.1] transition-[border-color,box-shadow] duration-300",
-        isScrolled ? "border-border/50 shadow-sm" : "border-transparent",
+        "sticky top-0 z-50 w-full transition-all duration-300",
+        isScrolled
+          ? "bg-background/85 backdrop-blur-xl border-b border-border/60 shadow-[var(--shadow-sm)]"
+          : "bg-transparent border-b border-transparent",
       )}
     >
       <div className="container-app flex h-16 items-center justify-between gap-4">
-        {/* Logo */}
         <Link
           href={user ? "/dashboard" : "/"}
-          className="group flex items-center gap-2.5"
+          className="group flex shrink-0 items-center gap-2 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          aria-label="IntervoxAI home"
         >
-          <div className="rounded-xl bg-surface-2/80 p-1.5 transition-colors group-hover:bg-surface-2">
-            <Image
-              src="/icon.png"
-              alt="IntervoxAI"
-              width={28}
-              height={28}
-              className="transition-transform duration-200 group-hover:scale-105"
-            />
-          </div>
-          <Image
-            src="/wordmark.png"
-            alt="IntervoxAI"
-            width={110}
-            height={26}
-            className="hidden dark:brightness-0 dark:invert sm:block"
-          />
+          <span className="transition-transform duration-200 group-hover:scale-105">
+            <BrandIcon size={28} priority />
+          </span>
+
+          <span className="hidden transition-opacity duration-200 group-hover:opacity-70 sm:block">
+            <BrandWordmark height={20} />
+          </span>
         </Link>
 
-        {/* Desktop Navigation */}
         {user && (
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-0.5 md:flex">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive =
@@ -121,21 +113,32 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "relative flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200",
                     isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-surface-2",
                   )}
                 >
-                  <Icon className="size-4" />
-                  {link.label}
+                  {isActive && (
+                    <span
+                      className="absolute inset-0 rounded-full bg-brand-gradient opacity-10"
+                      aria-hidden
+                    />
+                  )}
+                  <Icon className={cn("size-4", isActive && "text-primary")} />
+                  <span
+                    className={cn(
+                      isActive && "text-gradient-brand font-semibold",
+                    )}
+                  >
+                    {link.label}
+                  </span>
                 </Link>
               );
             })}
           </nav>
         )}
 
-        {/* Right Section */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
@@ -145,7 +148,6 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                 <UserMenu user={user} />
               </div>
 
-              {/* Mobile Menu */}
               <div className="md:hidden">
                 <Sheet open={isOpen} onOpenChange={setIsOpen}>
                   <SheetTrigger asChild>
@@ -154,32 +156,22 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                       <span className="sr-only">Open menu</span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent
-                    side="left"
-                    className="w-80 border-border bg-background"
-                  >
-                    <SheetHeader className="pb-6">
-                      <SheetTitle className="flex items-center gap-2.5 text-left">
-                        <Image
-                          src="/icon.png"
-                          alt="IntervoxAI"
-                          width={24}
-                          height={24}
-                        />
-                        <span className="font-semibold">IntervoxAI</span>
+                  <SheetContent side="left" className="flex w-80 flex-col">
+                    <SheetHeader className="pb-4">
+                      <SheetTitle className="text-left">
+                        <BrandLogo size="sm" />
                       </SheetTitle>
                     </SheetHeader>
 
-                    <div className="flex flex-col gap-6">
-                      {/* User Info */}
-                      <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/50 p-3">
+                    <div className="flex flex-1 flex-col gap-5">
+                      <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/60 p-3">
                         <Avatar size="sm">
                           <AvatarFallback>
                             {getInitials(user.name)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">
+                          <p className="truncate text-sm font-semibold">
                             {user.name}
                           </p>
                           <p className="truncate text-xs text-muted-foreground">
@@ -188,7 +180,6 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                         </div>
                       </div>
 
-                      {/* Navigation Links */}
                       <nav className="flex flex-col gap-1">
                         {navLinks.map((link) => {
                           const Icon = link.icon;
@@ -201,27 +192,42 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                               href={link.href}
                               onClick={() => setIsOpen(false)}
                               className={cn(
-                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                                "relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
                                 isActive
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                                  ? "text-foreground"
+                                  : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
                               )}
                             >
-                              <Icon className="size-4" />
-                              {link.label}
+                              {isActive && (
+                                <span className="absolute inset-0 rounded-xl bg-brand-gradient opacity-10" />
+                              )}
+                              <Icon
+                                className={cn(
+                                  "relative size-4",
+                                  isActive && "text-primary",
+                                )}
+                              />
+                              <span
+                                className={cn(
+                                  "relative",
+                                  isActive &&
+                                    "text-gradient-brand font-semibold",
+                                )}
+                              >
+                                {link.label}
+                              </span>
                             </Link>
                           );
                         })}
                       </nav>
 
-                      {/* Sign Out */}
                       <div className="mt-auto border-t border-border pt-4">
                         <Button
                           variant="ghost"
-                          className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="w-full justify-start rounded-xl text-error hover:bg-error/10 hover:text-error"
                           onClick={handleSignOut}
                         >
-                          <LogOut className="mr-2 size-4" />
+                          <LogOut className="size-4" />
                           Sign Out
                         </Button>
                       </div>
@@ -238,7 +244,9 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                 </Button>
               </Link>
               <Link href="/sign-up">
-                <Button size="sm">Get Started</Button>
+                <Button size="sm" variant="gradient">
+                  Get Started
+                </Button>
               </Link>
             </>
           )}
@@ -247,5 +255,3 @@ export function Navbar({ user: initialUser }: NavbarProps) {
     </header>
   );
 }
-
-export default Navbar;

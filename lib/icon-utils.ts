@@ -1,12 +1,4 @@
-// lib/icon-utils.ts
-// Centralized icon utility module with hybrid CDN strategy
-// - Company Logos: Brandfetch CDN with fallbacks
-// - Tech Icons: Devicon CDN with fallbacks
-
-// ============================================================================
-// CDN BASE URLs
-// ============================================================================
-
+// Centralized logo/icon URL builders with provider-specific fallbacks.
 const BRANDFETCH_CDN = "https://cdn.brandfetch.io";
 const UI_AVATARS_API = "https://ui-avatars.com/api";
 const DEVICON_CDN = "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons";
@@ -14,13 +6,8 @@ const SIMPLE_ICONS_CDN = "https://cdn.simpleicons.org";
 const BRANDFETCH_CLIENT_ID =
   process.env.NEXT_PUBLIC_BRANDFETCH_CLIENT_ID?.trim();
 
-// ============================================================================
-// COMPANY DOMAIN MAPPINGS
-// ============================================================================
-
-// Map of known company names to their domains (for Brandfetch)
+// Known company-to-domain mappings improve logo lookup accuracy.
 const COMPANY_DOMAIN_MAP: Record<string, string> = {
-  // Tech Giants
   google: "google.com",
   meta: "meta.com",
   facebook: "meta.com",
@@ -29,7 +16,6 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   apple: "apple.com",
   netflix: "netflix.com",
 
-  // Tech Companies
   stripe: "stripe.com",
   airbnb: "airbnb.com",
   uber: "uber.com",
@@ -58,7 +44,6 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   wipro: "wipro.com",
   hcl: "hcltech.com",
 
-  // Consulting/Enterprise
   deloitte: "deloitte.com",
   accenture: "accenture.com",
   ibm: "ibm.com",
@@ -68,26 +53,22 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   bcg: "bcg.com",
   bain: "bain.com",
 
-  // Fintech
   paypal: "paypal.com",
   visa: "visa.com",
   mastercard: "mastercard.com",
   square: "squareup.com",
   plaid: "plaid.com",
 
-  // E-commerce
   shopify: "shopify.com",
   ebay: "ebay.com",
   walmart: "walmart.com",
   target: "target.com",
   etsy: "etsy.com",
 
-  // Crypto/Web3
   coinbase: "coinbase.com",
   binance: "binance.com",
   opensea: "opensea.io",
 
-  // Gaming
   unity: "unity.com",
   epicgames: "epicgames.com",
   "epic games": "epicgames.com",
@@ -97,7 +78,6 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   blizzard: "blizzard.com",
   activision: "activision.com",
 
-  // Cloud/Infrastructure
   aws: "aws.amazon.com",
   azure: "azure.microsoft.com",
   gcp: "cloud.google.com",
@@ -108,7 +88,6 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   netlify: "netlify.com",
   cloudflare: "cloudflare.com",
 
-  // Social
   snapchat: "snapchat.com",
   snap: "snapchat.com",
   pinterest: "pinterest.com",
@@ -119,14 +98,12 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   whatsapp: "whatsapp.com",
   telegram: "telegram.org",
 
-  // Media/Entertainment
   disney: "disney.com",
   hbo: "hbo.com",
   hulu: "hulu.com",
   paramount: "paramount.com",
   "warner bros": "warnerbros.com",
 
-  // Other Tech
   dropbox: "dropbox.com",
   notion: "notion.so",
   figma: "figma.com",
@@ -151,15 +128,8 @@ const COMPANY_DOMAIN_MAP: Record<string, string> = {
   palantir: "palantir.com",
 };
 
-// ============================================================================
-// DEVICON TECH MAPPINGS
-// ============================================================================
-
-// Map of tech names to Devicon slugs and variants
-// Devicon format: icons/{slug}/{slug}-{variant}.svg
-// Variants: original, plain, line, original-wordmark, plain-wordmark
+// Technology aliases mapped to Devicon slug/variant pairs.
 const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
-  // JavaScript Ecosystem
   javascript: { slug: "javascript", variant: "original" },
   js: { slug: "javascript", variant: "original" },
   typescript: { slug: "typescript", variant: "original" },
@@ -188,7 +158,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   nuxtjs: { slug: "nuxtjs", variant: "original" },
   "nuxt.js": { slug: "nuxtjs", variant: "original" },
 
-  // Programming Languages
   python: { slug: "python", variant: "original" },
   java: { slug: "java", variant: "original" },
   go: { slug: "go", variant: "original" },
@@ -213,7 +182,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   r: { slug: "r", variant: "original" },
   julia: { slug: "julia", variant: "original" },
 
-  // Databases
   mongodb: { slug: "mongodb", variant: "original" },
   mongo: { slug: "mongodb", variant: "original" },
   mysql: { slug: "mysql", variant: "original-wordmark" },
@@ -233,7 +201,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   oracle: { slug: "oracle", variant: "original" },
   neo4j: { slug: "neo4j", variant: "original" },
 
-  // Cloud & DevOps
   aws: { slug: "amazonwebservices", variant: "original-wordmark" },
   "amazon web services": {
     slug: "amazonwebservices",
@@ -258,7 +225,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   debian: { slug: "debian", variant: "original" },
   centos: { slug: "centos", variant: "original" },
 
-  // Frontend & Styling
   html: { slug: "html5", variant: "original" },
   html5: { slug: "html5", variant: "original" },
   css: { slug: "css3", variant: "original" },
@@ -272,7 +238,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   materialui: { slug: "materialui", variant: "original" },
   "material ui": { slug: "materialui", variant: "original" },
 
-  // Build Tools & Package Managers
   webpack: { slug: "webpack", variant: "original" },
   vite: { slug: "vitejs", variant: "original" },
   babel: { slug: "babel", variant: "original" },
@@ -282,20 +247,17 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   yarn: { slug: "yarn", variant: "original" },
   pnpm: { slug: "pnpm", variant: "original" },
 
-  // Version Control & Collaboration
   git: { slug: "git", variant: "original" },
   github: { slug: "github", variant: "original" },
   gitlab: { slug: "gitlab", variant: "original" },
   bitbucket: { slug: "bitbucket", variant: "original" },
 
-  // Testing
   jest: { slug: "jest", variant: "plain" },
   mocha: { slug: "mocha", variant: "original" },
   cypress: { slug: "cypressio", variant: "original" },
   selenium: { slug: "selenium", variant: "original" },
   pytest: { slug: "pytest", variant: "original" },
 
-  // Mobile
   flutter: { slug: "flutter", variant: "original" },
   "react native": { slug: "react", variant: "original" },
   reactnative: { slug: "react", variant: "original" },
@@ -303,7 +265,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   ios: { slug: "apple", variant: "original" },
   xcode: { slug: "xcode", variant: "original" },
 
-  // Data Science & ML
   tensorflow: { slug: "tensorflow", variant: "original" },
   pytorch: { slug: "pytorch", variant: "original" },
   pandas: { slug: "pandas", variant: "original" },
@@ -312,7 +273,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   anaconda: { slug: "anaconda", variant: "original" },
   opencv: { slug: "opencv", variant: "original" },
 
-  // Other Frameworks & Tools
   django: { slug: "django", variant: "plain" },
   flask: { slug: "flask", variant: "original" },
   fastapi: { slug: "fastapi", variant: "original" },
@@ -336,11 +296,9 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   photoshop: { slug: "photoshop", variant: "original" },
   illustrator: { slug: "illustrator", variant: "original" },
 
-  // Message Queues & Streaming
   kafka: { slug: "apachekafka", variant: "original" },
   rabbitmq: { slug: "rabbitmq", variant: "original" },
 
-  // Others
   wordpress: { slug: "wordpress", variant: "original" },
   woocommerce: { slug: "woocommerce", variant: "original" },
   magento: { slug: "magento", variant: "original" },
@@ -351,15 +309,6 @@ const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   digitalocean: { slug: "digitalocean", variant: "original" },
 };
 
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-
-/**
- * Normalizes company name for lookup
- * "Google LLC" → "google"
- * "Meta Platforms, Inc." → "meta"
- */
 function normalizeCompanyName(name: string): string {
   return name
     .toLowerCase()
@@ -372,20 +321,10 @@ function normalizeCompanyName(name: string): string {
     .replace(/\s+/g, " ");
 }
 
-/**
- * Normalizes tech name for lookup
- * "React.js" → "react.js"
- * "TypeScript" → "typescript"
- */
 function normalizeTechName(name: string): string {
   return name.toLowerCase().trim();
 }
 
-/**
- * Extracts initials from company name for fallback avatar
- * "Google LLC" → "GL"
- * "Meta" → "M"
- */
 function getInitials(name: string): string {
   const words = name
     .trim()
@@ -401,26 +340,19 @@ function getInitials(name: string): string {
   return (firstChar + secondChar).toUpperCase();
 }
 
-/**
- * Converts company name to likely domain
- * "Google" → "google.com"
- * "Riot Games" → "riotgames.com"
- */
 function companyToDomain(companyName: string): string {
   const normalized = normalizeCompanyName(companyName);
 
-  // Check if we have a known mapping
   if (COMPANY_DOMAIN_MAP[normalized]) {
     return COMPANY_DOMAIN_MAP[normalized];
   }
 
-  // Try common variations
   const withoutSpaces = normalized.replace(/\s+/g, "");
   if (COMPANY_DOMAIN_MAP[withoutSpaces]) {
     return COMPANY_DOMAIN_MAP[withoutSpaces];
   }
 
-  // Fallback: construct domain from company name
+  // Fallback heuristic when no explicit mapping exists.
   return `${withoutSpaces}.com`;
 }
 
@@ -432,13 +364,6 @@ function clampImageSize(size: number, min: number, max: number): number {
   return Math.min(Math.max(Math.round(size), min), max);
 }
 
-// ============================================================================
-// PUBLIC API - COMPANY LOGOS
-// ============================================================================
-
-/**
- * Primary company logo URL using Brandfetch CDN
- */
 export function getBrandfetchLogoUrl(
   companyName: string,
   size: number = 400,
@@ -446,34 +371,20 @@ export function getBrandfetchLogoUrl(
   const domain = companyToDomain(companyName);
   const normalizedSize = clampImageSize(size, 16, 1024);
 
-  // Brandfetch CDN requires a valid client id (?c=...).
-  // If not configured, fall back to a reliable public source.
   if (
     !BRANDFETCH_CLIENT_ID ||
     BRANDFETCH_CLIENT_ID === "your_brandfetch_client_id"
   ) {
+    // Fall back to a public source when Brandfetch credentials are missing.
     return getGoogleFaviconUrl(companyName, normalizedSize);
   }
 
   const encodedDomain = encodeURIComponent(domain);
   const encodedClientId = encodeURIComponent(BRANDFETCH_CLIENT_ID);
 
-  // Brandfetch CDN route format:
-  // /domain/{domain}/w/{w}/h/{h}/fallback/{mode}/type/{asset}
   return `${BRANDFETCH_CDN}/domain/${encodedDomain}/w/${normalizedSize}/h/${normalizedSize}/fallback/404/type/icon?c=${encodedClientId}`;
 }
 
-/**
- * Alternate: Clearbit Logo API (Often better for well-known tech companies)
- */
-export function getClearbitLogoUrl(companyName: string): string {
-  const domain = companyToDomain(companyName);
-  return `https://logo.clearbit.com/${domain}?size=400`;
-}
-
-/**
- * Fallback 1: Google Favicon API
- */
 export function getGoogleFaviconUrl(
   companyName: string,
   size: number = 128,
@@ -483,9 +394,6 @@ export function getGoogleFaviconUrl(
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=${normalizedSize}`;
 }
 
-/**
- * Fallback 2: UI Avatars (text-based placeholder)
- */
 export function getUIAvatarsUrl(
   companyName: string,
   size: number = 128,
@@ -495,10 +403,6 @@ export function getUIAvatarsUrl(
   return `${UI_AVATARS_API}/?name=${encodeURIComponent(initials)}&size=${normalizedSize}&background=6366f1&color=fff&bold=true&format=svg`;
 }
 
-/**
- * Gets company logo URL with fallback chain info
- * Returns primary URL and fallback URLs for client-side error handling
- */
 export function getCompanyLogoUrls(
   companyName: string,
   size: number = 400,
@@ -517,6 +421,7 @@ export function getCompanyLogoUrls(
   const googleFallback = getGoogleFaviconUrl(companyName, size);
   const uiAvatarFallback = getUIAvatarsUrl(companyName, size);
 
+  // Avoid duplicate fallback URLs when Brandfetch already resolves to Google.
   if (brandfetchPrimary === googleFallback) {
     return {
       primary: googleFallback,
@@ -530,10 +435,6 @@ export function getCompanyLogoUrls(
   };
 }
 
-/**
- * Simple getter for primary company logo URL
- * Use CompanyLogo component for error handling
- */
 export function getCompanyLogoUrl(
   companyName: string,
   size: number = 400,
@@ -541,13 +442,6 @@ export function getCompanyLogoUrl(
   return getCompanyLogoUrls(companyName, size).primary;
 }
 
-// ============================================================================
-// PUBLIC API - TECH ICONS
-// ============================================================================
-
-/**
- * Primary tech icon URL using Devicon CDN
- */
 export function getDeviconUrl(techName: string): string {
   const normalized = normalizeTechName(techName);
   const mapping = DEVICON_MAP[normalized];
@@ -556,14 +450,11 @@ export function getDeviconUrl(techName: string): string {
     return `${DEVICON_CDN}/${mapping.slug}/${mapping.slug}-${mapping.variant}.svg`;
   }
 
-  // Fallback: try to use the tech name directly as slug
+  // Last-resort slug normalization for unmapped technologies.
   const slug = normalized.replace(/[^a-z0-9]/g, "");
   return `${DEVICON_CDN}/${slug}/${slug}-original.svg`;
 }
 
-/**
- * Fallback: Simple Icons CDN
- */
 export function getSimpleIconUrl(
   techName: string,
   color: string = "666666",
@@ -572,9 +463,6 @@ export function getSimpleIconUrl(
   return `${SIMPLE_ICONS_CDN}/${normalized}/${color}`;
 }
 
-/**
- * Gets tech icon URL with fallback chain info
- */
 export function getTechIconUrls(techName: string): {
   primary: string;
   fallbacks: string[];
@@ -584,41 +472,3 @@ export function getTechIconUrls(techName: string): {
     fallbacks: [getSimpleIconUrl(techName)],
   };
 }
-
-/**
- * Simple getter for primary tech icon URL
- * Use TechIcon component for error handling
- */
-export function getTechIconUrl(techName: string): string {
-  return getTechIconUrls(techName).primary;
-}
-
-/**
- * Gets array of tech icons with URLs (for backward compatibility)
- */
-export function getTechLogosWithFallbacks(techArray?: string[]): Array<{
-  tech: string;
-  urls: { primary: string; fallbacks: string[] };
-}> {
-  if (!techArray || !Array.isArray(techArray) || techArray.length === 0) {
-    return [];
-  }
-
-  return techArray.map((tech) => ({
-    tech,
-    urls: getTechIconUrls(tech),
-  }));
-}
-
-// ============================================================================
-// EXPORTS FOR BACKWARD COMPATIBILITY
-// ============================================================================
-
-export {
-  COMPANY_DOMAIN_MAP,
-  DEVICON_MAP,
-  normalizeCompanyName,
-  normalizeTechName,
-  getInitials,
-  companyToDomain,
-};

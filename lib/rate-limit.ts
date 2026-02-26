@@ -1,23 +1,12 @@
-// lib/rate-limit.ts
-/**
- * Production-ready rate limiting using Upstash Redis.
- * Falls back to in-memory rate limiting if Redis is not configured.
- *
- * Required environment variables for Redis:
- * - UPSTASH_REDIS_REST_URL
- * - UPSTASH_REDIS_REST_TOKEN
- */
-
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/logger";
 
-// Check if Redis is configured
+// Use Redis for shared rate limiting; in-memory fallback is for local development.
 const isRedisConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-// Enforce Redis in production — in-memory rate limiting is per-instance and ineffective
 if (!isRedisConfigured && process.env.NODE_ENV === "production") {
   throw new Error(
     "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production for rate limiting. " +
@@ -25,7 +14,6 @@ if (!isRedisConfigured && process.env.NODE_ENV === "production") {
   );
 }
 
-// Create Redis client if configured
 const redis = isRedisConfigured
   ? new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -33,7 +21,6 @@ const redis = isRedisConfigured
     })
   : null;
 
-// Create rate limiters with different configurations
 const rateLimiters = new Map<string, Ratelimit>();
 
 function getOrCreateRateLimiter(config: RateLimitConfig): Ratelimit | null {
@@ -59,10 +46,6 @@ function getOrCreateRateLimiter(config: RateLimitConfig): Ratelimit | null {
   return rateLimiters.get(key)!;
 }
 
-// ============================================================================
-// In-memory fallback for development (when Redis is not configured)
-// ============================================================================
-
 interface RateLimitEntry {
   count: number;
   resetTime: number;
@@ -70,7 +53,7 @@ interface RateLimitEntry {
 
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
-// Cleanup old entries every 5 minutes (only for in-memory fallback)
+// Remove expired in-memory buckets to keep fallback state bounded.
 if (typeof setInterval !== "undefined") {
   setInterval(
     () => {
@@ -114,13 +97,9 @@ function checkRateLimitInMemory(
   return { allowed: false, remaining: 0, resetTime: entry.resetTime };
 }
 
-// ============================================================================
-// Public API
-// ============================================================================
-
 export interface RateLimitConfig {
-  windowMs?: number; // Time window in milliseconds (default: 60000 = 1 minute)
-  maxRequests?: number; // Max requests per window (default: 10)
+  windowMs?: number;
+  maxRequests?: number;
 }
 
 export interface RateLimitResult {
@@ -129,21 +108,12 @@ export interface RateLimitResult {
   resetTime: number;
 }
 
-/**
- * Check if a request should be rate limited.
- * Uses Upstash Redis in production, falls back to in-memory for development.
- *
- * @param identifier - Unique identifier (userId, IP, etc.)
- * @param config - Rate limit configuration
- * @returns Promise<{ allowed: boolean, remaining: number, resetTime: number }>
- */
 export async function checkRateLimit(
   identifier: string,
   config: RateLimitConfig = {},
 ): Promise<RateLimitResult> {
   const rateLimiter = getOrCreateRateLimiter(config);
 
-  // Use Redis if available
   if (rateLimiter) {
     try {
       const result = await rateLimiter.limit(identifier);
@@ -153,59 +123,26 @@ export async function checkRateLimit(
         resetTime: result.reset,
       };
     } catch (error) {
-      logger.error("Redis rate limit error, falling back to in-memory:", error);
-      // Fall through to in-memory
+      logger.error("Redis rate limit error:", error);
+
+      // In production, fail closed on Redis errors to avoid unsafe per-instance fallback.
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          "Rate limiter unavailable: Redis error in production. Request rejected.",
+        );
+      }
+
+      logger.warn("Falling back to in-memory rate limiting (dev only).");
     }
   }
 
-  // Fallback to in-memory
   if (!isRedisConfigured) {
     if (process.env.NODE_ENV === "production") {
       logger.warn(
         "Redis is NOT configured in production. Falling back to in-memory rate limiting, which is not recommended for distributed deployments.",
       );
-      // We could throw here if we want to be strict:
-      // throw new Error('Redis must be configured in production for rate limiting.');
     }
     logger.debug("Using in-memory rate limiting (Redis not configured)");
   }
   return checkRateLimitInMemory(identifier, config);
-}
-
-/**
- * Clear rate limit for an identifier.
- * Only works for in-memory rate limiting (useful for testing).
- */
-export function clearRateLimit(identifier: string): void {
-  rateLimitMap.delete(identifier);
-}
-
-/**
- * Get current rate limit status without incrementing.
- * Only works for in-memory rate limiting.
- */
-export function getRateLimitStatus(
-  identifier: string,
-  maxRequests: number = 10,
-): { count: number; remaining: number; resetTime: number } | null {
-  const entry = rateLimitMap.get(identifier);
-
-  if (!entry) return null;
-
-  const now = Date.now();
-  if (entry.resetTime < now) return null;
-
-  return {
-    count: entry.count,
-    remaining: Math.max(0, maxRequests - entry.count),
-    resetTime: entry.resetTime,
-  };
-}
-
-/**
- * Check if Redis rate limiting is being used.
- * Useful for debugging and monitoring.
- */
-export function isUsingRedis(): boolean {
-  return isRedisConfigured;
 }

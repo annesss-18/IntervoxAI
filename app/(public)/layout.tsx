@@ -11,9 +11,6 @@ export default function PublicLayout({
       <Navbar />
       <main className="flex-1">{children}</main>
       <Footer />
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="texture-grid absolute inset-0 opacity-20" />
-      </div>
     </div>
   );
 }

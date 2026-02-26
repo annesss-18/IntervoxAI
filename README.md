@@ -24,6 +24,7 @@
 ---
 
 <a id="overview"></a>
+
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/file-text.svg" alt="" width="18" /> Overview
 
 **IntervoxAI** is an AI-powered mock interview platform built for realistic, voice-first technical interview practice.
@@ -40,6 +41,7 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 ---
 
 <a id="features"></a>
+
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/sparkles.svg" alt="" width="18" /> Features
 
 ### Core product capabilities
@@ -74,18 +76,19 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 ---
 
 <a id="tech-stack"></a>
+
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cpu.svg" alt="" width="18" /> Tech Stack
 
-| Layer | Technologies |
-|---|---|
-| Frontend | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
-| UI System | Radix UI, shadcn-style atomic components |
-| Validation | Zod, React Hook Form |
-| AI | `@google/genai`, `@ai-sdk/google`, `ai` |
-| Data | Firestore + Firebase Admin SDK |
-| Auth | Firebase Auth + server session cookies |
-| Rate limiting | Upstash Redis + `@upstash/ratelimit` |
-| Parsing | `unpdf`, `mammoth`, `cheerio` |
+| Layer         | Technologies                                      |
+| ------------- | ------------------------------------------------- |
+| Frontend      | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
+| UI System     | Radix UI, shadcn-style atomic components          |
+| Validation    | Zod, React Hook Form                              |
+| AI            | `@google/genai`, `@ai-sdk/google`, `ai`           |
+| Data          | Firestore + Firebase Admin SDK                    |
+| Auth          | Firebase Auth + server session cookies            |
+| Rate limiting | Upstash Redis + `@upstash/ratelimit`              |
+| Parsing       | `unpdf`, `mammoth`, `cheerio`                     |
 
 ---
 
@@ -169,21 +172,18 @@ firestore.indexes.json       Firestore indexes
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/radio.svg" alt="" width="18" /> API Summary
 
-| Route | Method | Auth | Purpose |
-|---|---|---|---|
-| `/api/live/token` | `POST` | Yes | Create Gemini ephemeral token for live interview |
-| `/api/resume/parse` | `POST` | Yes | Parse uploaded PDF resume |
-| `/api/feedback` | `POST` | Yes | Queue transcript for feedback |
-| `/api/feedback/status` | `GET` | Yes | Retrieve feedback processing state |
-| `/api/feedback/process` | `POST` | Yes | Start async feedback generation |
-| `/api/interview/analyze` | `POST` | Yes | Extract role context from JD |
-| `/api/interview/generate` | `POST` | Yes | Generate full interview template |
-| `/api/interview/template/create` | `POST` | Yes | Direct template creation |
-| `/api/interview/session/create` | `POST` | Yes | Create interview session |
-| `/api/interview/session/[sessionId]` | `GET`,`PATCH` | Yes | Read/update session |
-| `/api/interview/upload-resume` | `POST` | Yes | Parse + attach resume to session |
-| `/api/interview/draft` | `POST` | Yes | Generate draft template response |
-| `/api/auth/signout` | `POST` | No (rate-limited) | Clear server session cookie |
+| Route                                | Method        | Auth              | Purpose                                          |
+| ------------------------------------ | ------------- | ----------------- | ------------------------------------------------ |
+| `/api/live/token`                    | `POST`        | Yes               | Create Gemini ephemeral token for live interview |
+| `/api/resume/parse`                  | `POST`        | Yes               | Parse uploaded PDF, DOCX, or TXT resume          |
+| `/api/feedback`                      | `POST`        | Yes               | Queue transcript for feedback                    |
+| `/api/feedback/status`               | `GET`         | Yes               | Retrieve feedback processing state               |
+| `/api/feedback/process`              | `POST`        | Yes               | Start async feedback generation                  |
+| `/api/interview/analyze`             | `POST`        | Yes               | Extract role context from JD                     |
+| `/api/interview/generate`            | `POST`        | Yes               | Generate full interview template                 |
+| `/api/interview/session/create`      | `POST`        | Yes               | Create interview session                         |
+| `/api/interview/session/[sessionId]` | `GET`,`PATCH` | Yes               | Read/update session                              |
+| `/api/auth/signout`                  | `POST`        | No (rate-limited) | Clear server session cookie                      |
 
 ---
 
@@ -227,11 +227,12 @@ firestore.indexes.json       Firestore indexes
 ---
 
 <a id="getting-started"></a>
+
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/play-circle.svg" alt="" width="18" /> Getting Started
 
 ### Prerequisites
 
-- Node.js `>= 18`
+- Node.js `>= 20.9.0`
 - npm
 - Firebase project (Auth + Firestore)
 - Gemini API key
@@ -263,42 +264,43 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `NEXT_PUBLIC_FIREBASE_API_KEY` | Yes | Firebase client SDK config |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | Yes | Firebase client SDK config |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | Yes | Firebase client SDK config |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | Yes | Firebase client SDK config |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes | Firebase client SDK config |
-| `NEXT_PUBLIC_FIREBASE_APP_ID` | Yes | Firebase client SDK config |
-| `FIREBASE_PROJECT_ID` | Yes (runtime) | Firebase Admin SDK |
-| `FIREBASE_CLIENT_EMAIL` | Yes (runtime) | Firebase Admin SDK |
-| `FIREBASE_PRIVATE_KEY` | Yes (runtime) | Firebase Admin SDK private key (`\n` escaped) |
-| `GOOGLE_GENERATIVE_AI_API_KEY` | Yes | Gemini API key |
-| `RESUME_ENCRYPTION_KEY` | Recommended | Required in prod for encrypted resume storage |
-| `UPSTASH_REDIS_REST_URL` | Prod | Upstash Redis URL |
-| `UPSTASH_REDIS_REST_TOKEN` | Prod | Upstash Redis token |
-| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID` | Optional | Better company logo rendering |
-| `NEXT_PUBLIC_APP_URL` | Recommended | Canonical app URL for metadata |
+| Variable                                   | Required      | Description                                   |
+| ------------------------------------------ | ------------- | --------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                    |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                    |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                    |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                    |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                    |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                    |
+| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK                            |
+| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK                            |
+| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key (`\n` escaped) |
+| `GOOGLE_GENERATIVE_AI_API_KEY`             | Yes           | Gemini API key                                |
+| `RESUME_ENCRYPTION_KEY`                    | Recommended   | Required in prod for encrypted resume storage |
+| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL                             |
+| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis token                           |
+| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Better company logo rendering                 |
+| `NEXT_PUBLIC_APP_URL`                      | Recommended   | Canonical app URL for metadata                |
 
 ---
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/terminal-square.svg" alt="" width="18" /> Available Scripts
 
-| Script | Command | Purpose |
-|---|---|---|
-| Dev | `npm run dev` | Start Next.js dev server (Turbopack) |
-| Dev (webpack) | `npm run dev:webpack` | Start dev server with webpack |
-| Build | `npm run build` | Create production build |
-| Start | `npm run start` | Run production build |
-| Lint | `npm run lint` | Run ESLint |
-| Lint fix | `npm run lint:fix` | Auto-fix lint issues |
-| Type check | `npm run type-check` | Run TypeScript checks |
-| CI check | `npm run ci:check` | Style guard + lint + types + build |
+| Script        | Command               | Purpose                              |
+| ------------- | --------------------- | ------------------------------------ |
+| Dev           | `npm run dev`         | Start Next.js dev server (Turbopack) |
+| Dev (webpack) | `npm run dev:webpack` | Start dev server with webpack        |
+| Build         | `npm run build`       | Create production build              |
+| Start         | `npm run start`       | Run production build                 |
+| Lint          | `npm run lint`        | Run ESLint                           |
+| Lint fix      | `npm run lint:fix`    | Auto-fix lint issues                 |
+| Type check    | `npm run type-check`  | Run TypeScript checks                |
+| CI check      | `npm run ci:check`    | Lint + types + build                 |
 
 ---
 
 <a id="deployment"></a>
+
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cloud-upload.svg" alt="" width="18" /> Deployment
 
 1. Set all required env vars on your hosting platform.
@@ -311,6 +313,7 @@ Open `http://localhost:3000`.
 ---
 
 <a id="contributing"></a>
+
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/handshake.svg" alt="" width="18" /> Contributing
 
 Contributions are welcome. For meaningful changes:
@@ -328,7 +331,7 @@ Contributions are welcome. For meaningful changes:
 - **Feedback stuck in pending/processing**
   - Validate Gemini key and server logs.
 - **Resume parsing fails**
-  - Ensure PDF and file size under 5MB for `/api/resume/parse`.
+  - Ensure the file is PDF, DOCX, or TXT and under 5MB for `/api/resume/parse`.
 - **Live connection instability**
   - Verify microphone permission and network quality.
 - **Rate-limit issues in prod**

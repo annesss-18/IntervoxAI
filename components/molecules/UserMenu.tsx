@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
 import { signOut } from "firebase/auth";
 import { auth } from "@/firebase/client";
@@ -11,25 +10,15 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 
 interface UserMenuProps {
-  user: {
-    name: string;
-    email: string;
-    id: string;
-  };
-  /** Optional avatar URL */
+  user: { name: string; email: string; id: string };
   avatarUrl?: string;
 }
 
-/**
- * UserMenu molecule - displays user avatar with dropdown menu.
- * Extracted from Navbar for reusability.
- */
 export function UserMenu({ user, avatarUrl }: UserMenuProps) {
   const handleSignOut = async () => {
     await signOut(auth);
@@ -37,21 +26,20 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
     window.location.href = "/sign-in";
   };
 
-  const getInitials = (name: string) => {
-    return name
+  const getInitials = (name: string) =>
+    name
       .split(" ")
       .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2);
-  };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="relative size-10 rounded-xl border border-border bg-card p-0 hover:border-primary/30"
+          className="relative size-10 rounded-full p-0 hover:ring-2 hover:ring-primary/30 transition-all duration-200"
         >
           <Avatar size="md">
             <AvatarImage src={avatarUrl ?? ""} alt={user.name} />
@@ -59,33 +47,40 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel>
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium">{user.name}</p>
-            <p className="text-muted-foreground truncate text-xs">
+
+      <DropdownMenuContent align="end" className="w-60">
+        <div className="px-3 py-3 flex items-center gap-3">
+          <Avatar size="sm">
+            <AvatarImage src={avatarUrl ?? ""} alt={user.name} />
+            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0">
+            <p className="text-sm font-semibold truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">
               {user.email}
             </p>
           </div>
-        </DropdownMenuLabel>
+        </div>
+
         <DropdownMenuSeparator />
+
         <DropdownMenuItem asChild>
           <Link href="/dashboard">
-            <LayoutDashboard className="mr-2 size-4" />
+            <LayoutDashboard className="size-4 text-muted-foreground" />
             Dashboard
           </Link>
         </DropdownMenuItem>
+
         <DropdownMenuSeparator />
+
         <DropdownMenuItem
           onClick={handleSignOut}
-          className="text-error focus:text-error"
+          className="text-error focus:text-error focus:bg-error/8"
         >
-          <LogOut className="mr-2 size-4" />
+          <LogOut className="size-4" />
           Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
-
-export default UserMenu;

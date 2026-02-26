@@ -17,7 +17,14 @@ export const POST = withAuth(
         );
       }
 
-      // 1. Verify Template Exists
+      // Accept only canonical Firestore document IDs.
+      if (!/^[a-zA-Z0-9]{20}$/.test(templateId)) {
+        return NextResponse.json(
+          { error: "Invalid Template ID format" },
+          { status: 400 },
+        );
+      }
+
       const templateRef = db.collection("interview_templates").doc(templateId);
       const templateSnap = await templateRef.get();
       if (!templateSnap.exists) {
@@ -37,7 +44,7 @@ export const POST = withAuth(
         );
       }
 
-      // 2. Create Session + Increment Usage Count (Atomic Transaction)
+      // Create the session and increment template usage atomically.
       const sessionId = await db.runTransaction(async (transaction) => {
         const newSessionRef = db.collection("interview_sessions").doc();
         transaction.set(newSessionRef, {

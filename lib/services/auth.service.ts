@@ -1,11 +1,49 @@
 import { auth } from "@/firebase/admin";
 import { cookies } from "next/headers";
-import { SignInParams, SignUpParams, User } from "@/types";
+import { GoogleAuthParams, SignInParams, SignUpParams, User } from "@/types";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { logger } from "@/lib/logger";
-import { signInSchema, signUpSchema } from "@/lib/schemas";
+import { googleAuthSchema, signInSchema, signUpSchema } from "@/lib/schemas";
 
-const SESSION_EXPIRY = 60 * 60 * 24 * 5; // 5 days
+const SESSION_EXPIRY = 60 * 60 * 24 * 5;
+
+type VerifiedIdentity = {
+  uid: string;
+  email: string;
+  name?: string;
+};
+
+async function verifyIdentityToken(idToken: string): Promise<VerifiedIdentity> {
+  try {
+    const decodedToken = await auth.verifyIdToken(idToken, true);
+    const normalizedEmail = decodedToken.email?.trim().toLowerCase();
+
+    if (!decodedToken.uid || !normalizedEmail) {
+      throw new Error("Token missing required identity claims");
+    }
+
+    return {
+      uid: decodedToken.uid,
+      email: normalizedEmail,
+      name: decodedToken.name?.trim(),
+    };
+  } catch (error) {
+    logger.warn("Invalid ID token submitted for authentication", error);
+    throw new Error("Invalid authentication token");
+  }
+}
+
+function resolveDisplayName(
+  providedName: string | undefined,
+  tokenName: string | undefined,
+  email: string,
+): string {
+  const candidate = providedName?.trim() || tokenName?.trim();
+  if (candidate) return candidate;
+
+  const localPart = email.split("@")[0]?.trim();
+  return localPart || "User";
+}
 
 export const AuthService = {
   async signUp(params: SignUpParams) {
@@ -13,12 +51,16 @@ export const AuthService = {
     if (!validation.success) {
       throw new Error("Invalid input data");
     }
-    const { uid, name, email, idToken } = validation.data;
+    const { name, idToken } = validation.data;
+    const identity = await verifyIdentityToken(idToken);
+    const displayName = resolveDisplayName(name, identity.name, identity.email);
 
-    await UserRepository.createTransactionally(uid, { name, email });
-    if (idToken) {
-      await this.setSessionCookie(idToken);
-    }
+    await UserRepository.createTransactionally(identity.uid, {
+      name: displayName,
+      email: identity.email,
+    });
+    await this.setSessionCookie(idToken);
+
     return { success: true };
   },
 
@@ -27,12 +69,12 @@ export const AuthService = {
     if (!validation.success) {
       throw new Error("Invalid input data");
     }
-    const { email, idToken } = validation.data;
+    const { idToken } = validation.data;
+    const identity = await verifyIdentityToken(idToken);
 
-    // Verify user exists in Auth
-    try {
-      await auth.getUserByEmail(email);
-    } catch {
+    // Ensure the account exists before issuing a session.
+    const existingUser = await UserRepository.findById(identity.uid);
+    if (!existingUser) {
       throw new Error("User not found");
     }
 
@@ -47,7 +89,6 @@ export const AuthService = {
       process.env.VERCEL_ENV === "production";
 
     try {
-      // Create session cookie
       const sessionCookie = await auth.createSessionCookie(idToken, {
         expiresIn: SESSION_EXPIRY * 1000,
       });
@@ -72,7 +113,7 @@ export const AuthService = {
     if (!sessionCookie) return null;
 
     try {
-      // Check for revocation
+      // Reject revoked or invalid sessions.
       const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
       return await UserRepository.findById(decodedClaims.uid);
     } catch (error) {
@@ -81,22 +122,23 @@ export const AuthService = {
     }
   },
 
-  async googleAuthenticate(params: {
-    uid: string;
-    email: string;
-    name: string;
-    idToken: string;
-  }) {
-    const { uid, email, name, idToken } = params;
+  async googleAuthenticate(params: GoogleAuthParams) {
+    const validation = googleAuthSchema.safeParse(params);
+    if (!validation.success) {
+      throw new Error("Invalid input data");
+    }
+    const { name, idToken } = validation.data;
+    const identity = await verifyIdentityToken(idToken);
+    const displayName = resolveDisplayName(name, identity.name, identity.email);
 
-    // Optimistically try to create, if it exists, proceed to sign in
+    // Create user on first sign-in; continue if already provisioned.
     try {
-      await UserRepository.createTransactionally(uid, { name, email });
+      await UserRepository.createTransactionally(identity.uid, {
+        name: displayName,
+        email: identity.email,
+      });
     } catch (e: unknown) {
-      // If user already exists, that's fine for Google Auth, we just sign them in.
-      // But strict transaction error checking is good practice.
       if (e instanceof Error && e.message === "User already exists") {
-        // User exists, proceed to set cookie
       } else {
         throw e;
       }

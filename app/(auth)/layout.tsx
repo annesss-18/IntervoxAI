@@ -1,17 +1,18 @@
-import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
-import { ThemeToggleSimple } from "@/components/molecules/ThemeToggle";
+import { BrandLogo } from "@/components/molecules/BrandLogo";
+import { Mic, BarChart3, Brain } from "lucide-react";
+import { ThemeToggle } from "@/components/molecules/ThemeToggle";
 
 const features = [
-  "Voice-first mock sessions",
-  "Guided role and company context",
-  "Clear strengths and growth areas",
+  { icon: Mic, label: "Voice-first mock interviews" },
+  { icon: Brain, label: "Role and company context awareness" },
+  { icon: BarChart3, label: "Scored feedback across 5 dimensions" },
 ];
 
 const stats = [
-  { label: "Sessions", value: "10k+" },
-  { label: "Improvement", value: "+85%" },
+  { value: "16K+", label: "Sessions" },
+  { value: "90%", label: "Improve" },
+  { value: "4.6★", label: "Rating" },
 ];
 
 export default function AuthLayout({
@@ -20,63 +21,69 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen">
-      {/* Main Grid */}
-      <div className="grid min-h-screen lg:grid-cols-2">
-        {/* Left Panel - Subtle Background */}
-        <section className="texture-noise relative hidden items-center justify-center border-r border-border bg-surface-2/50 p-12 lg:flex">
-          {/* Pulsing glow orb */}
-          <div className="pointer-events-none absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2">
-            <div className="animate-pulse-slow h-64 w-64 rounded-full bg-primary/8 blur-[100px]" />
+    <div className="relative min-h-screen bg-background">
+      <div className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
+        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border/50 bg-surface-1 p-12 lg:flex">
+          <div className="pointer-events-none absolute inset-0 -z-10">
+            <div
+              className="absolute -top-16 -left-16 h-[420px] w-[420px] rounded-full opacity-20 blur-[120px]"
+              style={{
+                background:
+                  "radial-gradient(ellipse, #7050b0, transparent 70%)",
+              }}
+            />
+            <div
+              className="absolute bottom-0 right-0 h-[320px] w-[320px] rounded-full opacity-15 blur-[100px]"
+              style={{
+                background:
+                  "radial-gradient(ellipse, #48a8b8, transparent 70%)",
+              }}
+            />
           </div>
-          {/* Header */}
-          <header className="absolute top-0 right-0 left-0 p-6">
-            <Link href="/" className="inline-flex items-center gap-2">
-              <Image
-                src="/icon.png"
-                alt="IntervoxAI"
-                width={24}
-                height={24}
-                priority
-              />
-              <span className="font-semibold">IntervoxAI</span>
+
+          <header>
+            <Link
+              href="/"
+              className="group inline-flex outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+            >
+              <BrandLogo size="sm" />
             </Link>
           </header>
 
-          <div className="max-w-sm space-y-8">
+          <div className="max-w-sm space-y-10">
             <div className="space-y-4">
-              <h1 className="text-2xl font-medium tracking-tight xl:text-3xl">
-                <span className="font-serif italic">Structured practice</span>
+              <p className="label-caps">Interview Coaching</p>
+              <h1 className="font-serif italic font-normal text-3xl leading-[1.2] xl:text-4xl">
+                Structured practice
                 <br />
-                <span className="font-serif italic">for interviews.</span>
+                <span className="text-gradient-brand">
+                  for real interviews.
+                </span>
               </h1>
-              <p className="text-muted-foreground">
-                Build confidence with role-specific sessions and measurable
-                feedback.
+              <p className="text-muted-foreground leading-relaxed">
+                Build confidence through voice-first sessions, specific
+                feedback, and measurable improvement.
               </p>
             </div>
 
-            {/* Feature List */}
-            <div className="space-y-3">
-              {features.map((item, i) => (
-                <div
-                  key={item}
-                  className={`animate-slideIn opacity-0 flex items-center gap-3 delay-${(i + 1) * 100}`}
-                  style={{ animationFillMode: "forwards" }}
+            <ul className="space-y-3">
+              {features.map(({ icon: Icon, label }, i) => (
+                <li
+                  key={label}
+                  className={`animate-slide-left fill-both flex items-center gap-3 delay-${(i + 1) * 100}`}
                 >
-                  <div className="rounded-full bg-primary/10 p-1">
-                    <CheckCircle2 className="size-4 text-primary" />
-                  </div>
-                  <span className="text-sm">{item}</span>
-                </div>
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/12 ring-1 ring-primary/20">
+                    <Icon className="size-3.5 text-primary" />
+                  </span>
+                  <span className="text-sm text-foreground/80">{label}</span>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            {/* Stats */}
-            <div className="flex gap-8 border-t border-border/50 pt-6">
+            <div className="flex gap-8 border-t border-border/50 pt-8">
               {stats.map((stat) => (
-                <div key={stat.label}>
-                  <p className="text-2xl font-semibold tabular-nums">
+                <div key={stat.label} className="space-y-0.5">
+                  <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
                     {stat.value}
                   </p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
@@ -84,16 +91,35 @@ export default function AuthLayout({
               ))}
             </div>
           </div>
-        </section>
 
-        {/* Right Panel - Form Area */}
-        <main className="relative flex items-center justify-center bg-background p-6 sm:p-12">
-          {/* Theme Toggle */}
-          <div className="absolute right-6 top-6">
-            <ThemeToggleSimple />
+          <blockquote className="max-w-xs space-y-3">
+            <p className="text-sm text-muted-foreground italic leading-relaxed">
+              "The voice-first format makes it feel like a real interview. I got
+              the job after just two weeks of practice."
+            </p>
+            <footer className="flex items-center gap-2">
+              <div className="flex size-6 items-center justify-center rounded-full bg-brand-gradient text-[10px] font-bold text-white">
+                P
+              </div>
+              <span className="text-xs text-muted-foreground">
+                Priya M. · Software Engineer
+              </span>
+            </footer>
+          </blockquote>
+        </aside>
+
+        <main className="relative flex flex-col items-center justify-center bg-background px-6 py-16 sm:px-12">
+          <div className="absolute top-5 right-5">
+            <ThemeToggle />
           </div>
 
-          <div className="w-full max-w-sm">{children}</div>
+          <div className="mb-10 lg:hidden">
+            <Link href="/">
+              <BrandLogo size="sm" />
+            </Link>
+          </div>
+
+          <div className="w-full max-w-[360px] animate-fade-up">{children}</div>
         </main>
       </div>
     </div>

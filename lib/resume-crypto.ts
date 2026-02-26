@@ -12,7 +12,7 @@ let hasLoggedMissingKeyWarning = false;
 function parseEncryptionKey(rawKey: string): Buffer {
   const trimmed = rawKey.trim();
 
-  // Prefer base64/base64url for env portability.
+  // Prefer base64/base64url keys for environment portability.
   try {
     const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
     const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
@@ -21,10 +21,10 @@ function parseEncryptionKey(rawKey: string): Buffer {
       return fromBase64;
     }
   } catch {
-    // Fall back to other formats below.
+    // Try hex parsing next.
   }
 
-  // Support hex as fallback for local/dev setups.
+  // Accept 64-char hex as a fallback format.
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
     const fromHex = Buffer.from(trimmed, "hex");
     if (fromHex.length === KEY_BYTES) {

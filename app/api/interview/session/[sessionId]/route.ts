@@ -1,4 +1,3 @@
-// app/api/interview/session/[sessionId]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
 import { withAuth } from "@/lib/api-middleware";
@@ -10,10 +9,8 @@ interface RouteContext {
   params: Promise<{ sessionId: string }>;
 }
 
-// Maximum resume text length
 const MAX_RESUME_LENGTH = 5000;
 
-// PATCH - Update session (e.g., add resume text)
 export const PATCH = withAuth(
   async (req: NextRequest, user: User, context: RouteContext) => {
     try {
@@ -29,7 +26,6 @@ export const PATCH = withAuth(
       const body = await req.json();
       const { resumeText, status } = body;
 
-      // Get session document
       const sessionRef = db.collection("interview_sessions").doc(sessionId);
       const sessionDoc = await sessionRef.get();
 
@@ -42,7 +38,6 @@ export const PATCH = withAuth(
 
       const sessionData = sessionDoc.data();
 
-      // Verify user owns this session
       if (sessionData?.userId !== user.id) {
         logger.warn(
           `Unauthorized session update attempt: user ${user.id} tried to update session ${sessionId}`,
@@ -50,23 +45,23 @@ export const PATCH = withAuth(
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      // Build update object
       const updateData: Record<string, unknown> = {};
 
       if (resumeText !== undefined) {
+        // Resume context is mutable only before the live interview starts.
         if (sessionData?.status !== "setup") {
           return NextResponse.json(
             { error: "Resume cannot be modified after interview starts" },
             { status: 400 },
           );
         }
-        // Allow empty string to clear resume
         updateData.resumeText = resumeText
           ? encryptResumeText(String(resumeText).slice(0, MAX_RESUME_LENGTH))
           : null;
       }
 
       if (status !== undefined) {
+        // Enforce one-way status progression.
         if (!["active", "completed"].includes(status)) {
           return NextResponse.json(
             { error: "Invalid status transition" },
@@ -93,9 +88,6 @@ export const PATCH = withAuth(
 
         updateData.status = status;
         if (status === "active") {
-          // Record when interview actually started for tracking/auditing.
-          // Note: Google's ephemeral tokens enforce their own TTL on the WebSocket
-          // connection, providing server-side session duration enforcement.
           updateData.activatedAt = new Date().toISOString();
         }
         if (status === "completed" && !sessionData?.completedAt) {
@@ -110,7 +102,6 @@ export const PATCH = withAuth(
         );
       }
 
-      // Update session
       await sessionRef.update(updateData);
 
       logger.info(
@@ -139,7 +130,6 @@ export const PATCH = withAuth(
   },
 );
 
-// GET - Get session details
 export const GET = withAuth(
   async (_req: NextRequest, user: User, context: RouteContext) => {
     try {
@@ -166,7 +156,6 @@ export const GET = withAuth(
 
       const sessionData = sessionDoc.data();
 
-      // Verify user owns this session
       if (sessionData?.userId !== user.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }

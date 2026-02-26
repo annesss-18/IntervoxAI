@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, ArrowRight, Play, Clock3 } from "lucide-react";
+import { Calendar, ArrowRight, Play, Clock3, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/atoms/card";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
@@ -28,57 +28,66 @@ export function SessionCard({ session }: SessionCardProps) {
   return (
     <Card variant="interactive" className="group flex h-full flex-col">
       <CardContent className="flex-1 space-y-4 pt-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/50">
+        <div className="flex items-start gap-3.5">
+          <div className="flex size-13 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
             <CompanyLogo
               companyName={session.companyName || "Unknown Company"}
               logoUrl={session.companyLogoUrl}
-              size={48}
-              className="rounded-lg object-cover"
+              size={40}
+              className="rounded-lg object-contain"
             />
           </div>
+
           <div className="min-w-0 flex-1">
-            <h3 className="text-foreground truncate text-base font-semibold">
+            <h3 className="truncate text-base font-semibold text-foreground leading-snug">
               {session.role}
             </h3>
-            <p className="text-muted-foreground truncate text-sm">
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
               {session.companyName}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="outline" className="text-[10px]">
                 {session.type}
               </Badge>
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="outline" className="text-[10px]">
                 {session.level}
               </Badge>
             </div>
           </div>
 
           {isCompleted && session.finalScore !== undefined ? (
-            <ScoreRing score={session.finalScore} size={50} />
+            <ScoreRing score={session.finalScore} size={54} />
           ) : (
-            <Badge variant={isActive ? "warning" : "info"} dot>
-              {isActive ? "In Progress" : "Setup"}
+            <Badge
+              variant={isActive ? "warning" : "secondary"}
+              dot
+              className="shrink-0"
+            >
+              {isActive ? "In Progress" : "Ready"}
             </Badge>
           )}
         </div>
 
         {session.techStack && session.techStack.length > 0 && (
-          <div>
-            <DisplayTechIcons techStack={session.techStack} />
-          </div>
+          <DisplayTechIcons techStack={session.techStack} />
         )}
 
-        <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-xs">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5">
             <Calendar className="size-3.5" />
             {formattedDate}
-          </div>
+          </span>
+          {isCompleted && (
+            <span className="flex items-center gap-1.5 text-success">
+              <CheckCircle2 className="size-3.5" />
+              Completed
+            </span>
+          )}
           {!isCompleted && (
-            <div className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1.5">
               <Clock3 className="size-3.5" />
               Session ready
-            </div>
+            </span>
           )}
         </div>
       </CardContent>
@@ -87,8 +96,8 @@ export function SessionCard({ session }: SessionCardProps) {
         {isCompleted ? (
           <Button
             asChild
-            variant="secondary"
-            className="group-hover:bg-primary/10 group-hover:text-primary w-full"
+            variant="outline"
+            className="w-full transition-colors group-hover:border-primary/40 group-hover:bg-primary/5 group-hover:text-primary"
           >
             <Link href={`/interview/session/${session.id}/feedback`}>
               View Feedback
@@ -96,7 +105,7 @@ export function SessionCard({ session }: SessionCardProps) {
             </Link>
           </Button>
         ) : (
-          <Button asChild className="w-full">
+          <Button asChild variant="gradient" className="w-full">
             <Link href={`/interview/session/${session.id}`}>
               <Play className="size-4" />
               {isActive ? "Continue Interview" : "Start Interview"}

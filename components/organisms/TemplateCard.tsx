@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Star, ArrowRight, Sparkles } from "lucide-react";
+import { Users, Star, ArrowRight, Sparkles, Play } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/atoms/card";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
@@ -12,25 +12,26 @@ interface TemplateCardProps {
 }
 
 export function TemplateCard({ template }: TemplateCardProps) {
-  const averageScore = template.avgScore ?? 0;
+  const avgScore = template.avgScore ?? 0;
 
   return (
     <Card variant="interactive" className="group flex h-full flex-col">
       <CardContent className="flex-1 space-y-4 pt-6">
-        <div className="flex items-start gap-4">
-          <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-muted/50">
+        <div className="flex items-start gap-3.5">
+          <div className="flex size-13 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
             <CompanyLogo
               companyName={template.companyName || "Unknown Company"}
               logoUrl={template.companyLogoUrl}
-              size={48}
-              className="rounded-lg object-cover"
+              size={40}
+              className="rounded-lg object-contain"
             />
           </div>
+
           <div className="min-w-0 flex-1">
-            <h3 className="text-foreground truncate text-base font-semibold">
+            <h3 className="truncate text-base font-semibold text-foreground leading-snug">
               {template.role}
             </h3>
-            <p className="text-muted-foreground truncate text-sm">
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">
               {template.companyName}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -45,26 +46,24 @@ export function TemplateCard({ template }: TemplateCardProps) {
         </div>
 
         {template.techStack && template.techStack.length > 0 && (
-          <div>
-            <DisplayTechIcons techStack={template.techStack} />
-          </div>
+          <DisplayTechIcons techStack={template.techStack} />
         )}
 
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <div className="text-muted-foreground flex items-center gap-1.5">
-            <Users className="size-4" />
-            <span>{template.usageCount || 0} sessions</span>
-          </div>
-          {averageScore > 0 ? (
-            <div className="text-warning flex items-center gap-1.5">
-              <Star className="size-4 fill-current" />
-              <span>{averageScore.toFixed(1)}</span>
-            </div>
+        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <Users className="size-3.5" />
+            {template.usageCount || 0} sessions
+          </span>
+          {avgScore > 0 ? (
+            <span className="flex items-center gap-1.5 text-warning font-medium">
+              <Star className="size-3.5 fill-current" />
+              {avgScore.toFixed(1)}
+            </span>
           ) : (
-            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <Sparkles className="size-3.5" />
+            <span className="flex items-center gap-1.5 text-xs">
+              <Sparkles className="size-3.5 text-primary" />
               New template
-            </div>
+            </span>
           )}
         </div>
       </CardContent>
@@ -72,12 +71,13 @@ export function TemplateCard({ template }: TemplateCardProps) {
       <CardFooter className="pt-0">
         <Button
           asChild
-          variant="secondary"
-          className="group-hover:bg-primary/10 group-hover:text-primary w-full"
+          variant="outline"
+          className="w-full transition-all group-hover:border-primary/40 group-hover:bg-primary/5 group-hover:text-primary"
         >
           <Link href={`/interview/template/${template.id}`}>
+            <Play className="size-3.5" />
             Start Interview
-            <ArrowRight className="size-4" />
+            <ArrowRight className="ml-auto size-4 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0.5" />
           </Link>
         </Button>
       </CardFooter>
