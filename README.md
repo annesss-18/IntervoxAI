@@ -55,6 +55,11 @@ The application follows a clean layered architecture (UI -> API routes -> servic
   - Extract role, company, level, type, and stack
   - Generate interview questions and interviewer persona
 
+- **Explore / community templates**
+  - Browse and search public templates created by other users
+  - Sort by usage count or creation date
+  - One-click session creation from any public template
+
 - **Live voice interviews**
   - Real-time microphone streaming to Gemini Live
   - AI audio playback, captions, and session controls
@@ -79,16 +84,20 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cpu.svg" alt="" width="18" /> Tech Stack
 
-| Layer         | Technologies                                      |
-| ------------- | ------------------------------------------------- |
-| Frontend      | Next.js 16 (App Router), React 19, Tailwind CSS 4 |
-| UI System     | Radix UI, shadcn-style atomic components          |
-| Validation    | Zod, React Hook Form                              |
-| AI            | `@google/genai`, `@ai-sdk/google`, `ai`           |
-| Data          | Firestore + Firebase Admin SDK                    |
-| Auth          | Firebase Auth + server session cookies            |
-| Rate limiting | Upstash Redis + `@upstash/ratelimit`              |
-| Parsing       | `unpdf`, `mammoth`, `cheerio`                     |
+| Layer         | Technologies                                              |
+| ------------- | --------------------------------------------------------- |
+| Frontend      | Next.js 16 (App Router), React 19, Tailwind CSS 4         |
+| UI System     | Radix UI, shadcn/ui (new-york style), Lucide React icons   |
+| Theming       | next-themes (system/light/dark), CSS variables             |
+| Typography    | DM Sans, Instrument Serif, JetBrains Mono (Google Fonts)   |
+| Validation    | Zod, React Hook Form                                      |
+| AI            | `@google/genai`, `@ai-sdk/google`, `ai`                   |
+| Data          | Firestore + Firebase Admin SDK                            |
+| Auth          | Firebase Auth + server session cookies                    |
+| Rate limiting | Upstash Redis + `@upstash/ratelimit`                      |
+| Parsing       | `unpdf`, `mammoth`, `cheerio`                             |
+| Notifications | Sonner (toast notifications)                              |
+| Analytics     | Vercel Analytics (`@vercel/analytics`)                    |
 
 ---
 
@@ -116,31 +125,39 @@ Interview end -> /api/feedback -> /api/feedback/process -> feedback document
 
 ```text
 app/
-  (public)/                  Marketing + docs/legal/support
+  (public)/                  Marketing, docs, legal, support, pricing
   (auth)/                    Sign-in / sign-up
   (root)/                    Dashboard, create, explore, live interview
   api/                       Route handlers
 components/
-  atoms/                     UI primitives
-  molecules/                 Reusable composite elements
-  organisms/                 Feature-level components
+  atoms/                     UI primitives (button, card, dialog, input …)
+  molecules/                 Reusable composites (BrandLogo, TechIcon, ThemeToggle …)
+  organisms/                 Feature components (LiveInterviewAgent, AuthForm …)
   layout/                    Navbar, Footer, Container
-  providers/                 Auth provider
+  providers/                 AuthProvider
 firebase/
-  client.ts                  Firebase client initialization
-  admin.ts                   Firebase admin initialization
+  client.ts                  Firebase client SDK initialization
+  admin.ts                   Firebase Admin SDK initialization
 lib/
-  actions/                   Server actions
-  services/                  Business orchestration
-  repositories/              Firestore access
-  hooks/                     Audio/live interview hooks
-  api-middleware.ts          Auth/rate-limit wrappers
-  server-utils.ts            Secure file/URL extraction
-  resume-crypto.ts           Resume encryption/decryption
+  actions/                   Server actions (auth, interview)
+  services/                  Business orchestration (auth, interview)
+  repositories/              Firestore access (user, template, interview, feedback)
+  hooks/                     Audio / live-interview hooks
+  api-middleware.ts          Auth + rate-limit wrappers (withAuth, withRateLimit)
+  rate-limit.ts              Redis / in-memory rate limiting
+  server-utils.ts            Secure file/URL extraction, SSRF protection
+  resume-crypto.ts           AES-256-GCM resume encryption/decryption
+  icon-utils.ts              Tech-stack icon resolution
+  logger.ts                  Structured logging utility
+  schemas.ts                 Shared Zod schemas
+  validation.ts              Input validation helpers
+  utils.ts                   General utilities (cn)
+public/
+  worklets/                  AudioWorklet processor for live mic capture
 types/                       Shared TypeScript contracts
 constants/                   Schemas and mappings
 firestore.rules              Firestore security rules
-firestore.indexes.json       Firestore indexes
+firestore.indexes.json       Composite Firestore indexes
 ```
 
 ---
@@ -264,23 +281,29 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
-| Variable                                   | Required      | Description                                   |
-| ------------------------------------------ | ------------- | --------------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                    |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                    |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                    |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                    |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                    |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                    |
-| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK                            |
-| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK                            |
-| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key (`\n` escaped) |
-| `GOOGLE_GENERATIVE_AI_API_KEY`             | Yes           | Gemini API key                                |
-| `RESUME_ENCRYPTION_KEY`                    | Recommended   | Required in prod for encrypted resume storage |
-| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL                             |
-| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis token                           |
-| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Better company logo rendering                 |
-| `NEXT_PUBLIC_APP_URL`                      | Recommended   | Canonical app URL for metadata                |
+| Variable                                   | Required      | Description                                              |
+| ------------------------------------------ | ------------- | -------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics / Google Analytics measurement ID     |
+| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK                                       |
+| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                 |
+| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key (keep `\n` escapes)       |
+| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for interview template generation         |
+| `TEMPLATE_GENERATION_MODEL`                | Yes           | Model ID for template generation (e.g. `gemini-3.1-pro-preview`) |
+| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live audio interviews                 |
+| `LIVE_INTERVIEW_MODEL`                     | Yes           | Model ID for live interviews                             |
+| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback processing                   |
+| `FEEDBACK_MODEL`                           | Yes           | Model ID for feedback generation                         |
+| `RESUME_ENCRYPTION_KEY`                    | Recommended   | 32-byte key (base64); required in prod for encrypted resume storage |
+| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting          |
+| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                 |
+| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering          |
+| `NEXT_PUBLIC_APP_URL`                      | Recommended   | Canonical app URL for SEO metadata and origin checks     |
 
 ---
 
@@ -303,12 +326,19 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cloud-upload.svg" alt="" width="18" /> Deployment
 
-1. Set all required env vars on your hosting platform.
-2. Deploy Firestore rules and indexes:
-   - `firestore.rules`
-   - `firestore.indexes.json`
-3. Ensure Upstash Redis is configured for production rate limiting.
-4. Verify Firebase Admin credentials are available at runtime.
+1. Set **all** required environment variables on your hosting platform (see table above).
+2. Deploy Firestore security rules and composite indexes:
+   ```bash
+   npx firebase deploy --only firestore:rules
+   npx firebase deploy --only firestore:indexes
+   ```
+3. Ensure Upstash Redis credentials are configured — the app **requires** Redis in production and will throw on startup without it.
+4. Verify Firebase Admin credentials (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`) are available at runtime.
+5. Run the production build:
+   ```bash
+   npm run build
+   npm run start
+   ```
 
 ---
 

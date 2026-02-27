@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { withAuth } from "@/lib/api-middleware";
 import { extractTextFromUrl, extractTextFromFile } from "@/lib/server-utils";
@@ -11,6 +11,11 @@ export const runtime = "nodejs";
 
 const MIN_JD_LENGTH = 50;
 const MAX_JD_LENGTH = 25000;
+
+const templateGenGoogle = createGoogleGenerativeAI({
+  apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
+});
+
 
 const analysisSchema = z.object({
   role: z
@@ -112,7 +117,9 @@ export const POST = withAuth(
       }
 
       const result = await generateObject({
-        model: google(process.env.GEMINI_MODEL || "gemini-3.1-pro-preview"),
+        model: templateGenGoogle(
+          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview"
+        ),
         schema: analysisSchema,
         prompt: `
 You are extracting structured information from a job posting. Be precise and literal — extract what's actually there, don't infer unless the instructions say to.

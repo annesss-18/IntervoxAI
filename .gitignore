@@ -82,5 +82,11 @@ $RECYCLE.BIN/
 # Turborepo
 .turbo
 
+# AI agent workspace
+.gemini/
+
+# Backup directories
+_backup/
+
 # Misc
 *.local

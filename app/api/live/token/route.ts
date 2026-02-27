@@ -6,7 +6,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { db } from "@/firebase/admin";
 
 const client = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  apiKey: process.env.LIVE_INTERVIEW_API_KEY,
 });
 
 export const POST = withAuth(
@@ -57,7 +57,7 @@ export const POST = withAuth(
           expireTime: expireTime,
           liveConnectConstraints: {
             model:
-              process.env.GEMINI_LIVE_MODEL ||
+              process.env.LIVE_INTERVIEW_MODEL ||
               "models/gemini-2.5-flash-native-audio-preview-12-2025",
             config: {
               systemInstruction: systemInstruction,
@@ -96,7 +96,7 @@ export const POST = withAuth(
         token: token.name,
         expiresAt: expireTime,
         model:
-          process.env.GEMINI_LIVE_MODEL ||
+          process.env.LIVE_INTERVIEW_MODEL ||
           "models/gemini-2.5-flash-native-audio-preview-12-2025",
         voice: voiceName,
       });
@@ -322,15 +322,14 @@ Level: ${context?.level || "Not specified"}
 Type: ${interviewType}
 Tech Stack: ${(context?.techStack || []).join(", ") || "Not specified"}
 
-${
-  context?.questions && context.questions.length > 0
-    ? `Questions to work through (use as a guide, not a script — the conversation might take you somewhere better):
+${context?.questions && context.questions.length > 0
+      ? `Questions to work through (use as a guide, not a script — the conversation might take you somewhere better):
 ${context.questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
 
 Follow the conversation, not the list. If they've already answered #3 while answering #1, skip it.
 `
-    : ""
-}
+      : ""
+    }
 
 ${resumeBlock}
 

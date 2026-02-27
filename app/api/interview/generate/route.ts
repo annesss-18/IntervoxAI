@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
 import { withAuth } from "@/lib/api-middleware";
@@ -10,6 +10,11 @@ export const runtime = "nodejs";
 
 const MAX_TECH_ITEMS = 20;
 const MAX_TECH_ITEM_LENGTH = 50;
+
+const templateGenGoogle = createGoogleGenerativeAI({
+  apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
+});
+
 
 const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
 const techStackArraySchema = z.array(techStackItemSchema).max(MAX_TECH_ITEMS);
@@ -312,7 +317,9 @@ Output JSON matching the schema.
 `.trim();
 
       const result = await generateObject({
-        model: google(process.env.GEMINI_MODEL || "gemini-3.1-pro-preview"),
+        model: templateGenGoogle(
+          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview"
+        ),
         schema: templateSchema,
         prompt: constructedPrompt,
       });

@@ -9,8 +9,13 @@ import {
 } from "@/types";
 import { logger } from "@/lib/logger";
 import { feedbackSchema } from "@/constants";
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
+
+const feedbackGoogle = createGoogleGenerativeAI({
+  apiKey: process.env.FEEDBACK_API_KEY,
+});
+
 
 // Retries transient model/network failures with exponential backoff.
 
@@ -287,7 +292,7 @@ export const InterviewService = {
     const genResult = await withRetry(
       () =>
         generateObject({
-          model: google(process.env.GEMINI_MODEL || "gemini-3.1-pro-preview"),
+          model: feedbackGoogle(process.env.FEEDBACK_MODEL || "gemini-3.1-pro-preview"),
           schema: feedbackSchema,
           prompt: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
