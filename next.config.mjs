@@ -2,10 +2,12 @@
 const isDev = process.env.NODE_ENV === "development";
 const nextConfig = {
   reactStrictMode: true,
+  allowedDevOrigins: ["localhost", "127.0.0.1"],
   poweredByHeader: false,
   serverExternalPackages: ["unpdf"],
 
   experimental: {
+    optimizePackageImports: ["lucide-react"],
     serverActions: {
       bodySizeLimit: "10mb",
     },

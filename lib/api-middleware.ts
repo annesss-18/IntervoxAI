@@ -42,10 +42,12 @@ export function withAuth<TArgs extends unknown[]>(
       }
 
       // Allow missing Origin for same-origin requests; reject mismatched origins.
+      // Skip in development since NEXT_PUBLIC_APP_URL is the production URL.
       const appUrl = process.env.NEXT_PUBLIC_APP_URL;
       const origin = req.headers.get("origin");
+      const isDev = process.env.NODE_ENV === "development";
 
-      if (appUrl && origin && origin !== appUrl) {
+      if (!isDev && appUrl && origin && origin !== appUrl) {
         return NextResponse.json(
           { error: "Forbidden: invalid request origin" },
           { status: 403 },

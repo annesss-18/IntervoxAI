@@ -51,6 +51,7 @@ const INTERVIEW_TYPES = [
 ];
 
 const LEVELS = ["Junior", "Mid", "Senior", "Staff", "Executive"];
+const MAX_TECH_ITEMS = 20;
 
 type Stage = "input" | "analyzing" | "config" | "generating";
 function StepIndicator({ step, done }: { step: 1 | 2; done: boolean }) {
@@ -114,7 +115,7 @@ export function CreateInterviewForm() {
       setCompanyLogoUrl(data.companyLogoUrl || "");
       setLevel(data.level || "Mid");
       setType(data.suggestedType || "Technical");
-      setTechStack(data.techStack || []);
+      setTechStack((data.techStack || []).slice(0, MAX_TECH_ITEMS));
       if (data.cleanedJd) {
         setJdText(data.cleanedJd);
         setJdType("text");
@@ -152,7 +153,10 @@ export function CreateInterviewForm() {
         body: formData,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Generation failed");
+      if (!res.ok) {
+        const detail = data.details?.map((d: { field: string; message: string }) => `${d.field}: ${d.message}`).join(", ");
+        throw new Error(detail || data.error || "Generation failed");
+      }
 
       toast.success("Interview template created!");
       router.push("/dashboard");
@@ -166,6 +170,8 @@ export function CreateInterviewForm() {
   const addTech = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && newTech.trim()) {
       e.preventDefault();
+      if (techStack.length >= MAX_TECH_ITEMS)
+        return toast.error(`Maximum ${MAX_TECH_ITEMS} skills allowed`);
       if (!techStack.includes(newTech.trim()))
         setTechStack([...techStack, newTech.trim()]);
       setNewTech("");
@@ -336,7 +342,7 @@ export function CreateInterviewForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Tech Stack & Skills</Label>
+              <Label>Tech Stack & Skills <span className="text-xs text-muted-foreground font-normal">({techStack.length}/{MAX_TECH_ITEMS})</span></Label>
               <div className="flex min-h-[52px] flex-wrap gap-2 rounded-xl border border-border bg-surface-2/50 p-3 focus-within:border-primary transition-colors">
                 {techStack.map((tech) => (
                   <Badge
