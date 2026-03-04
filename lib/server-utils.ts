@@ -265,7 +265,7 @@ export async function extractTextFromFile(
 
     if (
       file.type ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       file.name.toLowerCase().endsWith(".docx")
     ) {
       const docxMagic = buffer.slice(0, 2).toString();
@@ -313,73 +313,136 @@ export async function extractTextFromFile(
   }
 }
 
-export async function extractTextFromUrl(url: string): Promise<string> {
-  try {
-    let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(url);
-    } catch {
-      throw new Error(
-        "Invalid URL format. Please provide a valid HTTP or HTTPS URL.",
-      );
-    }
+async function extractTextWithJina(url: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
 
-    assertAllowedUrlComponents(parsedUrl);
-    await assertPublicHostname(parsedUrl.hostname);
-    const response = await fetchWithSafeRedirects(parsedUrl);
+  try {
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const response = await fetch(jinaUrl, {
+      headers: {
+        Accept: "text/markdown",
+        "X-No-Cache": "true",
+      },
+      signal: controller.signal,
+    });
 
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch URL: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Jina Reader returned ${response.status}`);
     }
 
-    const maxBodyBytes = 500_000;
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error("Response body is not readable.");
-    }
+    let text = await response.text();
+    text = text.trim();
 
-    const chunks: Uint8Array[] = [];
-    let totalBytes = 0;
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        totalBytes += value.byteLength;
-        if (totalBytes > maxBodyBytes) {
-          reader.cancel();
-          throw new Error("Page is too large to process (max 500KB).");
-        }
-
-        chunks.push(value);
-      }
-    } finally {
-      reader.releaseLock();
-    }
-
-    const html = new TextDecoder().decode(Buffer.concat(chunks));
-
-    const $ = cheerio.load(html);
-
-    $("script").remove();
-    $("style").remove();
-    $("nav").remove();
-    $("footer").remove();
-    $("header").remove();
-
-    const text = $("body").text().replace(/\s\s+/g, " ").trim();
-
-    if (!text) {
-      throw new Error("No content could be extracted from the URL.");
+    if (!text || text.length < 30) {
+      throw new Error("Jina Reader extracted insufficient content");
     }
 
     if (text.length > 20000) {
-      return text.slice(0, 20000) + "\n\n... (content truncated)";
+      text = text.slice(0, 20000) + "\n\n... (content truncated)";
     }
 
+    return text;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function extractTextWithCheerio(url: string): Promise<string> {
+  const parsedUrl = new URL(url);
+  assertAllowedUrlComponents(parsedUrl);
+  await assertPublicHostname(parsedUrl.hostname);
+
+  const response = await fetchWithSafeRedirects(parsedUrl);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch URL: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const maxBodyBytes = 500_000;
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Response body is not readable.");
+  }
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBodyBytes) {
+        reader.cancel();
+        throw new Error("Page is too large to process (max 500KB).");
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const html = new TextDecoder().decode(Buffer.concat(chunks));
+
+  const $ = cheerio.load(html);
+
+  $("script").remove();
+  $("style").remove();
+  $("nav").remove();
+  $("footer").remove();
+  $("header").remove();
+
+  const text = $("body").text().replace(/\s\s+/g, " ").trim();
+
+  if (!text) {
+    throw new Error("No content could be extracted from the URL.");
+  }
+
+  if (text.length > 20000) {
+    return text.slice(0, 20000) + "\n\n... (content truncated)";
+  }
+
+  return text;
+}
+
+export async function extractTextFromUrl(url: string): Promise<string> {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    throw new Error(
+      "Invalid URL format. Please provide a valid HTTP or HTTPS URL.",
+    );
+  }
+
+  // Run full URL security checks before any extraction path.
+  assertAllowedUrlComponents(parsedUrl);
+  await assertPublicHostname(parsedUrl.hostname);
+
+  // Primary: Jina Reader (handles JS-rendered career sites, no API key needed).
+  try {
+    const text = await extractTextWithJina(url);
+    logger.info("URL extracted via Jina Reader", {
+      url,
+      length: text.length,
+    });
+    return text;
+  } catch (jinaError) {
+    logger.warn("Jina Reader extraction failed, falling back to Cheerio:", jinaError);
+  }
+
+  // Fallback: Direct fetch + Cheerio (works for server-rendered pages).
+  try {
+    const text = await extractTextWithCheerio(url);
+    logger.info("URL extracted via Cheerio fallback", {
+      url,
+      length: text.length,
+    });
     return text;
   } catch (error) {
     logger.error("Error scraping URL:", error);
@@ -404,3 +467,4 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     );
   }
 }
+

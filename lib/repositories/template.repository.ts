@@ -93,6 +93,7 @@ export const TemplateRepository = {
         .collection("interview_templates")
         .where("creatorId", "==", userId)
         .orderBy("createdAt", "desc")
+        .limit(50)
         .get();
 
       return snapshot.docs.map(

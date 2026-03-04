@@ -154,7 +154,12 @@ export function CreateInterviewForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const detail = data.details?.map((d: { field: string; message: string }) => `${d.field}: ${d.message}`).join(", ");
+        const detail = data.details
+          ?.map(
+            (d: { field: string; message: string }) =>
+              `${d.field}: ${d.message}`,
+          )
+          .join(", ");
         throw new Error(detail || data.error || "Generation failed");
       }
 
@@ -257,7 +262,7 @@ export function CreateInterviewForm() {
                         : "Click to upload PDF, DOCX, or TXT"}
                     </span>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Max 10 MB
+                      Max 5 MB
                     </p>
                   </label>
                 </div>
@@ -342,7 +347,12 @@ export function CreateInterviewForm() {
             </div>
 
             <div className="space-y-1.5">
-              <Label>Tech Stack & Skills <span className="text-xs text-muted-foreground font-normal">({techStack.length}/{MAX_TECH_ITEMS})</span></Label>
+              <Label>
+                Tech Stack & Skills{" "}
+                <span className="text-xs text-muted-foreground font-normal">
+                  ({techStack.length}/{MAX_TECH_ITEMS})
+                </span>
+              </Label>
               <div className="flex min-h-[52px] flex-wrap gap-2 rounded-xl border border-border bg-surface-2/50 p-3 focus-within:border-primary transition-colors">
                 {techStack.map((tech) => (
                   <Badge

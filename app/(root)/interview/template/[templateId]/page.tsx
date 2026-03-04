@@ -55,43 +55,56 @@ const TemplatePage = async ({
   }
 
   return (
-    <Container size="xl" className="animate-fade-up space-y-5">
+    <Container size="xl" className="animate-fade-up">
       <Link
         href="/explore"
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
       >
         <ArrowLeft className="size-4" />
         Back to Explore
       </Link>
 
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 py-6">
-        <div
-          className="pointer-events-none absolute -top-16 right-8 h-40 w-64 rounded-full opacity-15 blur-[70px]"
-          style={{ background: "var(--gradient-brand)" }}
-        />
+      {/* Two-column layout: 1fr left, 2fr right */}
+      <div className="grid gap-5 lg:grid-cols-[1fr_2fr] lg:h-[calc(100vh-10rem)]">
+        {/* ── Left column ── */}
+        <div className="flex flex-col gap-5 lg:min-h-0">
+          {/* Template details card */}
+          <div className="relative flex-1 overflow-hidden rounded-2xl border border-border bg-card p-6 flex flex-col">
+            <div
+              className="pointer-events-none absolute -top-12 right-4 h-32 w-48 rounded-full opacity-15 blur-[60px]"
+              style={{ background: "var(--gradient-brand)" }}
+            />
 
-        <div className="relative flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex items-start gap-5">
-            <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface-2">
-              <CompanyLogo
-                companyName={template.companyName || "Unknown Company"}
-                logoUrl={template.companyLogoUrl}
-                size={64}
-                className="rounded-xl object-contain"
-              />
-            </div>
+            <div className="relative flex flex-col gap-4 flex-1">
+              {/* Logo + badge */}
+              <div className="flex items-start gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface-2">
+                  <CompanyLogo
+                    companyName={template.companyName || "Unknown Company"}
+                    logoUrl={template.companyLogoUrl}
+                    size={52}
+                    className="rounded-xl object-contain"
+                  />
+                </div>
+                <div className="pt-0.5">
+                  <Badge variant="primary" dot>
+                    <Sparkles className="size-3" />
+                    Ready to Practice
+                  </Badge>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Badge variant="primary" dot>
-                <Sparkles className="size-3" />
-                Ready to Practice
-              </Badge>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-                {template.role} Interview
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                {template.companyName || "IntervoxAI"}
-              </p>
+              {/* Title + company */}
+              <div>
+                <h1 className="text-xl font-bold text-foreground leading-snug sm:text-2xl">
+                  {template.role} Interview
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {template.companyName || "IntervoxAI"}
+                </p>
+              </div>
+
+              {/* Badges */}
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary">
                   <Briefcase className="size-3.5" />
@@ -102,58 +115,63 @@ const TemplatePage = async ({
                   {template.type}
                 </Badge>
               </div>
+
+              {/* Tech stack */}
+              {template.techStack && template.techStack.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-muted-foreground">Tech Stack</span>
+                  <DisplayTechIcons techStack={template.techStack} />
+                </div>
+              )}
+
+              {/* Spacer pushes button down */}
+              <div className="flex-1" />
+
+              {/* Start button */}
+              <StartSessionButton templateId={template.id} />
             </div>
           </div>
 
-          <div className="w-full xl:w-64 xl:shrink-0">
-            <StartSessionButton templateId={template.id} />
+          {/* Tips & features card */}
+          <div className="shrink-0 rounded-2xl border border-border bg-card p-5 space-y-4">
+            {/* Tip callout */}
+            <div className="rounded-xl border border-primary/20 bg-primary/6 p-3.5">
+              <p className="text-sm font-semibold text-primary mb-1">Tip</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                State your assumptions before answering. Clear reasoning matters
+                as much as the correct answer.
+              </p>
+            </div>
+
+            {/* Feature list */}
+            <div className="space-y-2">
+              <FeatureLine
+                icon={<ShieldCheck className="size-4 text-success" />}
+                text="Personalised AI interviewer context"
+              />
+              <FeatureLine
+                icon={<Sparkles className="size-4 text-primary" />}
+                text="Role and stack-aware questioning"
+              />
+              <FeatureLine
+                icon={<Clock3 className="size-4 text-info" />}
+                text="Feedback generated right after session"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="relative mt-5 grid gap-2.5 sm:grid-cols-3">
-          <InfoPill
-            icon={<ShieldCheck className="size-4 text-success" />}
-            text="Personalised AI interviewer context"
-          />
-          <InfoPill
-            icon={<Sparkles className="size-4 text-primary" />}
-            text="Role and stack-aware questioning"
-          />
-          <InfoPill
-            icon={<Clock3 className="size-4 text-info" />}
-            text="Feedback generated right after session"
-          />
-        </div>
-      </div>
-
-      <div className="grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
-          <div className="flex items-center gap-2.5">
+        {/* ── Right column: Job Description ── */}
+        <div className="rounded-2xl border border-border bg-card p-6 flex flex-col lg:min-h-0">
+          <div className="flex items-center gap-2.5 mb-4 shrink-0">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
               <FileText className="size-4 text-primary" />
             </span>
             <h2 className="font-semibold">Job Description</h2>
           </div>
-          <div className="custom-scrollbar max-h-[26rem] overflow-y-auto pr-2">
+          <div className="custom-scrollbar flex-1 overflow-y-auto pr-2 lg:min-h-0">
             <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {template.jobDescription}
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-          <h2 className="font-semibold">Tech Stack Focus</h2>
-          <DisplayTechIcons techStack={template.techStack || []} />
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Expect follow-up questions around these technologies during your
-            session.
-          </p>
-
-          <div className="mt-2 rounded-xl border border-primary/20 bg-primary/6 p-4">
-            <p className="text-sm font-semibold text-primary mb-1">Tip</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              State your assumptions before answering. Clear reasoning matters
-              as much as the correct answer.
             </p>
           </div>
         </div>
@@ -162,9 +180,9 @@ const TemplatePage = async ({
   );
 };
 
-function InfoPill({ icon, text }: { icon: ReactNode; text: string }) {
+function FeatureLine({ icon, text }: { icon: ReactNode; text: string }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm">
+    <div className="flex items-center gap-2.5 text-sm">
       {icon}
       <span className="text-muted-foreground">{text}</span>
     </div>

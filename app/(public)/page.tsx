@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BrandLogoFull } from "@/components/molecules/BrandLogo";
+import { BrandLogo } from "@/components/molecules/BrandLogo";
 import {
   ArrowRight,
   Mic,
@@ -177,9 +177,8 @@ export default function LandingPage() {
               {stats.map((stat, i) => (
                 <div
                   key={stat.label}
-                  className={`flex flex-col items-center gap-1 ${
-                    i > 0 ? "sm:border-l sm:border-border/50 sm:pl-14" : ""
-                  }`}
+                  className={`flex flex-col items-center gap-1 ${i > 0 ? "sm:border-l sm:border-border/50 sm:pl-14" : ""
+                    }`}
                 >
                   <span className="font-mono text-2xl font-bold tabular-nums text-foreground">
                     {stat.value}
@@ -345,7 +344,7 @@ export default function LandingPage() {
               </div>
 
               <div className="mx-auto mb-6">
-                <BrandLogoFull height={64} />
+                <BrandLogo size="lg" />
               </div>
 
               <h2 className="mb-4 font-serif italic font-normal text-3xl text-foreground sm:text-4xl">

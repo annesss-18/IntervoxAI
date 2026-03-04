@@ -4,6 +4,7 @@ import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import { decryptResumeText, encryptResumeText } from "@/lib/resume-crypto";
 import type { User } from "@/types";
+import { firestoreIdSchema } from "@/lib/schemas";
 
 interface RouteContext {
   params: Promise<{ sessionId: string }>;
@@ -16,9 +17,10 @@ export const PATCH = withAuth(
     try {
       const { sessionId } = await context.params;
 
-      if (!sessionId) {
+      const idResult = firestoreIdSchema.safeParse(sessionId);
+      if (!idResult.success) {
         return NextResponse.json(
-          { error: "Session ID is required" },
+          { error: "Invalid session ID" },
           { status: 400 },
         );
       }
@@ -116,10 +118,7 @@ export const PATCH = withAuth(
       logger.error("Error updating session:", error);
 
       return NextResponse.json(
-        {
-          error:
-            error instanceof Error ? error.message : "Failed to update session",
-        },
+        { error: "Failed to update session" },
         { status: 500 },
       );
     }
@@ -176,10 +175,7 @@ export const GET = withAuth(
       logger.error("Error fetching session:", error);
 
       return NextResponse.json(
-        {
-          error:
-            error instanceof Error ? error.message : "Failed to fetch session",
-        },
+        { error: "Failed to fetch session" },
         { status: 500 },
       );
     }

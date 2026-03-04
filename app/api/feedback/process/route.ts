@@ -10,11 +10,12 @@ import {
 import { InterviewService } from "@/lib/services/interview.service";
 import type { User } from "@/types";
 import { z } from "zod";
+import { firestoreIdSchema } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 
 const processFeedbackSchema = z.object({
-  interviewId: z.string().min(1, "Interview ID required"),
+  interviewId: firestoreIdSchema,
 });
 
 const transcriptSchema = z

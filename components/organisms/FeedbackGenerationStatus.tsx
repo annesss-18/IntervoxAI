@@ -14,26 +14,17 @@ import { toast } from "sonner";
 import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 import { Container } from "@/components/layout/Container";
-
-type FeedbackJobStatus =
-  | "idle"
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
-
+import type {
+  FeedbackJobStatus,
+  FeedbackStatusResponse,
+} from "@/lib/schemas/feedback-status.schema";
 interface FeedbackGenerationStatusProps {
   sessionId: string;
 }
 
-interface FeedbackStatusResponse {
-  success?: boolean;
-  status?: FeedbackJobStatus;
-  feedbackId?: string | null;
-  error?: string | null;
-}
-
-const POLL_INTERVAL_MS = 2500;
+const POLL_INITIAL_MS = 2000;
+const POLL_BACKOFF_FACTOR = 1.5;
+const POLL_MAX_MS = 10000;
 
 export function FeedbackGenerationStatus({
   sessionId,
@@ -43,13 +34,14 @@ export function FeedbackGenerationStatus({
   const [error, setError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  const pollTimerRef = useRef<number | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollIntervalRef = useRef(POLL_INITIAL_MS);
   const inFlightRef = useRef(false);
   const completionToastShownRef = useRef(false);
 
   const clearPolling = useCallback(() => {
     if (pollTimerRef.current !== null) {
-      window.clearInterval(pollTimerRef.current);
+      clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
     }
   }, []);
@@ -100,6 +92,19 @@ export function FeedbackGenerationStatus({
     setError(data.error || null);
   }, [sessionId]);
 
+  const scheduleNextPoll = useCallback(() => {
+    clearPolling();
+    pollTimerRef.current = setTimeout(() => {
+      void checkStatus();
+      // Increase interval with backoff, capped at POLL_MAX_MS.
+      pollIntervalRef.current = Math.min(
+        pollIntervalRef.current * POLL_BACKOFF_FACTOR,
+        POLL_MAX_MS,
+      );
+      scheduleNextPoll();
+    }, pollIntervalRef.current);
+  }, [checkStatus, clearPolling]);
+
   useEffect(() => {
     let isMounted = true;
     const init = async () => {
@@ -116,38 +121,31 @@ export function FeedbackGenerationStatus({
       }
       if (!isMounted) return;
       await checkStatus();
-      if (pollTimerRef.current === null) {
-        pollTimerRef.current = window.setInterval(() => {
-          void checkStatus();
-        }, POLL_INTERVAL_MS);
-      }
+      scheduleNextPoll();
     };
     void init();
     return () => {
       isMounted = false;
       clearPolling();
     };
-  }, [checkStatus, clearPolling, triggerProcessing]);
+  }, [checkStatus, clearPolling, triggerProcessing, scheduleNextPoll]);
 
   const handleRetry = useCallback(async () => {
     setIsRetrying(true);
     setError(null);
     setStatus("pending");
+    pollIntervalRef.current = POLL_INITIAL_MS; // Reset backoff on retry.
     try {
       await triggerProcessing();
       await checkStatus();
-      if (pollTimerRef.current === null) {
-        pollTimerRef.current = window.setInterval(() => {
-          void checkStatus();
-        }, POLL_INTERVAL_MS);
-      }
+      scheduleNextPoll();
     } catch (err) {
       setStatus("failed");
       setError(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setIsRetrying(false);
     }
-  }, [checkStatus, triggerProcessing]);
+  }, [checkStatus, triggerProcessing, scheduleNextPoll]);
 
   const isFailed = status === "failed";
 

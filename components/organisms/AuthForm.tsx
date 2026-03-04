@@ -12,6 +12,7 @@ import {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   updateProfile,
+  sendPasswordResetEmail,
 } from "firebase/auth";
 import { auth } from "@/firebase/client";
 import { googleAuthenticate, signIn, signUp } from "@/lib/actions/auth.action";
@@ -69,6 +70,7 @@ export function AuthForm({ type }: AuthFormProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [isResettingPassword, setIsResettingPassword] = React.useState(false);
 
   const isSignIn = type === "sign-in";
 
@@ -115,7 +117,7 @@ export function AuthForm({ type }: AuthFormProps) {
       const err = error as { message?: string };
       toast.error(
         err?.message ||
-          (isSignIn ? "Failed to sign in" : "Failed to create account"),
+        (isSignIn ? "Failed to sign in" : "Failed to create account"),
       );
     } finally {
       setIsLoading(false);
@@ -130,12 +132,12 @@ export function AuthForm({ type }: AuthFormProps) {
       const email = cred.user.email || "";
       if (!email) throw new Error("No email on this Google account.");
 
-      const result = isSignIn
-        ? await signIn({ idToken })
-        : await googleAuthenticate({
-            name: cred.user.displayName || "User",
-            idToken,
-          });
+      // Always use googleAuthenticate — it's idempotent:
+      // creates the user on first sign-in, continues if already exists.
+      const result = await googleAuthenticate({
+        name: cred.user.displayName || "User",
+        idToken,
+      });
 
       if (!result.success)
         throw new Error(result.message || "Authentication failed");
@@ -148,6 +150,29 @@ export function AuthForm({ type }: AuthFormProps) {
       toast.error(err?.message || "Google authentication failed");
     } finally {
       setIsGoogleLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const email = signInForm.getValues("email");
+    if (!email || !email.includes("@")) {
+      toast.error("Please enter your email address first.");
+      signInForm.setFocus("email");
+      return;
+    }
+    setIsResettingPassword(true);
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success("Password reset email sent. Check your inbox.");
+    } catch (error: unknown) {
+      const err = error as { code?: string };
+      if (err?.code === "auth/user-not-found") {
+        toast.error("No account found with this email.");
+      } else {
+        toast.error("Failed to send reset email. Please try again.");
+      }
+    } finally {
+      setIsResettingPassword(false);
     }
   };
   return (
@@ -226,12 +251,14 @@ export function AuthForm({ type }: AuthFormProps) {
           <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
             {isSignIn && (
-              <Link
-                href="#"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={isResettingPassword}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
               >
-                Forgot password?
-              </Link>
+                {isResettingPassword ? "Sending…" : "Forgot password?"}
+              </button>
             )}
           </div>
           <div className="relative">

@@ -16,7 +16,6 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-
 const analysisSchema = z.object({
   role: z
     .string()
@@ -118,7 +117,7 @@ export const POST = withAuth(
 
       const result = await generateObject({
         model: templateGenGoogle(
-          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview"
+          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview",
         ),
         schema: analysisSchema,
         prompt: `

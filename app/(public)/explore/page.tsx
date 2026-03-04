@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ExplorePage() {
-  const templates = await getPublicTemplates(50);
+  const templates = await getPublicTemplates(100);
 
   return <ExploreClient templates={templates} />;
 }

@@ -36,7 +36,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {iconRight && (
-            <div className="text-muted-foreground pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 [&>svg]:size-4">
+            <div className="text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 [&>svg]:size-4">
               {iconRight}
             </div>
           )}

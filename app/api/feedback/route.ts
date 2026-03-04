@@ -4,6 +4,7 @@ import { withAuth } from "@/lib/api-middleware";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { logger } from "@/lib/logger";
 import type { User } from "@/types";
+import { firestoreIdSchema } from "@/lib/schemas";
 import { z } from "zod";
 
 const transcriptEntrySchema = z.object({
@@ -12,7 +13,7 @@ const transcriptEntrySchema = z.object({
 });
 
 const feedbackQueueSchema = z.object({
-  interviewId: z.string().min(1, "Interview ID required"),
+  interviewId: firestoreIdSchema,
   transcript: z
     .array(transcriptEntrySchema)
     .min(1, "Transcript cannot be empty")
@@ -126,7 +127,7 @@ export const POST = withAuth(
       return NextResponse.json(
         {
           success: false,
-          message: "Internal Server Error",
+          error: "Internal Server Error",
         },
         { status: 500 },
       );

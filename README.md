@@ -84,20 +84,20 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cpu.svg" alt="" width="18" /> Tech Stack
 
-| Layer         | Technologies                                              |
-| ------------- | --------------------------------------------------------- |
-| Frontend      | Next.js 16 (App Router), React 19, Tailwind CSS 4         |
-| UI System     | Radix UI, shadcn/ui (new-york style), Lucide React icons   |
-| Theming       | next-themes (system/light/dark), CSS variables             |
-| Typography    | DM Sans, Instrument Serif, JetBrains Mono (Google Fonts)   |
-| Validation    | Zod, React Hook Form                                      |
-| AI            | `@google/genai`, `@ai-sdk/google`, `ai`                   |
-| Data          | Firestore + Firebase Admin SDK                            |
-| Auth          | Firebase Auth + server session cookies                    |
-| Rate limiting | Upstash Redis + `@upstash/ratelimit`                      |
-| Parsing       | `unpdf`, `mammoth`, `cheerio`                             |
-| Notifications | Sonner (toast notifications)                              |
-| Analytics     | Vercel Analytics (`@vercel/analytics`)                    |
+| Layer         | Technologies                                             |
+| ------------- | -------------------------------------------------------- |
+| Frontend      | Next.js 16 (App Router), React 19, Tailwind CSS 4        |
+| UI System     | Radix UI, shadcn/ui (new-york style), Lucide React icons |
+| Theming       | next-themes (system/light/dark), CSS variables           |
+| Typography    | DM Sans, Instrument Serif, JetBrains Mono (Google Fonts) |
+| Validation    | Zod, React Hook Form                                     |
+| AI            | `@google/genai`, `@ai-sdk/google`, `ai`                  |
+| Data          | Firestore + Firebase Admin SDK                           |
+| Auth          | Firebase Auth + server session cookies                   |
+| Rate limiting | Upstash Redis + `@upstash/ratelimit`                     |
+| Parsing       | `unpdf`, `mammoth`, `cheerio`                            |
+| Notifications | Sonner (toast notifications)                             |
+| Analytics     | Vercel Analytics (`@vercel/analytics`)                   |
 
 ---
 
@@ -281,29 +281,29 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
-| Variable                                   | Required      | Description                                              |
-| ------------------------------------------ | ------------- | -------------------------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics / Google Analytics measurement ID     |
-| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK                                       |
-| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                 |
-| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key (keep `\n` escapes)       |
-| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for interview template generation         |
-| `TEMPLATE_GENERATION_MODEL`                | Yes           | Model ID for template generation (e.g. `gemini-3.1-pro-preview`) |
-| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live audio interviews                 |
-| `LIVE_INTERVIEW_MODEL`                     | Yes           | Model ID for live interviews                             |
-| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback processing                   |
-| `FEEDBACK_MODEL`                           | Yes           | Model ID for feedback generation                         |
+| Variable                                   | Required      | Description                                                         |
+| ------------------------------------------ | ------------- | ------------------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                                          |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                                          |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                                          |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                                          |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                                          |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                                          |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics / Google Analytics measurement ID                |
+| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK                                                  |
+| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                            |
+| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key (keep `\n` escapes)                  |
+| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for interview template generation                    |
+| `TEMPLATE_GENERATION_MODEL`                | Yes           | Model ID for template generation (e.g. `gemini-3.1-pro-preview`)    |
+| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live audio interviews                            |
+| `LIVE_INTERVIEW_MODEL`                     | Yes           | Model ID for live interviews                                        |
+| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback processing                              |
+| `FEEDBACK_MODEL`                           | Yes           | Model ID for feedback generation                                    |
 | `RESUME_ENCRYPTION_KEY`                    | Recommended   | 32-byte key (base64); required in prod for encrypted resume storage |
-| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting          |
-| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                 |
-| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering          |
-| `NEXT_PUBLIC_APP_URL`                      | Recommended   | Canonical app URL for SEO metadata and origin checks     |
+| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting                     |
+| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                            |
+| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering                     |
+| `NEXT_PUBLIC_APP_URL`                      | Recommended   | Canonical app URL for SEO metadata and origin checks                |
 
 ---
 

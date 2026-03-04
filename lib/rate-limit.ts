@@ -55,7 +55,7 @@ const rateLimitMap = new Map<string, RateLimitEntry>();
 
 // Remove expired in-memory buckets to keep fallback state bounded.
 if (typeof setInterval !== "undefined") {
-  setInterval(
+  const cleanupInterval = setInterval(
     () => {
       const now = Date.now();
       for (const [key, entry] of rateLimitMap.entries()) {
@@ -66,6 +66,10 @@ if (typeof setInterval !== "undefined") {
     },
     5 * 60 * 1000,
   );
+  // Don't let this timer keep a Node.js process alive.
+  if (typeof cleanupInterval === "object" && "unref" in cleanupInterval) {
+    cleanupInterval.unref();
+  }
 }
 
 function checkRateLimitInMemory(

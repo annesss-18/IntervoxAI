@@ -23,24 +23,18 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
         body: JSON.stringify({ templateId }),
       });
 
-      if (!response.ok) {
-        let message = "Failed to create session";
-        try {
-          const errorData = await response.json();
-          if (
-            typeof errorData?.error === "string" &&
-            errorData.error.length > 0
-          ) {
-            message = errorData.error;
-          }
-        } catch {
-          throw new Error(message);
-        }
+      const data = await response.json();
 
-        const data = await response.json();
-        if (data.sessionId) {
-          router.push(`/interview/session/${data.sessionId}`);
-        }
+      if (!response.ok) {
+        throw new Error(
+          typeof data?.error === "string" && data.error.length > 0
+            ? data.error
+            : "Failed to create session",
+        );
+      }
+
+      if (data.sessionId) {
+        router.push(`/interview/session/${data.sessionId}`);
       }
     } catch (error) {
       const message =

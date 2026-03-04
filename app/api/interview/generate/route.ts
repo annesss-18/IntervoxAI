@@ -4,6 +4,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
 import { withAuth } from "@/lib/api-middleware";
+import { logger } from "@/lib/logger";
 import { InterviewTemplate, User } from "@/types";
 
 export const runtime = "nodejs";
@@ -14,7 +15,6 @@ const MAX_TECH_ITEM_LENGTH = 50;
 const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
-
 
 const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
 const techStackArraySchema = z.array(techStackItemSchema).max(MAX_TECH_ITEMS);
@@ -318,7 +318,7 @@ Output JSON matching the schema.
 
       const result = await generateObject({
         model: templateGenGoogle(
-          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview"
+          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview",
         ),
         schema: templateSchema,
         prompt: constructedPrompt,
@@ -356,14 +356,9 @@ Output JSON matching the schema.
 
       return NextResponse.json({ success: true, templateId });
     } catch (error) {
-      console.error("Generation Error:", error);
+      logger.error("Generation Error:", error);
       return NextResponse.json(
-        {
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to generate template",
-        },
+        { error: "Failed to generate template" },
         { status: 500 },
       );
     }

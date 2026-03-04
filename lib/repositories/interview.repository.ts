@@ -19,6 +19,7 @@ export const InterviewRepository = {
         .collection("interview_sessions")
         .where("userId", "==", userId)
         .orderBy("startedAt", "desc")
+        .limit(50)
         .get();
 
       return snapshot.docs.map((doc) => {

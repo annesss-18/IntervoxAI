@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
 import { withAuth } from "@/lib/api-middleware";
 import { FieldValue } from "firebase-admin/firestore";
+import { revalidateTag } from "next/cache";
 import { logger } from "@/lib/logger";
 import type { User } from "@/types";
 
@@ -61,14 +62,15 @@ export const POST = withAuth(
         return newSessionRef.id;
       });
 
+      // Invalidate cached template data so the explore page shows updated usage counts.
+      revalidateTag(`template:${templateId}`, "default");
+      revalidateTag("templates-public", "default");
+
       return NextResponse.json({ sessionId });
     } catch (error) {
       logger.error("Create Session Error:", error);
       return NextResponse.json(
-        {
-          error:
-            error instanceof Error ? error.message : "Internal Server Error",
-        },
+        { error: "Failed to create session" },
         { status: 500 },
       );
     }

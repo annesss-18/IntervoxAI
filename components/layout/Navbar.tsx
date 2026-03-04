@@ -238,6 +238,33 @@ export function Navbar({ user: initialUser }: NavbarProps) {
             </>
           ) : (
             <>
+              <Link
+                href="/explore"
+                className={cn(
+                  "hidden sm:flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200",
+                  pathname === "/explore" || pathname.startsWith("/explore/")
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2",
+                )}
+              >
+                <Compass
+                  className={cn(
+                    "size-4",
+                    (pathname === "/explore" ||
+                      pathname.startsWith("/explore/")) &&
+                      "text-primary",
+                  )}
+                />
+                <span
+                  className={cn(
+                    (pathname === "/explore" ||
+                      pathname.startsWith("/explore/")) &&
+                      "text-gradient-brand font-semibold",
+                  )}
+                >
+                  Explore
+                </span>
+              </Link>
               <Link href="/sign-in" className="hidden sm:block">
                 <Button variant="ghost" size="sm">
                   Sign In

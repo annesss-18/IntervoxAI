@@ -16,7 +16,6 @@ const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
 
-
 // Retries transient model/network failures with exponential backoff.
 
 async function withRetry<T>(
@@ -292,7 +291,9 @@ export const InterviewService = {
     const genResult = await withRetry(
       () =>
         generateObject({
-          model: feedbackGoogle(process.env.FEEDBACK_MODEL || "gemini-3.1-pro-preview"),
+          model: feedbackGoogle(
+            process.env.FEEDBACK_MODEL || "gemini-3.1-pro-preview",
+          ),
           schema: feedbackSchema,
           prompt: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

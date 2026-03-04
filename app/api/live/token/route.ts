@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import type { User } from "@/types";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { db } from "@/firebase/admin";
+import { firestoreIdSchema } from "@/lib/schemas";
 
 const client = new GoogleGenAI({
   apiKey: process.env.LIVE_INTERVIEW_API_KEY,
@@ -15,9 +16,10 @@ export const POST = withAuth(
       const body = await req.json();
       const { sessionId, interviewContext } = body;
 
-      if (!sessionId) {
+      const idResult = firestoreIdSchema.safeParse(sessionId);
+      if (!idResult.success) {
         return NextResponse.json(
-          { error: "Session ID is required" },
+          { error: "Invalid session ID" },
           { status: 400 },
         );
       }
@@ -102,10 +104,6 @@ export const POST = withAuth(
       });
     } catch (error) {
       logger.error("Error generating ephemeral token:", error);
-
-      if (error instanceof Error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
 
       return NextResponse.json(
         { error: "Failed to generate authentication token" },
@@ -322,14 +320,15 @@ Level: ${context?.level || "Not specified"}
 Type: ${interviewType}
 Tech Stack: ${(context?.techStack || []).join(", ") || "Not specified"}
 
-${context?.questions && context.questions.length > 0
-      ? `Questions to work through (use as a guide, not a script — the conversation might take you somewhere better):
+${
+  context?.questions && context.questions.length > 0
+    ? `Questions to work through (use as a guide, not a script — the conversation might take you somewhere better):
 ${context.questions.map((q, i) => `${i + 1}. ${q}`).join("\n")}
 
 Follow the conversation, not the list. If they've already answered #3 while answering #1, skip it.
 `
-      : ""
-    }
+    : ""
+}
 
 ${resumeBlock}
 

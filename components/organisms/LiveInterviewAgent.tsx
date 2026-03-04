@@ -13,6 +13,7 @@ import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import type { InterviewSessionDetail } from "@/types";
 import { InterviewSetupCard } from "@/components/organisms/InterviewSetupCard";
+import { AudioTestCard } from "@/components/organisms/AudioTestCard";
 import { InterviewControls } from "@/components/organisms/InterviewControls";
 import { SpeakerIndicator } from "@/components/organisms/SpeakerIndicator";
 import { InterviewCaptions } from "@/components/organisms/InterviewCaptions";
@@ -24,6 +25,7 @@ interface LiveInterviewAgentProps {
 
 type InterviewPhase =
   | "setup"
+  | "audio_test"
   | "active"
   | "ending"
   | "completed"
@@ -71,9 +73,12 @@ export function LiveInterviewAgent({
     disconnect,
     sendAudio,
     onAudioReceived,
+    releaseHold,
+    flushPendingTranscript,
   } = useLiveInterview({
     sessionId,
     interviewContext,
+    holdInitialPrompt: true,
     onInterruption: () => {
       clearAudioQueue();
     },
@@ -140,11 +145,30 @@ export function LiveInterviewAgent({
     }
   }, [sessionId]);
 
+  // Enter audio test phase and begin AI connection in the background
+  const handleEnterAudioTest = async () => {
+    setPhase("audio_test");
+    try {
+      await connect();
+    } catch (error) {
+      logger.warn("Background connection failed during audio test:", error);
+      // Don't block — user can still test audio; connection will retry
+    }
+  };
+
+  // Called when user finishes audio test and clicks Continue
   const handleStartInterview = async () => {
     try {
       setPhase("active");
       await startCapture(handleAudioChunk, { vadSensitivity: 60 });
+
+      // Singleflight guard in connect() handles deduplication —
+      // safe to call even if already connected from the audio-test phase.
       await connect();
+
+      // Release the hold so the AI sends its initial greeting
+      releaseHold();
+
       try {
         const res = await fetch(`/api/interview/session/${sessionId}`, {
           method: "PATCH",
@@ -167,10 +191,17 @@ export function LiveInterviewAgent({
     }
   };
 
+  // Called when user clicks Back on audio test
+  const handleBackToSetup = () => {
+    disconnect();
+    setPhase("setup");
+  };
+
   const handleEndInterview = async () => {
     setPhase("ending");
     stopCapture();
     stopPlayback();
+    flushPendingTranscript();
     disconnect();
 
     if (transcript.length === 0) {
@@ -269,7 +300,15 @@ export function LiveInterviewAgent({
             initialResumeText={interview.resumeText}
             onResumeUploaded={handleResumeUploaded}
             onResumeClear={handleResumeClear}
-            onStart={handleStartInterview}
+            onStart={handleEnterAudioTest}
+          />
+        </div>
+      ) : phase === "audio_test" ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center p-6 sm:p-10">
+          <AudioTestCard
+            connectionStatus={connectionStatus}
+            onContinue={handleStartInterview}
+            onBack={handleBackToSetup}
           />
         </div>
       ) : (

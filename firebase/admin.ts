@@ -34,7 +34,7 @@ const initFirebaseAdmin = () => {
   if (getApps().length) {
     return {
       auth: getAuth(),
-      db: getFirestore("prod"),
+      db: getFirestore(process.env.FIRESTORE_DATABASE_ID || "prod"),
     };
   }
 

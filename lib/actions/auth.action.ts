@@ -57,6 +57,24 @@ export async function signIn(params: SignInParams) {
 export async function signOut() {
   try {
     const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("session")?.value;
+
+    // Revoke the Firebase refresh tokens to fully invalidate the session.
+    if (sessionCookie) {
+      try {
+        const { auth: adminAuth } = await import("@/firebase/admin");
+        const decodedClaims =
+          await adminAuth.verifySessionCookie(sessionCookie);
+        await adminAuth.revokeRefreshTokens(decodedClaims.uid);
+      } catch (revokeError) {
+        // Best-effort: continue with cookie deletion even if revocation fails.
+        logger.warn(
+          "Failed to revoke refresh tokens during signOut:",
+          revokeError,
+        );
+      }
+    }
+
     cookieStore.delete("session");
     return { success: true };
   } catch (e) {

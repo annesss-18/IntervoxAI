@@ -8,15 +8,24 @@ function getRequestScope(req: NextRequest): string {
   return `${req.method}:${req.nextUrl.pathname}`;
 }
 
+/**
+ * Extracts client IP with best-effort accuracy.
+ *
+ * NOTE: Accurate IP extraction requires that your reverse proxy (Vercel,
+ * Cloudflare, nginx, etc.) normalizes forwarded-for headers. On Vercel
+ * this is automatic. In other environments, ensure your proxy overwrites
+ * x-forwarded-for with the true client IP as the leftmost value.
+ */
 function getClientIp(req: NextRequest): string {
+  // Prefer x-real-ip (set by trusted proxies) over x-forwarded-for.
+  const realIp = req.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
   const forwardedFor = req.headers.get("x-forwarded-for");
   if (forwardedFor) {
     const firstIp = forwardedFor.split(",")[0]?.trim();
     if (firstIp) return firstIp;
   }
-
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
 
   return "unknown";
 }

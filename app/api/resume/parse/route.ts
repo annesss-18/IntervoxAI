@@ -100,7 +100,10 @@ export const POST = withAuth(
             { status: 400 },
           );
         }
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json(
+          { error: "Failed to parse resume file" },
+          { status: 500 },
+        );
       }
 
       return NextResponse.json(

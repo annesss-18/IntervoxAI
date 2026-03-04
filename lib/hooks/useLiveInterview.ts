@@ -52,6 +52,8 @@ interface UseLiveInterviewReturn {
   disconnect: () => void;
   sendAudio: (base64Data: string) => void;
   onAudioReceived: (callback: (base64Data: string) => void) => void;
+  releaseHold: () => void;
+  flushPendingTranscript: () => void;
 }
 
 interface UseLiveInterviewOptions {
@@ -59,6 +61,7 @@ interface UseLiveInterviewOptions {
   interviewContext: InterviewContext;
   onInterruption?: () => void;
   onInterviewComplete?: () => void;
+  holdInitialPrompt?: boolean;
 }
 
 const MAX_AUDIO_CHUNK_BYTES = 32768;
@@ -89,8 +92,15 @@ function isValidPcmChunk(base64Data: string): boolean {
 export function useLiveInterview(
   options: UseLiveInterviewOptions,
 ): UseLiveInterviewReturn {
-  const { sessionId, interviewContext, onInterruption, onInterviewComplete } =
-    options;
+  const {
+    sessionId,
+    interviewContext,
+    onInterruption,
+    onInterviewComplete,
+    holdInitialPrompt = false,
+  } = options;
+
+  const [isHeld, setIsHeld] = useState(holdInitialPrompt);
 
   const [status, setStatus] = useState<ConnectionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +112,16 @@ export function useLiveInterview(
     null,
   );
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
+
+  // Keep mutable refs so `connect` doesn't depend on object-identity of props.
+  const interviewContextRef = useRef(interviewContext);
+  const sessionIdRef = useRef(sessionId);
+  useEffect(() => {
+    interviewContextRef.current = interviewContext;
+  }, [interviewContext]);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   const sessionRef = useRef<Session | null>(null);
   const audioCallbackRef = useRef<((base64Data: string) => void) | null>(null);
@@ -116,6 +136,7 @@ export function useLiveInterview(
   const modelCaptionRef = useRef<string>("");
   const closingDetectedRef = useRef(false);
   const fullTranscriptRef = useRef<string>("");
+  const connectingPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (status === "connected") {
@@ -141,7 +162,8 @@ export function useLiveInterview(
     if (
       status === "connected" &&
       sessionRef.current &&
-      !hasInitialPromptSentRef.current
+      !hasInitialPromptSentRef.current &&
+      !isHeld
     ) {
       hasInitialPromptSentRef.current = true;
       logger.debug("Sending initial prompt to start interview");
@@ -169,7 +191,11 @@ export function useLiveInterview(
       // Reset so reconnect attempts can re-prime the first model turn.
       hasInitialPromptSentRef.current = false;
     }
-  }, [status]);
+  }, [status, isHeld]);
+
+  const releaseHold = useCallback(() => {
+    setIsHeld(false);
+  }, []);
 
   const handleMessage = useCallback(
     (message: LiveServerMessage) => {
@@ -296,6 +322,11 @@ export function useLiveInterview(
 
           fullTranscriptRef.current += modelText;
 
+          // Cap to last 2000 chars — only the tail is needed for closing-phrase detection.
+          if (fullTranscriptRef.current.length > 2000) {
+            fullTranscriptRef.current = fullTranscriptRef.current.slice(-2000);
+          }
+
           setCurrentCaption(modelCaptionRef.current);
           setCurrentSpeaker("model");
 
@@ -323,75 +354,88 @@ export function useLiveInterview(
   );
 
   const connect = useCallback(async () => {
-    try {
-      setStatus("connecting");
-      setError(null);
-      isIntentionalDisconnectRef.current = false;
+    // Already connected — nothing to do.
+    if (isConnectedRef.current) return;
 
-      const tokenResponse = await fetch("/api/live/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId,
-          interviewContext,
-        }),
-      });
+    // Connection already in-flight — return the shared promise (singleflight).
+    if (connectingPromiseRef.current) return connectingPromiseRef.current;
 
-      if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
-        throw new Error(
-          errorData.error || "Failed to get authentication token",
-        );
+    const connectionPromise = (async () => {
+      try {
+        setStatus("connecting");
+        setError(null);
+        isIntentionalDisconnectRef.current = false;
+
+        const tokenResponse = await fetch("/api/live/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: sessionIdRef.current,
+            interviewContext: interviewContextRef.current,
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          const errorData = await tokenResponse.json();
+          throw new Error(
+            errorData.error || "Failed to get authentication token",
+          );
+        }
+
+        const { token, model } = await tokenResponse.json();
+
+        const ai = new GoogleGenAI({
+          apiKey: token,
+          httpOptions: { apiVersion: "v1alpha" },
+        });
+
+        const session = await ai.live.connect({
+          model: model,
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              languageCode: "en-US",
+            },
+          },
+          callbacks: {
+            onopen: () => {
+              logger.info("Live API connection established");
+              isConnectedRef.current = true;
+              setStatus("connected");
+              reconnectionAttemptsRef.current = 0;
+            },
+            onmessage: (message: LiveServerMessage) => {
+              handleMessage(message);
+            },
+            onerror: (e: ErrorEvent) => {
+              logger.error("Live API error:", e);
+              isConnectedRef.current = false;
+              setError(e.message || "Unknown WebSocket error");
+              setStatus("error");
+            },
+            onclose: (e: CloseEvent) => {
+              logger.info("Live API connection closed:", e.reason);
+              isConnectedRef.current = false;
+              setStatus("disconnected");
+            },
+          },
+        });
+
+        sessionRef.current = session;
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Connection failed";
+        setError(errorMessage);
+        setStatus("error");
+        throw err;
+      } finally {
+        connectingPromiseRef.current = null;
       }
+    })();
 
-      const { token, model } = await tokenResponse.json();
-
-      const ai = new GoogleGenAI({
-        apiKey: token,
-        httpOptions: { apiVersion: "v1alpha" },
-      });
-
-      const session = await ai.live.connect({
-        model: model,
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            languageCode: "en-US",
-          },
-        },
-        callbacks: {
-          onopen: () => {
-            logger.info("Live API connection established");
-            isConnectedRef.current = true;
-            setStatus("connected");
-            reconnectionAttemptsRef.current = 0;
-          },
-          onmessage: (message: LiveServerMessage) => {
-            handleMessage(message);
-          },
-          onerror: (e: ErrorEvent) => {
-            logger.error("Live API error:", e);
-            isConnectedRef.current = false;
-            setError(e.message || "Unknown WebSocket error");
-            setStatus("error");
-          },
-          onclose: (e: CloseEvent) => {
-            logger.info("Live API connection closed:", e.reason);
-            isConnectedRef.current = false;
-            setStatus("disconnected");
-          },
-        },
-      });
-
-      sessionRef.current = session;
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Connection failed";
-      setError(errorMessage);
-      setStatus("error");
-      throw err;
-    }
-  }, [sessionId, interviewContext, handleMessage]);
+    connectingPromiseRef.current = connectionPromise;
+    return connectionPromise;
+  }, [handleMessage]);
 
   useEffect(() => {
     if (status !== "disconnected" || isIntentionalDisconnectRef.current) {
@@ -466,6 +510,24 @@ export function useLiveInterview(
     [],
   );
 
+  // Flush any trailing user transcript partial into the transcript array.
+  // Call this before ending the interview to capture in-progress speech.
+  const flushPendingTranscript = useCallback(() => {
+    if (userTranscriptTimeoutRef.current) {
+      clearTimeout(userTranscriptTimeoutRef.current);
+      userTranscriptTimeoutRef.current = null;
+    }
+    const pending = userTranscriptRef.current.trim();
+    if (pending) {
+      setTranscript((prev) => [
+        ...prev,
+        { role: "user", content: pending, timestamp: Date.now() },
+      ]);
+      userTranscriptRef.current = "";
+    }
+    setIsUserSpeaking(false);
+  }, []);
+
   useEffect(() => {
     return () => {
       disconnect();
@@ -485,5 +547,7 @@ export function useLiveInterview(
     disconnect,
     sendAudio,
     onAudioReceived,
+    releaseHold,
+    flushPendingTranscript,
   };
 }
