@@ -98,7 +98,14 @@ export const AuthService = {
         httpOnly: true,
         secure: isProduction,
         path: "/",
-        sameSite: "lax",
+        // F-006 FIX: changed from 'lax' to 'strict'.
+        // 'strict' ensures the cookie is never sent on any cross-site request,
+        // eliminating cross-site navigation CSRF vectors.
+        // Google OAuth is handled entirely client-side via the Firebase JS SDK,
+        // so this does not break the Google sign-in flow: the cookie is set after
+        // the OAuth redirect completes and the client POSTs an idToken to our
+        // Server Action on a same-origin request.
+        sameSite: "strict",
       });
     } catch (error) {
       logger.error("Error setting session cookie:", error);

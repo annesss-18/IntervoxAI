@@ -6,13 +6,11 @@ const IV_LENGTH = 12;
 const KEY_BYTES = 32;
 const ALGORITHM = "aes-256-gcm";
 
-let cachedKey: Buffer | null | undefined;
-let hasLoggedMissingKeyWarning = false;
+let cachedKey: Buffer | undefined;
 
 function parseEncryptionKey(rawKey: string): Buffer {
   const trimmed = rawKey.trim();
 
-  // Prefer base64/base64url keys for environment portability.
   try {
     const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
     const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
@@ -24,7 +22,6 @@ function parseEncryptionKey(rawKey: string): Buffer {
     // Try hex parsing next.
   }
 
-  // Accept 64-char hex as a fallback format.
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
     const fromHex = Buffer.from(trimmed, "hex");
     if (fromHex.length === KEY_BYTES) {
@@ -33,30 +30,29 @@ function parseEncryptionKey(rawKey: string): Buffer {
   }
 
   throw new Error(
-    "RESUME_ENCRYPTION_KEY must be a 32-byte key encoded as base64/base64url or 64-char hex.",
+    "RESUME_ENCRYPTION_KEY must be a 32-byte key encoded as base64/base64url or 64-char hex.\n" +
+      "Generate one with: openssl rand -base64 32",
   );
 }
 
-function getEncryptionKey(): Buffer | null {
+function getEncryptionKey(): Buffer {
   if (cachedKey !== undefined) {
     return cachedKey;
   }
 
   const rawKey = process.env.RESUME_ENCRYPTION_KEY;
+
   if (!rawKey) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "RESUME_ENCRYPTION_KEY is required in production. Resume text cannot be stored in plaintext.",
-      );
-    }
-    cachedKey = null;
-    if (!hasLoggedMissingKeyWarning) {
-      logger.warn(
-        "RESUME_ENCRYPTION_KEY is not set. Resume text will be stored in plaintext until configured.",
-      );
-      hasLoggedMissingKeyWarning = true;
-    }
-    return cachedKey;
+    // F-010 FIX: RESUME_ENCRYPTION_KEY is now required in all environments.
+    // This ensures encryption is always tested locally and prevents dev data
+    // from ever being stored in plaintext (even against dev Firestore instances).
+    //
+    // Generate a key with: openssl rand -base64 32
+    throw new Error(
+      "RESUME_ENCRYPTION_KEY is not set. This variable is required in all environments.\n" +
+        "Generate a key with: openssl rand -base64 32\n" +
+        "Then add it to your .env.local file.",
+    );
   }
 
   cachedKey = parseEncryptionKey(rawKey);
@@ -77,10 +73,6 @@ export function encryptResumeText(plaintext: string): string {
   }
 
   const key = getEncryptionKey();
-  if (!key) {
-    return plaintext;
-  }
-
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
   const encrypted = Buffer.concat([
@@ -104,12 +96,6 @@ export function decryptResumeText(value?: string | null): string | undefined {
   }
 
   const key = getEncryptionKey();
-  if (!key) {
-    logger.error(
-      "Encrypted resume text found but RESUME_ENCRYPTION_KEY is missing.",
-    );
-    return undefined;
-  }
 
   const [prefix, version, ivB64, tagB64, payloadB64] = value.split(":");
   if (

@@ -60,6 +60,8 @@ export const PATCH = withAuth(
         updateData.resumeText = resumeText
           ? encryptResumeText(String(resumeText).slice(0, MAX_RESUME_LENGTH))
           : null;
+        updateData.hasResume =
+          typeof resumeText === "string" && resumeText.trim().length > 0;
       }
 
       if (status !== undefined) {

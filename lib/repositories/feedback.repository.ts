@@ -8,7 +8,16 @@ export const FeedbackRepository = {
   ): Promise<string> {
     try {
       const docId = `${data.userId}_${data.interviewId}`;
-      await db.collection("feedback").doc(docId).set(data, { merge: true });
+      const ref = db.collection("feedback").doc(docId);
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (snap.exists) {
+          // Idempotent: feedback already exists, do not overwrite
+          logger.info(`Feedback ${docId} already exists, skipping create`);
+          return;
+        }
+        tx.set(ref, data); // Full replacement — no merge
+      });
       return docId;
     } catch (error) {
       logger.error("Error creating feedback:", error);
@@ -33,23 +42,19 @@ export const FeedbackRepository = {
         } as Feedback;
       }
 
+      // Fallback: query by compound fields with server-side ordering.
+      // Requires index: (userId ASC, interviewId ASC, createdAt DESC)
       const snapshot = await db
         .collection("feedback")
         .where("interviewId", "==", interviewId)
         .where("userId", "==", userId)
-        .limit(5)
+        .orderBy("createdAt", "desc")
+        .limit(1)
         .get();
 
       if (snapshot.empty) return null;
-
-      const latest = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }) as Feedback)
-        .sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        )[0];
-
-      return latest || null;
+      const doc = snapshot.docs[0]!;
+      return { id: doc.id, ...doc.data() } as Feedback;
     } catch (error) {
       logger.error(
         `Error fetching feedback for interview ${interviewId}:`,

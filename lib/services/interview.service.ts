@@ -16,6 +16,18 @@ const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
 
+interface CreateFeedbackOptions {
+  abortSignal?: AbortSignal;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === "AbortError" ||
+      error.message.toLowerCase().includes("abort"))
+  );
+}
+
 // Retries transient model/network failures with exponential backoff.
 
 async function withRetry<T>(
@@ -24,20 +36,31 @@ async function withRetry<T>(
     maxRetries?: number;
     baseDelayMs?: number;
     operationName?: string;
+    abortSignal?: AbortSignal;
   } = {},
 ): Promise<T> {
   const {
     maxRetries = 3,
     baseDelayMs = 1000,
     operationName = "operation",
+    abortSignal,
   } = options;
   let lastError: Error | unknown;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    if (abortSignal?.aborted) {
+      const abortError = new Error("The operation was aborted");
+      abortError.name = "AbortError";
+      throw abortError;
+    }
+
     try {
       return await fn();
     } catch (error) {
       lastError = error;
+      if (isAbortError(error) || abortSignal?.aborted) {
+        throw error;
+      }
       if (attempt < maxRetries) {
         const delay = baseDelayMs * Math.pow(2, attempt - 1);
         logger.warn(
@@ -95,7 +118,23 @@ function compactTranscriptForFeedback(
 
 export const InterviewService = {
   async getUserSessions(userId: string): Promise<SessionCardData[]> {
-    const rawSessions = await InterviewRepository.findByUserId(userId);
+    // Fetch all pages to avoid silently truncating at 20 sessions.
+    const MAX_SESSIONS = 500;
+    const allSessions: Awaited<
+      ReturnType<typeof InterviewRepository.findByUserIdPaginated>
+    >["sessions"] = [];
+    let cursor: string | undefined;
+
+    do {
+      const page = await InterviewRepository.findByUserIdPaginated(
+        userId,
+        cursor,
+      );
+      allSessions.push(...page.sessions);
+      cursor = page.nextCursor ?? undefined;
+    } while (cursor && allSessions.length < MAX_SESSIONS);
+
+    const rawSessions = allSessions;
 
     if (rawSessions.length === 0) return [];
 
@@ -125,7 +164,7 @@ export const InterviewService = {
           completedAt: session.completedAt,
           finalScore: session.finalScore,
           feedbackId: session.feedbackId,
-          hasResume: !!session.resumeText,
+          hasResume: Boolean(session.hasResume),
         } as SessionCardData;
       })
       .filter((s): s is SessionCardData => s !== null);
@@ -206,7 +245,11 @@ export const InterviewService = {
     }));
   },
 
-  async createFeedback(params: CreateFeedbackParams) {
+  async createFeedback(
+    params: CreateFeedbackParams,
+    options: CreateFeedbackOptions = {},
+  ) {
+    const { abortSignal } = options;
     const { interviewId, userId, transcript } = params;
 
     const session = await InterviewRepository.findById(interviewId);
@@ -244,7 +287,7 @@ export const InterviewService = {
           feedbackError: null,
           feedbackCompletedAt: session.feedbackCompletedAt || now,
           feedbackRequestedAt: session.feedbackRequestedAt || now,
-          transcript,
+          // transcript intentionally omitted — already persisted by POST /api/feedback
         });
       }
 
@@ -294,6 +337,7 @@ export const InterviewService = {
           model: feedbackGoogle(
             process.env.FEEDBACK_MODEL || "gemini-3.1-pro-preview",
           ),
+          abortSignal,
           schema: feedbackSchema,
           prompt: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -415,7 +459,11 @@ Hiring Recommendation: Strong No → No → Lean No → Lean Yes → Yes → Str
           system:
             "You are a senior interview evaluator writing post-interview feedback that a candidate will use to improve. Every observation must cite a specific moment from the transcript — never make generic claims. Every improvement suggestion must be concrete and actionable. Scores must be calibrated honestly to the role level, not inflated to be encouraging or deflated to seem rigorous. The candidate deserves accurate feedback, not comfortable feedback.",
         }),
-      { maxRetries: 3, operationName: "AI feedback generation" },
+      {
+        maxRetries: 3,
+        operationName: "AI feedback generation",
+        abortSignal,
+      },
     );
 
     const validatedFeedback = genResult.object;
@@ -467,7 +515,7 @@ Hiring Recommendation: Strong No → No → Lean No → Lean Yes → Yes → Str
       feedbackError: null,
       feedbackCompletedAt: completionTimestamp,
       feedbackRequestedAt: session.feedbackRequestedAt || completionTimestamp,
-      transcript,
+      // transcript intentionally omitted — already persisted by POST /api/feedback
     });
 
     return { success: true, feedbackId };

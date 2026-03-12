@@ -114,10 +114,13 @@ export function AuthForm({ type }: AuthFormProps) {
         router.push("/dashboard");
       }
     } catch (error: unknown) {
+      // Roll back client-side Firebase auth so it doesn't diverge from the
+      // server state (which failed to issue a session cookie).
+      await auth.signOut().catch(() => {});
       const err = error as { message?: string };
       toast.error(
         err?.message ||
-        (isSignIn ? "Failed to sign in" : "Failed to create account"),
+          (isSignIn ? "Failed to sign in" : "Failed to create account"),
       );
     } finally {
       setIsLoading(false);
@@ -146,6 +149,9 @@ export function AuthForm({ type }: AuthFormProps) {
       );
       router.push("/dashboard");
     } catch (error: unknown) {
+      // Roll back client-side Firebase auth so it doesn't diverge from the
+      // server state (which failed to issue a session cookie).
+      await auth.signOut().catch(() => {});
       const err = error as { message?: string };
       toast.error(err?.message || "Google authentication failed");
     } finally {

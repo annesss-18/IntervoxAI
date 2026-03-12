@@ -6,7 +6,11 @@ import { FieldPath } from "firebase-admin/firestore";
 
 const CACHE_REVALIDATE_SECONDS = 300;
 
-// Hoist this so Next.js cache identity stays stable across calls.
+// IMPORTANT: getCachedTemplateById and getCachedPublicTemplates must remain at
+// module scope. Next.js unstable_cache uses the function reference for cache
+// identity. Moving these inside a Server Component or request handler creates
+// a new function reference per invocation, defeating the cache entirely.
+// Ref: https://nextjs.org/docs/app/api-reference/functions/unstable_cache
 const getCachedTemplateById = (id: string) =>
   unstable_cache(
     async () => {
@@ -83,7 +87,7 @@ export const TemplateRepository = {
       return await getCachedPublicTemplates(limit)();
     } catch (error) {
       logger.error("Error fetching public templates:", error);
-      return [];
+      throw error;
     }
   },
 

@@ -18,7 +18,8 @@ export function useAudioCapture(): UseAudioCaptureReturn {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<AudioWorkletNode | null>(null);
-  const scriptProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  // F-006: scriptProcessorRef removed — ScriptProcessorNode is deprecated,
+  // runs on the main thread (causes audio jank), and is removed from the spec.
   const outputMonitorGainRef = useRef<GainNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const callbackRef = useRef<((chunk: string) => void) | null>(null);
@@ -88,109 +89,63 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           options?.vadSensitivity ?? 60,
         );
 
-        let captureNode: AudioNode | null = null;
+        // F-006: AudioWorklet is the only supported path. ScriptProcessorNode
+        // has been removed from the spec (deprecated since Chrome 66 / Firefox 76).
+        // Minimum supported browsers: Chrome 66+, Firefox 76+, Safari 14.1+.
+        const moduleUrl = new URL(
+          "/worklets/audio-processor.js",
+          window.location.origin,
+        ).href;
 
-        // Prefer AudioWorklet for lower-latency chunk handling.
         try {
-          const moduleUrl = new URL(
-            "/worklets/audio-processor.js",
-            window.location.origin,
-          ).href;
           await audioContextRef.current.audioWorklet.addModule(moduleUrl);
-
-          processorRef.current = new AudioWorkletNode(
-            audioContextRef.current,
-            "audio-processor",
-          );
-          processorRef.current.port.postMessage({
-            type: "SET_VAD_THRESHOLD",
-            value: vadThreshold,
-          });
-
-          processorRef.current.port.onmessage = (event) => {
-            if (!callbackRef.current) return;
-
-            const inputData = event.data as Int16Array;
-
-            if (!inputData || inputData.length === 0) return;
-            if (inputData.length > 16000 || inputData.byteLength % 2 !== 0)
-              return;
-
-            const base64 =
-              typeof Buffer !== "undefined"
-                ? Buffer.from(inputData.buffer).toString("base64")
-                : uint8ArrayToBase64(new Uint8Array(inputData.buffer));
-
-            callbackRef.current(base64);
-          };
-
-          captureNode = processorRef.current;
-          logger.info("Audio capture initialized with AudioWorklet");
         } catch (workletError) {
-          logger.warn(
-            "AudioWorklet unavailable, using ScriptProcessor fallback:",
-            workletError,
+          logger.error("AudioWorklet failed to load:", workletError);
+          throw new Error(
+            "Real-time audio processing is not supported in this browser. " +
+              "Please use Chrome 66+, Firefox 76+, or Safari 14.1+ and ensure " +
+              "the page is served over HTTPS.",
           );
-
-          const createScriptProcessor = (
-            audioContextRef.current as AudioContext
-          ).createScriptProcessor;
-          if (!createScriptProcessor) {
-            throw new Error(
-              "Audio processing is not supported in this browser.",
-            );
-          }
-
-          scriptProcessorRef.current =
-            audioContextRef.current.createScriptProcessor(4096, 1, 1);
-          scriptProcessorRef.current.onaudioprocess = (event) => {
-            if (!callbackRef.current || !audioContextRef.current) return;
-
-            const inputData = event.inputBuffer.getChannelData(0);
-            if (!inputData || inputData.length === 0) return;
-
-            const downsampled = downsampleTo16k(
-              inputData,
-              audioContextRef.current.sampleRate,
-            );
-            if (downsampled.length === 0) return;
-
-            let rms = 0;
-            for (let i = 0; i < downsampled.length; i++) {
-              const sample = downsampled[i] ?? 0;
-              rms += sample * sample;
-            }
-            rms = Math.sqrt(rms / downsampled.length);
-            if (rms < vadThreshold) return;
-
-            const pcmData = float32ToInt16(downsampled);
-            const base64 =
-              typeof Buffer !== "undefined"
-                ? Buffer.from(pcmData.buffer).toString("base64")
-                : uint8ArrayToBase64(new Uint8Array(pcmData.buffer));
-
-            callbackRef.current(base64);
-          };
-
-          captureNode = scriptProcessorRef.current;
         }
 
-        if (!captureNode) {
-          throw new Error("Failed to initialize audio processing pipeline.");
-        }
+        processorRef.current = new AudioWorkletNode(
+          audioContextRef.current,
+          "audio-processor",
+        );
+        processorRef.current.port.postMessage({
+          type: "SET_VAD_THRESHOLD",
+          value: vadThreshold,
+        });
 
-        sourceRef.current.connect(captureNode);
+        processorRef.current.port.onmessage = (event) => {
+          if (!callbackRef.current) return;
+
+          const inputData = event.data as Int16Array;
+
+          if (!inputData || inputData.length === 0) return;
+          if (inputData.length > 16000 || inputData.byteLength % 2 !== 0)
+            return;
+
+          const base64 =
+            typeof Buffer !== "undefined"
+              ? Buffer.from(inputData.buffer).toString("base64")
+              : uint8ArrayToBase64(new Uint8Array(inputData.buffer));
+
+          callbackRef.current(base64);
+        };
+
+        sourceRef.current.connect(processorRef.current);
 
         // Connect to destination through a muted gain so the processing graph stays active.
         outputMonitorGainRef.current = audioContextRef.current.createGain();
         outputMonitorGainRef.current.gain.value = 0;
-        captureNode.connect(outputMonitorGainRef.current);
+        processorRef.current.connect(outputMonitorGainRef.current);
         outputMonitorGainRef.current.connect(
           audioContextRef.current.destination,
         );
 
         logger.info(
-          `Audio capture started at ${nativeSampleRate}Hz (VAD threshold: ${vadThreshold.toFixed(4)})`,
+          `Audio capture started with AudioWorklet at ${nativeSampleRate}Hz (VAD threshold: ${vadThreshold.toFixed(4)})`,
         );
       } catch (err) {
         const errorMessage =
@@ -210,12 +165,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
       processorRef.current.disconnect();
       processorRef.current.port.onmessage = null;
       processorRef.current = null;
-    }
-
-    if (scriptProcessorRef.current) {
-      scriptProcessorRef.current.disconnect();
-      scriptProcessorRef.current.onaudioprocess = null;
-      scriptProcessorRef.current = null;
     }
 
     if (sourceRef.current) {
@@ -264,40 +213,4 @@ function mapSensitivityToVadThreshold(sensitivity: number): number {
   const maxThreshold = 0.02;
   const ratio = (100 - normalized) / 99;
   return minThreshold + ratio * (maxThreshold - minThreshold);
-}
-
-function downsampleTo16k(
-  input: Float32Array,
-  inputSampleRate: number,
-): Float32Array {
-  const targetSampleRate = 16000;
-  if (inputSampleRate === targetSampleRate) {
-    return input;
-  }
-
-  const ratio = inputSampleRate / targetSampleRate;
-  const outputLength = Math.floor(input.length / ratio);
-  if (outputLength <= 0) return new Float32Array(0);
-
-  const output = new Float32Array(outputLength);
-  for (let i = 0; i < outputLength; i++) {
-    const srcIndex = i * ratio;
-    const srcIndexFloor = Math.floor(srcIndex);
-    const fraction = srcIndex - srcIndexFloor;
-
-    const sample1 = input[srcIndexFloor] ?? 0;
-    const sample2 = input[srcIndexFloor + 1] ?? sample1;
-    output[i] = sample1 + (sample2 - sample1) * fraction;
-  }
-
-  return output;
-}
-
-function float32ToInt16(input: Float32Array): Int16Array {
-  const output = new Int16Array(input.length);
-  for (let i = 0; i < input.length; i++) {
-    const sample = Math.max(-1, Math.min(1, input[i] ?? 0));
-    output[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-  }
-  return output;
 }

@@ -30,11 +30,11 @@ service cloud.firestore {
     
     // Interview sessions.
     match /interview_sessions/{sessionId} {
-      // Session data is owner-only.
       allow read: if isOwner(resource.data.userId);
 
-      // Server-managed via Admin SDK.
-      allow write: if false;
+      // Server-managed exclusively via Admin SDK (bypasses rules).
+      // Explicitly deny all client-side mutations.
+      allow create, update, delete: if false;
     }
     
     // Interview feedback.

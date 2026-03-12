@@ -101,14 +101,33 @@ const Page = async ({ params }: RouteParams) => {
 
   const { totalScore } = feedback;
 
+  // Use the model's stored hiring recommendation when available.
+  // Fall back to score-based heuristic only for legacy data without the field.
+  const hiringRecMap: Record<
+    string,
+    { label: string; variant: "success" | "secondary" | "warning" | "error" }
+  > = {
+    "Strong Yes": { label: "Strong Hire", variant: "success" },
+    Yes: { label: "Hire", variant: "success" },
+    "Lean Yes": { label: "Lean Hire", variant: "secondary" },
+    "Lean No": { label: "Lean No", variant: "warning" },
+    No: { label: "Not Recommended", variant: "error" },
+    "Strong No": { label: "Strong No", variant: "error" },
+  };
+
+  const storedRec = feedback.hiringRecommendation
+    ? hiringRecMap[feedback.hiringRecommendation]
+    : undefined;
+
   const hiringRec =
-    totalScore >= 80
+    storedRec ??
+    (totalScore >= 80
       ? { label: "Strong Hire", variant: "success" as const }
       : totalScore >= 70
         ? { label: "Lean Hire", variant: "secondary" as const }
         : totalScore >= 55
           ? { label: "Borderline", variant: "warning" as const }
-          : { label: "Not Recommended", variant: "error" as const };
+          : { label: "Not Recommended", variant: "error" as const });
 
   const scoreMessage =
     totalScore >= 80

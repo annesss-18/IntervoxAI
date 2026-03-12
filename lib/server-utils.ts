@@ -265,7 +265,7 @@ export async function extractTextFromFile(
 
     if (
       file.type ===
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
       file.name.toLowerCase().endsWith(".docx")
     ) {
       const docxMagic = buffer.slice(0, 2).toString();
@@ -420,7 +420,9 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     );
   }
 
-  // Run full URL security checks before any extraction path.
+  // SECURITY (F-009): Run SSRF checks BEFORE any network call, including Jina Reader.
+  // Previously these ran only inside extractTextWithCheerio, allowing Jina to be
+  // called with unvalidated private/internal URLs.
   assertAllowedUrlComponents(parsedUrl);
   await assertPublicHostname(parsedUrl.hostname);
 
@@ -433,7 +435,10 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     });
     return text;
   } catch (jinaError) {
-    logger.warn("Jina Reader extraction failed, falling back to Cheerio:", jinaError);
+    logger.warn(
+      "Jina Reader extraction failed, falling back to Cheerio:",
+      jinaError,
+    );
   }
 
   // Fallback: Direct fetch + Cheerio (works for server-rendered pages).
@@ -467,4 +472,3 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     );
   }
 }
-

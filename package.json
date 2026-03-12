@@ -13,6 +13,9 @@
     "lint": "eslint",
     "lint:fix": "eslint --fix",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "ci:check": "npm run lint && npm run type-check && npm run build"
   },
   "dependencies": {
@@ -34,7 +37,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.9.0",
-    "firebase-admin": "^13.6.1",
+    "firebase-admin": "^13.7.0",
     "lucide-react": "^0.575.0",
     "mammoth": "^1.11.0",
     "next": "^16.1.6",
@@ -53,10 +56,12 @@
     "@types/node": "^22.15.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.1.6",
+    "@vitest/coverage-v8": "^3.0.0",
     "eslint": "^9.39.3",
     "eslint-config-next": "^16.1.6",
     "tailwindcss": "^4.2.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.0.0"
   },
   "overrides": {
     "fast-xml-parser": "^5.3.4"

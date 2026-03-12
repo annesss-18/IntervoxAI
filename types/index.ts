@@ -70,6 +70,7 @@ export interface InterviewSession {
   id: string;
   templateId: string;
   userId: string;
+  hasResume?: boolean;
   resumeText?: string;
   transcript?: Array<{ role: string; content: string }>;
   status: "setup" | "active" | "completed";

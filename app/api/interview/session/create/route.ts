@@ -6,25 +6,23 @@ import { revalidateTag } from "next/cache";
 import { logger } from "@/lib/logger";
 import type { User } from "@/types";
 
+import { z } from "zod";
+import { firestoreIdSchema } from "@/lib/schemas";
+
+const createSessionSchema = z.object({ templateId: firestoreIdSchema });
+
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
     try {
-      const { templateId } = await req.json();
-
-      if (!templateId) {
+      const body = await req.json();
+      const result = createSessionSchema.safeParse(body);
+      if (!result.success) {
         return NextResponse.json(
-          { error: "Template ID is required" },
+          { error: "Invalid input", details: result.error.issues },
           { status: 400 },
         );
       }
-
-      // Accept only canonical Firestore document IDs.
-      if (!/^[a-zA-Z0-9]{20}$/.test(templateId)) {
-        return NextResponse.json(
-          { error: "Invalid Template ID format" },
-          { status: 400 },
-        );
-      }
+      const { templateId } = result.data;
 
       const templateRef = db.collection("interview_templates").doc(templateId);
       const templateSnap = await templateRef.get();
@@ -51,6 +49,7 @@ export const POST = withAuth(
         transaction.set(newSessionRef, {
           templateId,
           userId: user.id,
+          hasResume: false,
           status: "setup",
           feedbackStatus: "idle",
           feedbackError: null,
@@ -62,9 +61,10 @@ export const POST = withAuth(
         return newSessionRef.id;
       });
 
-      // Invalidate cached template data so the explore page shows updated usage counts.
-      revalidateTag(`template:${templateId}`, "default");
-      revalidateTag("templates-public", "default");
+      // Next.js 16 requires a cache-life profile. "max" invalidates stale data
+      // without forcing eager recomputation on the mutation path.
+      revalidateTag(`template:${templateId}`, "max");
+      revalidateTag("templates-public", "max");
 
       return NextResponse.json({ sessionId });
     } catch (error) {

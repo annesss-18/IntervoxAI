@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import { Navbar } from "@/components/layout/Navbar";
 import { FooterCompact } from "@/components/layout/Footer";
@@ -11,6 +12,11 @@ export default async function RootLayout({
   const user = await getCurrentUser();
 
   if (!user) {
+    // Clear the stale session cookie so the edge middleware (proxy.ts) won't
+    // redirect back from /sign-in, breaking the redirect loop that occurs when
+    // a cookie is JWT-shaped but expired/revoked.
+    const cookieStore = await cookies();
+    cookieStore.delete("session");
     redirect("/sign-in");
   }
 

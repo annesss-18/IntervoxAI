@@ -13,10 +13,18 @@ export const POST = withRateLimit(
       // Best-effort revocation of Firebase refresh tokens.
       if (sessionCookie) {
         try {
-          const decoded = await adminAuth.verifySessionCookie(sessionCookie);
+          // FIX F-009: Added `true` (checkRevoked) to match the behaviour of
+          // getCurrentUser() in auth.service.ts. Without it, a cookie that has
+          // already been revoked is still accepted here, leading to a redundant
+          // revokeRefreshTokens call and inconsistency across auth paths.
+          const decoded = await adminAuth.verifySessionCookie(
+            sessionCookie,
+            true,
+          );
           await adminAuth.revokeRefreshTokens(decoded.uid);
         } catch {
-          // Continue with cookie deletion even if revocation fails.
+          // Continue with cookie deletion even if revocation fails
+          // (e.g. cookie was already revoked or expired).
         }
       }
 

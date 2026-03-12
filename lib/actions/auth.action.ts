@@ -63,11 +63,18 @@ export async function signOut() {
     if (sessionCookie) {
       try {
         const { auth: adminAuth } = await import("@/firebase/admin");
-        const decodedClaims =
-          await adminAuth.verifySessionCookie(sessionCookie);
+        // FIX F-009: Added `true` (checkRevoked) to be consistent with
+        // getCurrentUser() in auth.service.ts which already passes `true`.
+        // Without this, a cookie that was already revoked is still "verified"
+        // here and revokeRefreshTokens is called redundantly.
+        const decodedClaims = await adminAuth.verifySessionCookie(
+          sessionCookie,
+          true,
+        );
         await adminAuth.revokeRefreshTokens(decodedClaims.uid);
       } catch (revokeError) {
-        // Best-effort: continue with cookie deletion even if revocation fails.
+        // Best-effort: continue with cookie deletion even if revocation fails
+        // (e.g. cookie was already revoked or expired).
         logger.warn(
           "Failed to revoke refresh tokens during signOut:",
           revokeError,

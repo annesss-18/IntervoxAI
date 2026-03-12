@@ -2,7 +2,6 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
-import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import {
   InterviewRepository,
   TranscriptSentence,
@@ -36,18 +35,37 @@ type ClaimResult =
   | { type: "already_completed"; feedbackId: string | null }
   | { type: "claimed"; transcript: TranscriptSentence[] };
 
+// F-012 FIX: 2-minute hard timeout on the Gemini feedback call.
+// Without this, a hung model response keeps the session in 'processing'
+// indefinitely and the user has no way to retry.
+const FEEDBACK_AI_TIMEOUT_MS = 2 * 60 * 1000;
+
 // Runs model generation outside the request lifecycle and writes final status.
 async function runFeedbackGeneration(
   interviewId: string,
   userId: string,
   transcript: TranscriptSentence[],
 ) {
+  // F-012 FIX: Wrap the AI call in an AbortController so a hung Gemini request
+  // times out and the session is marked 'failed' instead of stuck forever.
+  const controller = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    controller.abort();
+  }, FEEDBACK_AI_TIMEOUT_MS);
+
   try {
-    const result = await InterviewService.createFeedback({
-      interviewId,
-      userId,
-      transcript,
-    });
+    const result = await InterviewService.createFeedback(
+      {
+        interviewId,
+        userId,
+        transcript,
+      },
+      // Pass the abort signal through to the AI SDK call so a stalled model
+      // request cannot pin the session in "processing" forever.
+      { abortSignal: controller.signal },
+    );
+
+    clearTimeout(timeoutHandle);
 
     if (!result.success || !result.feedbackId) {
       throw new Error(
@@ -64,11 +82,22 @@ async function runFeedbackGeneration(
       feedbackId: result.feedbackId,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to generate feedback";
+    clearTimeout(timeoutHandle);
+
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "AbortError" ||
+        error.message.toLowerCase().includes("abort"));
+
+    const message = isTimeout
+      ? "Feedback generation timed out. Please retry."
+      : error instanceof Error
+        ? error.message
+        : "Failed to generate feedback";
+
     logger.error(
       `Async feedback processing failed for interview ${interviewId}:`,
-      error,
+      { error, isTimeout },
     );
 
     try {
@@ -102,43 +131,21 @@ export const POST = withAuth(
       }
 
       const { interviewId } = validation.data;
-      const existingFeedback = await FeedbackRepository.findByInterviewId(
-        interviewId,
-        user.id,
-      );
-
-      if (existingFeedback) {
-        try {
-          await InterviewRepository.update(interviewId, {
-            status: "completed",
-            completedAt: new Date().toISOString(),
-            feedbackId: existingFeedback.id,
-            finalScore: existingFeedback.totalScore,
-            feedbackStatus: "completed",
-            feedbackError: null,
-            feedbackCompletedAt: new Date().toISOString(),
-          });
-        } catch (updateError) {
-          logger.warn(
-            `Feedback exists for interview ${interviewId} but session metadata update failed:`,
-            updateError,
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          status: "completed",
-          feedbackId: existingFeedback.id,
-          reused: true,
-        });
-      }
 
       const sessionRef = db.collection("interview_sessions").doc(interviewId);
+      // F-002 FIX: Deterministic feedback doc ref — checked atomically inside
+      // the transaction to eliminate the TOCTOU race window.
+      const deterministicFeedbackRef = db
+        .collection("feedback")
+        .doc(`${user.id}_${interviewId}`);
 
       // Claim processing inside a transaction to keep retries idempotent.
       const claim = await db.runTransaction<ClaimResult>(
         async (transaction) => {
-          const sessionDoc = await transaction.get(sessionRef);
+          const [sessionDoc, feedbackSnap] = await Promise.all([
+            transaction.get(sessionRef),
+            transaction.get(deterministicFeedbackRef),
+          ]);
 
           if (!sessionDoc.exists) {
             return { type: "missing" };
@@ -147,6 +154,22 @@ export const POST = withAuth(
           const sessionData = sessionDoc.data();
           if (sessionData?.userId !== user.id) {
             return { type: "unauthorized" };
+          }
+
+          // Check deterministic feedback doc first (atomic — no TOCTOU)
+          if (feedbackSnap.exists) {
+            // Sync session metadata while we're inside the transaction
+            transaction.update(sessionRef, {
+              status: "completed",
+              completedAt: sessionData?.completedAt || new Date().toISOString(),
+              feedbackId: feedbackSnap.id,
+              finalScore: feedbackSnap.data()?.totalScore ?? null,
+              feedbackStatus: "completed",
+              feedbackError: null,
+              feedbackCompletedAt:
+                sessionData?.feedbackCompletedAt || new Date().toISOString(),
+            });
+            return { type: "already_completed", feedbackId: feedbackSnap.id };
           }
 
           const feedbackId =

@@ -7,9 +7,6 @@ const nextConfig = {
 
   experimental: {
     optimizePackageImports: ["lucide-react"],
-    serverActions: {
-      bodySizeLimit: "10mb",
-    },
   },
 
   images: {
@@ -70,9 +67,14 @@ const nextConfig = {
             key: "X-Frame-Options",
             value: "DENY",
           },
+          // FIX F-006: X-XSS-Protection 1; mode=block is a legacy IE header that
+          // was removed from all modern browsers (Chromium dropped it in 2019).
+          // OWASP notes it can introduce new XSS vectors in IE when it "blocks" a page.
+          // Setting to "0" disables the broken auditor. CSP nonces (proxy.ts)
+          // provide the real XSS protection for modern browsers.
           {
             key: "X-XSS-Protection",
-            value: "1; mode=block",
+            value: "0",
           },
           {
             key: "Referrer-Policy",

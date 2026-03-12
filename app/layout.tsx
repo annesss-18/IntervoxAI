@@ -110,17 +110,17 @@ export default async function RootLayout({
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning nonce={nonce}>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${dmSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}
         suppressHydrationWarning
-        nonce={nonce}
       >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          nonce={nonce}
         >
           <AuthProvider>{children}</AuthProvider>
           <Toaster position="top-center" richColors closeButton />

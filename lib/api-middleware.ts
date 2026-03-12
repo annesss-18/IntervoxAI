@@ -8,14 +8,8 @@ function getRequestScope(req: NextRequest): string {
   return `${req.method}:${req.nextUrl.pathname}`;
 }
 
-/**
- * Extracts client IP with best-effort accuracy.
- *
- * NOTE: Accurate IP extraction requires that your reverse proxy (Vercel,
- * Cloudflare, nginx, etc.) normalizes forwarded-for headers. On Vercel
- * this is automatic. In other environments, ensure your proxy overwrites
- * x-forwarded-for with the true client IP as the leftmost value.
- */
+// Extract the client IP with best-effort accuracy.
+// Accurate results depend on a trusted proxy normalizing forwarded headers.
 function getClientIp(req: NextRequest): string {
   // Prefer x-real-ip (set by trusted proxies) over x-forwarded-for.
   const realIp = req.headers.get("x-real-ip")?.trim();
@@ -50,17 +44,22 @@ export function withAuth<TArgs extends unknown[]>(
         );
       }
 
-      // Allow missing Origin for same-origin requests; reject mismatched origins.
-      // Skip in development since NEXT_PUBLIC_APP_URL is the production URL.
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      // F-003 FIX: Derive expected origin from Host header when APP_URL is unset,
+      // so the CSRF check is never silently disabled in production.
       const origin = req.headers.get("origin");
       const isDev = process.env.NODE_ENV === "development";
 
-      if (!isDev && appUrl && origin && origin !== appUrl) {
-        return NextResponse.json(
-          { error: "Forbidden: invalid request origin" },
-          { status: 403 },
-        );
+      if (!isDev && origin) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+        const proto = req.headers.get("x-forwarded-proto") ?? "https";
+        const host = req.headers.get("host") ?? "";
+        const expectedOrigin = appUrl ?? (host ? `${proto}://${host}` : null);
+        if (expectedOrigin && origin !== expectedOrigin) {
+          return NextResponse.json(
+            { error: "Forbidden: invalid request origin" },
+            { status: 403 },
+          );
+        }
       }
     }
 

@@ -42,10 +42,10 @@ export function ResumeUploader({
   const [uploadState, setUploadState] = useState<UploadState>(() =>
     initialResumeText
       ? {
-        status: "success",
-        fileName: "Previously uploaded resume",
-        textPreview: initialResumeText.slice(0, 100),
-      }
+          status: "success",
+          fileName: "Previously uploaded resume",
+          textPreview: initialResumeText.slice(0, 100),
+        }
       : { status: "idle" },
   );
   const [isDragOver, setIsDragOver] = useState(false);
@@ -134,10 +134,11 @@ export function ResumeUploader({
         role="button"
         tabIndex={0}
         aria-label="Upload resume file (PDF, DOCX, or TXT). Click or drag and drop."
-        className={`cursor-pointer rounded-xl border-2 border-dashed p-5 transition-all duration-200 ${isDragOver
+        className={`cursor-pointer rounded-xl border-2 border-dashed p-5 transition-all duration-200 ${
+          isDragOver
             ? "scale-[1.01] border-primary bg-primary/8"
             : "border-border bg-surface-2/50 hover:border-primary/50 hover:bg-primary/5"
-          }`}
+        }`}
       >
         <input
           ref={fileInputRef}
@@ -148,10 +149,11 @@ export function ResumeUploader({
         />
         <div className="flex items-center gap-4">
           <span
-            className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${isDragOver
+            className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+              isDragOver
                 ? "bg-primary/20 text-primary"
                 : "bg-surface-1 border border-border text-muted-foreground"
-              }`}
+            }`}
           >
             <FileUp className="size-5" />
           </span>

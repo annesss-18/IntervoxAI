@@ -177,8 +177,9 @@ export default function LandingPage() {
               {stats.map((stat, i) => (
                 <div
                   key={stat.label}
-                  className={`flex flex-col items-center gap-1 ${i > 0 ? "sm:border-l sm:border-border/50 sm:pl-14" : ""
-                    }`}
+                  className={`flex flex-col items-center gap-1 ${
+                    i > 0 ? "sm:border-l sm:border-border/50 sm:pl-14" : ""
+                  }`}
                 >
                   <span className="font-mono text-2xl font-bold tabular-nums text-foreground">
                     {stat.value}

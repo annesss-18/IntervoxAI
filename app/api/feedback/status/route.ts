@@ -4,7 +4,6 @@ import { logger } from "@/lib/logger";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
 import type { User } from "@/types";
-import type { FeedbackStatusResponse } from "@/lib/schemas/feedback-status.schema";
 import { z } from "zod";
 import { firestoreIdSchema } from "@/lib/schemas";
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
+import { ALLOWED_VOICE_NAMES } from "@/lib/schemas";
 import { InterviewTemplate, User } from "@/types";
 
 export const runtime = "nodejs";
@@ -113,16 +114,7 @@ const templateSchema = z.object({
           "A 1-2 sentence personality sketch covering communication style and one distinguishing conversational habit",
         ),
       voice: z
-        .enum([
-          "Puck",
-          "Charon",
-          "Kore",
-          "Fenrir",
-          "Aoede",
-          "Leda",
-          "Orus",
-          "Zephyr",
-        ])
+        .enum(ALLOWED_VOICE_NAMES)
         .optional()
         .default("Kore")
         .describe(

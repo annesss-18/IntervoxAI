@@ -78,7 +78,6 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
       />
 
       <div className="mb-8 space-y-5 rounded-2xl border border-border bg-card p-5">
-        {/* Search + count */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Input
@@ -109,7 +108,6 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
           </div>
         </div>
 
-        {/* Type + Level filters — single row */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">
             Type:
@@ -120,9 +118,7 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
               <button
                 key={type}
                 type="button"
-                onClick={() =>
-                  toggleFilter(activeTypes, type, setActiveTypes)
-                }
+                onClick={() => toggleFilter(activeTypes, type, setActiveTypes)}
                 className={cn(
                   "rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
                   isActive
@@ -162,7 +158,6 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
           })}
         </div>
 
-        {/* Active filter summary / clear all */}
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
             <span className="text-xs text-muted-foreground">Active:</span>

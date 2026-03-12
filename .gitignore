@@ -19,6 +19,9 @@ dist/
 next-env.d.ts
 
 # Test artifacts
+__tests__/
+vitest.config.ts
+*.test.ts
 /coverage
 *.lcov
 .nyc_output

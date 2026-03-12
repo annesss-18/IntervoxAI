@@ -15,23 +15,6 @@ export interface TranscriptEntry {
   timestamp: number;
 }
 
-interface InterviewContext {
-  role: string;
-  companyName?: string;
-  level?: string;
-  type?: string;
-  techStack?: string[];
-  questions?: string[];
-  resumeText?: string;
-  systemInstruction?: string;
-  interviewerPersona?: {
-    name: string;
-    title: string;
-    personality: string;
-    voice?: string;
-  };
-}
-
 export type ConnectionStatus =
   | "idle"
   | "connecting"
@@ -53,12 +36,11 @@ interface UseLiveInterviewReturn {
   sendAudio: (base64Data: string) => void;
   onAudioReceived: (callback: (base64Data: string) => void) => void;
   releaseHold: () => void;
-  flushPendingTranscript: () => void;
+  flushPendingTranscript: () => TranscriptEntry[];
 }
 
 interface UseLiveInterviewOptions {
   sessionId: string;
-  interviewContext: InterviewContext;
   onInterruption?: () => void;
   onInterviewComplete?: () => void;
   holdInitialPrompt?: boolean;
@@ -94,7 +76,6 @@ export function useLiveInterview(
 ): UseLiveInterviewReturn {
   const {
     sessionId,
-    interviewContext,
     onInterruption,
     onInterviewComplete,
     holdInitialPrompt = false,
@@ -105,6 +86,7 @@ export function useLiveInterview(
   const [status, setStatus] = useState<ConnectionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+  const transcriptRef = useRef<TranscriptEntry[]>([]);
   const [isAIResponding, setIsAIResponding] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentCaption, setCurrentCaption] = useState<string>("");
@@ -113,12 +95,7 @@ export function useLiveInterview(
   );
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
-  // Keep mutable refs so `connect` doesn't depend on object-identity of props.
-  const interviewContextRef = useRef(interviewContext);
   const sessionIdRef = useRef(sessionId);
-  useEffect(() => {
-    interviewContextRef.current = interviewContext;
-  }, [interviewContext]);
   useEffect(() => {
     sessionIdRef.current = sessionId;
   }, [sessionId]);
@@ -294,14 +271,18 @@ export function useLiveInterview(
           userTranscriptTimeoutRef.current = setTimeout(() => {
             const accumulatedText = userTranscriptRef.current.trim();
             if (accumulatedText) {
-              setTranscript((prev) => [
-                ...prev,
-                {
-                  role: "user",
-                  content: accumulatedText,
-                  timestamp: Date.now(),
-                },
-              ]);
+              setTranscript((prev) => {
+                const next = [
+                  ...prev,
+                  {
+                    role: "user" as const,
+                    content: accumulatedText,
+                    timestamp: Date.now(),
+                  },
+                ];
+                transcriptRef.current = next;
+                return next;
+              });
               userTranscriptRef.current = "";
             }
             setIsUserSpeaking(false);
@@ -331,21 +312,25 @@ export function useLiveInterview(
           setCurrentSpeaker("model");
 
           setTranscript((prev) => {
+            let next: TranscriptEntry[];
             const lastEntry = prev[prev.length - 1];
             if (lastEntry?.role === "model") {
-              return [
+              next = [
                 ...prev.slice(0, -1),
                 { ...lastEntry, content: lastEntry.content + modelText },
               ];
+            } else {
+              next = [
+                ...prev,
+                {
+                  role: "model",
+                  content: modelText,
+                  timestamp: Date.now(),
+                },
+              ];
             }
-            return [
-              ...prev,
-              {
-                role: "model",
-                content: modelText,
-                timestamp: Date.now(),
-              },
-            ];
+            transcriptRef.current = next;
+            return next;
           });
         }
       }
@@ -371,7 +356,6 @@ export function useLiveInterview(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId: sessionIdRef.current,
-            interviewContext: interviewContextRef.current,
           }),
         });
 
@@ -512,20 +496,25 @@ export function useLiveInterview(
 
   // Flush any trailing user transcript partial into the transcript array.
   // Call this before ending the interview to capture in-progress speech.
-  const flushPendingTranscript = useCallback(() => {
+  const flushPendingTranscript = useCallback((): TranscriptEntry[] => {
     if (userTranscriptTimeoutRef.current) {
       clearTimeout(userTranscriptTimeoutRef.current);
       userTranscriptTimeoutRef.current = null;
     }
     const pending = userTranscriptRef.current.trim();
     if (pending) {
-      setTranscript((prev) => [
-        ...prev,
-        { role: "user", content: pending, timestamp: Date.now() },
-      ]);
+      const pendingEntry: TranscriptEntry = {
+        role: "user",
+        content: pending,
+        timestamp: Date.now(),
+      };
+      const next = [...transcriptRef.current, pendingEntry];
+      transcriptRef.current = next;
+      setTranscript(next);
       userTranscriptRef.current = "";
     }
     setIsUserSpeaking(false);
+    return transcriptRef.current;
   }, []);
 
   useEffect(() => {
