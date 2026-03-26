@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -40,6 +40,7 @@ export function LiveInterviewAgent({
   const [phase, setPhase] = useState<InterviewPhase>("setup");
   const [isMuted, setIsMuted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
   const [resumeText, setResumeText] = useState<string | undefined>(
     interview.resumeText,
   );
@@ -68,7 +69,7 @@ export function LiveInterviewAgent({
     },
     onInterviewComplete: () => {
       logger.info("Interview naturally completed");
-      toast.info("Interview completed! Generating your feedback…");
+      toast.info("Interview completed! Generating your feedback...");
       handleEndInterview();
     },
   });
@@ -95,6 +96,7 @@ export function LiveInterviewAgent({
 
   const handleResumeUploaded = useCallback(
     async (text: string) => {
+      const previousResumeText = resumeText;
       setResumeText(text);
       setIsUpdatingSession(true);
       try {
@@ -108,26 +110,44 @@ export function LiveInterviewAgent({
           throw new Error(d.error || "Failed to save resume");
         }
       } catch (error) {
+        setResumeText(previousResumeText);
         logger.error("Failed to update session with resume:", error);
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to save resume to the session",
+        );
       } finally {
         setIsUpdatingSession(false);
       }
     },
-    [sessionId],
+    [resumeText, sessionId],
   );
 
   const handleResumeClear = useCallback(async () => {
+    const previousResumeText = resumeText;
     setResumeText(undefined);
+    setIsUpdatingSession(true);
     try {
-      await fetch(`/api/interview/session/${sessionId}`, {
+      const res = await fetch(`/api/interview/session/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resumeText: "" }),
       });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || "Failed to clear resume");
+      }
     } catch (error) {
+      setResumeText(previousResumeText);
       logger.error("Failed to clear resume:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to clear resume",
+      );
+    } finally {
+      setIsUpdatingSession(false);
     }
-  }, [sessionId]);
+  }, [resumeText, sessionId]);
 
   // Enter audio test phase and begin AI connection in the background.
   const handleEnterAudioTest = async () => {
@@ -136,7 +156,7 @@ export function LiveInterviewAgent({
       await connect();
     } catch (error) {
       logger.warn("Background connection failed during audio test:", error);
-      // Don't block — user can still test audio; connection will retry.
+      // Don't block - user can still test audio; connection will retry.
     }
   };
 
@@ -146,14 +166,11 @@ export function LiveInterviewAgent({
       setPhase("active");
       await startCapture(handleAudioChunk, { vadSensitivity: 60 });
 
-      // Singleflight guard in connect() handles deduplication —
-      // safe to call even if already connected from the audio-test phase.
+      // Singleflight connect deduplicates audio-test and interview-start reconnects.
       await connect();
       releaseHold();
 
-      // Persist the "active" status so the dashboard shows "In Progress" /
-      // "Continue Interview". Fire-and-forget — failure here should not block
-      // the interview.
+      // Persist the active status without blocking the interview start flow.
       fetch(`/api/interview/session/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -171,7 +188,8 @@ export function LiveInterviewAgent({
   };
 
   const handleEndInterview = useCallback(async () => {
-    if (isSubmitting || phase === "completed") return;
+    if (isSubmittingRef.current || phase === "completed") return;
+    isSubmittingRef.current = true;
     setPhase("ending");
     setIsSubmitting(true);
 
@@ -205,10 +223,10 @@ export function LiveInterviewAgent({
       );
       setPhase("submit_failed");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   }, [
-    isSubmitting,
     phase,
     stopCapture,
     stopPlayback,

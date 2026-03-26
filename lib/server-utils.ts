@@ -420,9 +420,7 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     );
   }
 
-  // SECURITY (F-009): Run SSRF checks BEFORE any network call, including Jina Reader.
-  // Previously these ran only inside extractTextWithCheerio, allowing Jina to be
-  // called with unvalidated private/internal URLs.
+  // Run SSRF checks before every outbound request path, including Jina Reader.
   assertAllowedUrlComponents(parsedUrl);
   await assertPublicHostname(parsedUrl.hostname);
 

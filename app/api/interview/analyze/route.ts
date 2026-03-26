@@ -6,6 +6,7 @@ import { withAuth } from "@/lib/api-middleware";
 import { extractTextFromUrl, extractTextFromFile } from "@/lib/server-utils";
 import { getCompanyLogoUrl } from "@/lib/icon-utils";
 import { logger } from "@/lib/logger";
+import { MODEL_CONFIG } from "@/lib/models";
 
 export const runtime = "nodejs";
 
@@ -116,54 +117,53 @@ export const POST = withAuth(
       }
 
       const result = await generateObject({
-        model: templateGenGoogle(
-          process.env.TEMPLATE_GENERATION_MODEL || "gemini-3.1-pro-preview",
-        ),
+        model: templateGenGoogle(MODEL_CONFIG.templateGeneration),
         schema: analysisSchema,
         prompt: `
-You are extracting structured information from a job posting. Be precise and literal — extract what's actually there, don't infer unless the instructions say to.
+You extract structured information from a job posting. Be precise and literal. Extract only what the posting supports, and infer only where these instructions explicitly allow it.
 
 [JOB POSTING START]
 ${jdText.substring(0, MAX_JD_LENGTH)}
 [JOB POSTING END]
 
-EXTRACTION TASKS (in priority order):
+EXTRACTION TASKS (priority order):
 
-1. **COMPANY NAME** — Search in this priority order:
-   a. Page header or title (e.g., "Google — Software Engineer" → "Google")
+1. COMPANY NAME
+   Search in this order:
+   a. Page header or title (for example, "Google - Software Engineer" -> "Google")
    b. "About [Company]" or "About Us" sections
    c. "Posted by [Company]" or "Hiring for [Company]" metadata
-   d. Domain name in URLs (e.g., stripe.com/careers → "Stripe")
-   e. Logo alt-text or footer branding
-   If none of these yield a result, return "Unknown Company".
+   d. Domain name in URLs (for example, stripe.com/careers -> "Stripe")
+   e. Logo alt text or footer branding
+   If none of these produce a result, return "Unknown Company".
 
-2. **ROLE** — Extract the exact job title as written (e.g., "Senior DevOps Engineer").
-   Normalize minor variations: "Sr." → "Senior", "SW" → "Software".
+2. ROLE
+   Extract the exact job title as written.
+   Normalize only obvious abbreviations such as "Sr." -> "Senior" and "SW" -> "Software".
 
-3. **TECH STACK** — Extract ALL explicitly mentioned technologies:
-   - Languages: Python, JavaScript, TypeScript, Go, Rust, Java, C++, etc.
-   - Frameworks: React, Next.js, Django, Spring Boot, Flask, Express, etc.
-   - Databases: PostgreSQL, MongoDB, Redis, DynamoDB, MySQL, etc.
-   - Infrastructure: Docker, Kubernetes, Terraform, Jenkins, CI/CD, etc.
-   - Cloud: AWS, GCP, Azure (include specific services like S3, Lambda, BigQuery)
-   Also include technologies that are strongly implied (e.g., "microservices" implies containerization).
+3. TECH STACK
+   Extract every explicitly mentioned technology, including languages, frameworks, databases, infrastructure tools, and cloud services.
+   Add an implied technology only when a named platform or service makes it unavoidable.
 
-4. **LEVEL** — Infer seniority using these signals:
-   - "Junior/Entry/Associate" or "0-2 years" → Junior
-   - "3-5 years" or "Mid-level" with no leadership scope → Mid
-   - "5-8 years", "mentor", "lead technical decisions", "own a system" → Senior
-   - "8+ years", "define technical strategy", "cross-team influence", "principal" → Staff
-   - "VP", "CTO", "Director of Engineering", "org-wide technical vision" → Executive
-   When signals conflict, weight scope-of-impact over years-of-experience.
+4. LEVEL
+   Infer seniority from the role scope:
+   - "Junior", "Entry", "Associate", or "0-2 years" -> Junior
+   - "3-5 years" or "Mid-level" with no leadership scope -> Mid
+   - "5-8 years", mentoring, leading technical decisions, or owning systems -> Senior
+   - "8+ years", technical strategy, cross-team influence, or "Principal" -> Staff
+   - "VP", "CTO", "Director of Engineering", or org-wide technical vision -> Executive
+   When signals conflict, prefer scope of impact over years of experience.
 
-5. **SUGGESTED TYPE** — Infer interview type:
-   - Heavy emphasis on system design, architecture, scalability → "System Design"
-   - Focus on algorithms, coding, specific tech depth → "Technical"
-   - Emphasis on leadership, teamwork, communication, culture → "Behavioral"
-   - Recruiting/screening focus, compensation, benefits → "HR"
-   - Balanced mix of technical and soft skills → "Mixed"
+5. SUGGESTED TYPE
+   Infer the interview type:
+   - Systems design, architecture, or scalability focus -> "System Design"
+   - Algorithms, coding, or deep technical implementation focus -> "Technical"
+   - Leadership, teamwork, communication, or culture focus -> "Behavioral"
+   - Recruiting, screening, compensation, or benefits focus -> "HR"
+   - Balanced technical and soft-skill focus -> "Mixed"
 
-6. **CLEAN JD** — Remove all non-content elements: navigation menus, "Sign In"/"Apply Now" buttons, cookie banners, "Similar Jobs" sections, and page footers. Keep ONLY the actual job description content.
+6. CLEAN JD
+   Remove navigation, sign-in or apply buttons, cookie banners, "Similar Jobs" sections, page chrome, and footers. Keep only the job description content.
         `,
       });
 

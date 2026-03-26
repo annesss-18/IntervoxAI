@@ -3,6 +3,7 @@ import { db } from "@/firebase/admin";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import { decryptResumeText, encryptResumeText } from "@/lib/resume-crypto";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import type { User } from "@/types";
 import { firestoreIdSchema } from "@/lib/schemas";
 
@@ -108,8 +109,9 @@ export const PATCH = withAuth(
 
       await sessionRef.update(updateData);
 
+      const updatedFields = Object.keys(updateData).join(", ");
       logger.info(
-        `Session ${sessionId} updated with resume text by user ${user.id}`,
+        `Session ${sessionId} updated (${updatedFields}) by user ${user.id}`,
       );
 
       return NextResponse.json({
@@ -184,6 +186,91 @@ export const GET = withAuth(
   },
   {
     maxRequests: 120,
+    windowMs: 60 * 1000,
+  },
+);
+
+// R-13: Delete a session and its associated feedback document.
+export const DELETE = withAuth(
+  async (_req: NextRequest, user: User, context: RouteContext) => {
+    try {
+      const { sessionId } = await context.params;
+
+      const idResult = firestoreIdSchema.safeParse(sessionId);
+      if (!idResult.success) {
+        return NextResponse.json(
+          { error: "Invalid session ID" },
+          { status: 400 },
+        );
+      }
+
+      const sessionRef = db.collection("interview_sessions").doc(sessionId);
+      const sessionDoc = await sessionRef.get();
+
+      if (!sessionDoc.exists) {
+        return NextResponse.json(
+          { error: "Session not found" },
+          { status: 404 },
+        );
+      }
+
+      const sessionData = sessionDoc.data();
+      if (sessionData?.userId !== user.id) {
+        logger.warn(
+          `Unauthorized session delete attempt: user ${user.id} tried to delete session ${sessionId}`,
+        );
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+
+      // Batch delete: session doc + associated feedback doc (no-op if absent).
+      const feedbackId = sessionData?.feedbackId;
+      const batch = db.batch();
+      batch.delete(sessionRef);
+      if (feedbackId) {
+        batch.delete(db.collection("feedback").doc(feedbackId));
+      }
+      await batch.commit();
+
+      // Reverse the same aggregate counters that were applied when the session was created or completed.
+      if (sessionData?.status === "completed") {
+        const finalScore =
+          typeof sessionData?.finalScore === "number"
+            ? sessionData.finalScore
+            : null;
+
+        UserRepository.updateStats(user.id, {
+          completedDelta: -1,
+          ...(finalScore !== null
+            ? { scoreDelta: -finalScore, scoreCount: -1 }
+            : {}),
+        }).catch((err) =>
+          logger.warn(
+            `Stats update failed on completed session delete for user ${user.id}:`,
+            err,
+          ),
+        );
+      } else {
+        UserRepository.updateStats(user.id, { activeDelta: -1 }).catch((err) =>
+          logger.warn(
+            `Stats update failed on active session delete for user ${user.id}:`,
+            err,
+          ),
+        );
+      }
+
+      logger.info(`Session ${sessionId} deleted by user ${user.id}`);
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      logger.error("Error deleting session:", error);
+      return NextResponse.json(
+        { error: "Failed to delete session" },
+        { status: 500 },
+      );
+    }
+  },
+  {
+    maxRequests: 20,
     windowMs: 60 * 1000,
   },
 );

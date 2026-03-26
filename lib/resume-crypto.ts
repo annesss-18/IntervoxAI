@@ -43,11 +43,7 @@ function getEncryptionKey(): Buffer {
   const rawKey = process.env.RESUME_ENCRYPTION_KEY;
 
   if (!rawKey) {
-    // F-010 FIX: RESUME_ENCRYPTION_KEY is now required in all environments.
-    // This ensures encryption is always tested locally and prevents dev data
-    // from ever being stored in plaintext (even against dev Firestore instances).
-    //
-    // Generate a key with: openssl rand -base64 32
+    // Require encryption locally too so resume data is never stored in plaintext.
     throw new Error(
       "RESUME_ENCRYPTION_KEY is not set. This variable is required in all environments.\n" +
         "Generate a key with: openssl rand -base64 32\n" +

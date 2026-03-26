@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
+import {
+  isAllowedResumeFile,
+  MAX_RESUME_SIZE_BYTES,
+} from "@/lib/resume-types";
 import { extractTextFromFile } from "@/lib/server-utils";
 import type { User } from "@/types";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 5000;
-const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const TXT_MIME = "text/plain";
-
-function isAllowedResumeType(file: File): boolean {
-  const name = file.name.toLowerCase();
-  return (
-    file.type === "application/pdf" ||
-    file.type === DOCX_MIME ||
-    file.type === TXT_MIME ||
-    name.endsWith(".pdf") ||
-    name.endsWith(".docx") ||
-    name.endsWith(".txt")
-  );
-}
 
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
@@ -35,14 +23,14 @@ export const POST = withAuth(
         );
       }
 
-      if (!isAllowedResumeType(file)) {
+      if (!isAllowedResumeFile(file)) {
         return NextResponse.json(
           { error: "Only PDF, DOCX, or TXT files are accepted" },
           { status: 400 },
         );
       }
 
-      if (file.size > MAX_FILE_SIZE) {
+      if (file.size > MAX_RESUME_SIZE_BYTES) {
         return NextResponse.json(
           { error: "File size exceeds 5MB limit" },
           { status: 400 },
@@ -53,7 +41,10 @@ export const POST = withAuth(
         `Parsing resume for user ${user.id}, file size: ${file.size} bytes`,
       );
 
-      const text = await extractTextFromFile(file, 5);
+      const text = await extractTextFromFile(
+        file,
+        MAX_RESUME_SIZE_BYTES / (1024 * 1024),
+      );
 
       if (!text || text.trim().length === 0) {
         return NextResponse.json(

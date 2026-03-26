@@ -167,6 +167,8 @@ export function useLiveInterview(
     if (status === "disconnected" || status === "idle") {
       // Reset so reconnect attempts can re-prime the first model turn.
       hasInitialPromptSentRef.current = false;
+      closingDetectedRef.current = false;
+      fullTranscriptRef.current = "";
     }
   }, [status, isHeld]);
 
@@ -303,7 +305,7 @@ export function useLiveInterview(
 
           fullTranscriptRef.current += modelText;
 
-          // Cap to last 2000 chars — only the tail is needed for closing-phrase detection.
+          // Cap to last 2000 chars - only the tail is needed for closing-phrase detection.
           if (fullTranscriptRef.current.length > 2000) {
             fullTranscriptRef.current = fullTranscriptRef.current.slice(-2000);
           }
@@ -339,10 +341,10 @@ export function useLiveInterview(
   );
 
   const connect = useCallback(async () => {
-    // Already connected — nothing to do.
+    // Already connected - nothing to do.
     if (isConnectedRef.current) return;
 
-    // Connection already in-flight — return the shared promise (singleflight).
+    // Connection already in-flight - return the shared promise (singleflight).
     if (connectingPromiseRef.current) return connectingPromiseRef.current;
 
     const connectionPromise = (async () => {
@@ -454,10 +456,18 @@ export function useLiveInterview(
   const disconnect = useCallback(() => {
     isIntentionalDisconnectRef.current = true;
     isConnectedRef.current = false;
+    if (userTranscriptTimeoutRef.current) {
+      clearTimeout(userTranscriptTimeoutRef.current);
+      userTranscriptTimeoutRef.current = null;
+    }
     if (sessionRef.current) {
       sessionRef.current.close();
       sessionRef.current = null;
     }
+    setIsAIResponding(false);
+    setIsUserSpeaking(false);
+    setCurrentCaption("");
+    setCurrentSpeaker(null);
     setStatus("disconnected");
   }, []);
 

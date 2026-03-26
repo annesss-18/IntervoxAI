@@ -12,14 +12,15 @@ interface UseAudioCaptureReturn {
   stopCapture: () => void;
 }
 
+const AUDIO_CONTEXT_ACTIVATION_TIMEOUT_MS = 3000;
+
 export function useAudioCapture(): UseAudioCaptureReturn {
   const [error, setError] = useState<string | null>(null);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<AudioWorkletNode | null>(null);
-  // F-006: scriptProcessorRef removed — ScriptProcessorNode is deprecated,
-  // runs on the main thread (causes audio jank), and is removed from the spec.
+  // AudioWorklet replaced the deprecated ScriptProcessorNode capture path.
   const outputMonitorGainRef = useRef<GainNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const callbackRef = useRef<((chunk: string) => void) | null>(null);
@@ -41,7 +42,25 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           await audioContextRef.current.resume();
         }
 
+        const activationStart = Date.now();
         while (audioContextRef.current.state !== "running") {
+          if (audioContextRef.current.state === "closed") {
+            throw new Error(
+              "Audio processing closed unexpectedly before capture started.",
+            );
+          }
+
+          if (
+            Date.now() - activationStart >
+            AUDIO_CONTEXT_ACTIVATION_TIMEOUT_MS
+          ) {
+            throw new Error(
+              "AudioContext did not become active within 3 seconds. " +
+                "This may be caused by browser autoplay restrictions. " +
+                "Please interact with the page and try again.",
+            );
+          }
+
           await new Promise((resolve) => setTimeout(resolve, 10));
         }
 
@@ -89,9 +108,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           options?.vadSensitivity ?? 60,
         );
 
-        // F-006: AudioWorklet is the only supported path. ScriptProcessorNode
-        // has been removed from the spec (deprecated since Chrome 66 / Firefox 76).
-        // Minimum supported browsers: Chrome 66+, Firefox 76+, Safari 14.1+.
+        // AudioWorklet is the only supported capture path for the browsers we target.
         const moduleUrl = new URL(
           "/worklets/audio-processor.js",
           window.location.origin,
@@ -126,10 +143,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           if (inputData.length > 16000 || inputData.byteLength % 2 !== 0)
             return;
 
-          const base64 =
-            typeof Buffer !== "undefined"
-              ? Buffer.from(inputData.buffer).toString("base64")
-              : uint8ArrayToBase64(new Uint8Array(inputData.buffer));
+          const base64 = uint8ArrayToBase64(new Uint8Array(inputData.buffer));
 
           callbackRef.current(base64);
         };
@@ -151,7 +165,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
         const errorMessage =
           err instanceof Error ? err.message : "Failed to access microphone";
         setError(errorMessage);
-        console.error("Audio capture error:", err);
+        logger.error("Audio capture error:", err);
         throw new Error(errorMessage);
       }
     },

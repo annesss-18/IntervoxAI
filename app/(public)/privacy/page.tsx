@@ -17,12 +17,12 @@ const items = [
   {
     icon: Lock,
     title: "Interview & resume content",
-    body: "Session transcripts and scores are stored per-user in Firestore, accessible only to you. Resume text may be encrypted at rest when encryption is configured.",
+    body: "Session transcripts and scores are stored per-user in Firestore, accessible only to you. Resume text is always encrypted at rest using AES-256-GCM before storage. You may delete individual sessions at any time from your dashboard.",
   },
   {
     icon: Eye,
     title: "Data visibility",
-    body: "Your data is never sold to or shared with third parties. AI inference is performed server-side; your interview audio is not retained beyond a session.",
+    body: "Your data is never sold to or shared with third parties. AI inference is performed server-side via the Google Gemini API; your interview audio is not retained beyond a session. Session transcripts are stored for the lifetime of your account.",
   },
   {
     icon: Server,
@@ -32,7 +32,7 @@ const items = [
   {
     icon: Mail,
     title: "Contact & deletion requests",
-    body: "To request data deletion or access a copy of your data, contact support@intervoxai.com. We will respond within 30 days.",
+    body: "To request data deletion or access a copy of your data, contact support@intervoxai.com. We will respond within 14 business days.",
   },
 ];
 
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
           </div>
 
           <p className="mt-10 text-center text-xs text-muted-foreground">
-            Last updated: early-access period.{" "}
+            Last updated: March 2026.{" "}
             <Link
               href="/terms"
               className="text-primary hover:underline underline-offset-4"

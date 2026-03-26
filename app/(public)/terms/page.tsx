@@ -18,7 +18,7 @@ const terms = [
   {
     icon: Scroll,
     title: "Service scope",
-    body: "IntervoxAI provides AI-assisted mock interview practice and performance feedback. The platform is intended for personal preparation and skill development, not for commercial redistribution.",
+    body: "IntervoxAI provides AI-assisted mock interview practice and performance feedback. The platform is intended for personal preparation and skill development, not for commercial redistribution. Interview sessions and feedback are stored indefinitely for your use. You may delete any session from your dashboard at any time. Account deletion requests are processed within 14 business days.",
   },
   {
     icon: ShieldCheck,
@@ -88,7 +88,7 @@ export default function TermsPage() {
           </div>
 
           <p className="mt-10 text-center text-xs text-muted-foreground">
-            Last updated: early-access period.{" "}
+            Last updated: March 2026.{" "}
             <Link
               href="/privacy"
               className="text-primary hover:underline underline-offset-4"

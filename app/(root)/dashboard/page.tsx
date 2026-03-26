@@ -11,7 +11,7 @@ import {
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import {
-  getUserSessions,
+  getUserSessionsPage,
   getUserTemplates,
 } from "@/lib/actions/interview.action";
 import { Container, PageHeader } from "@/components/layout/Container";
@@ -22,34 +22,46 @@ import {
   TabsTrigger,
 } from "@/components/atoms/tabs";
 import { Button } from "@/components/atoms/button";
-import { SessionCard } from "@/components/organisms/SessionCard";
+import { DashboardSessionList } from "@/components/organisms/DashboardSessionList";
 import { TemplateCard } from "@/components/organisms/TemplateCard";
 
 export const metadata: Metadata = {
-  title: "Dashboard · IntervoxAI",
+  title: "Dashboard - IntervoxAI",
   description:
     "Manage your mock interviews, track progress, and create new interview templates.",
 };
 
 export default async function DashboardPage() {
   const user = (await getCurrentUser())!;
-  const [sessions, templates] = await Promise.all([
-    getUserSessions(user.id),
-    getUserTemplates(user.id),
-  ]);
+  const [activeSessionsPage, completedSessionsPage, templates] =
+    await Promise.all([
+      getUserSessionsPage(user.id, undefined, 20, "active"),
+      getUserSessionsPage(user.id, undefined, 20, "completed"),
+      getUserTemplates(user.id),
+    ]);
 
-  const activeSessions = sessions.filter((s) => s.status !== "completed");
-  const completedSessions = sessions.filter((s) => s.status === "completed");
-  const withScores = completedSessions.filter(
-    (s) => typeof s.finalScore === "number",
-  );
-  const averageScore =
-    withScores.length > 0
-      ? Math.round(
-          withScores.reduce((t, s) => t + (s.finalScore || 0), 0) /
-            withScores.length,
-        )
-      : null;
+  const activeSessions = activeSessionsPage.sessions;
+  const completedSessions = completedSessionsPage.sessions;
+
+  // Prefer pre-aggregated stats and fall back to session-derived values for legacy users.
+  const activeCount = user.stats?.activeCount ?? activeSessions.length;
+  const completedCount = user.stats?.completedCount ?? completedSessions.length;
+  const averageScore: number | null =
+    typeof user.stats?.scoreSum === "number" &&
+    typeof user.stats?.scoreCount === "number" &&
+    user.stats.scoreCount > 0
+      ? Math.round(user.stats.scoreSum / user.stats.scoreCount)
+      : (() => {
+          const withScores = completedSessions.filter(
+            (s) => typeof s.finalScore === "number",
+          );
+          return withScores.length > 0
+            ? Math.round(
+                withScores.reduce((t, s) => t + (s.finalScore || 0), 0) /
+                  withScores.length,
+              )
+            : null;
+        })();
 
   const firstName = user.name?.split(" ")[0] ?? "there";
 
@@ -70,19 +82,19 @@ export default async function DashboardPage() {
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Active Sessions"
-          value={String(activeSessions.length)}
+          value={String(activeCount)}
           icon={<Activity className="size-5" />}
           tone="primary"
         />
         <MetricCard
           label="Completed"
-          value={String(completedSessions.length)}
+          value={String(completedCount)}
           icon={<CheckCircle2 className="size-5" />}
           tone="success"
         />
         <MetricCard
           label="Avg Score"
-          value={averageScore !== null ? `${averageScore}` : "—"}
+          value={averageScore !== null ? `${averageScore}` : "\u2014"}
           valueSuffix={averageScore !== null ? "/100" : undefined}
           icon={<TrendingUp className="size-5" />}
           tone="info"
@@ -99,17 +111,17 @@ export default async function DashboardPage() {
         <TabsList className="mb-6 w-full sm:w-auto">
           <TabsTrigger value="active">
             Practice
-            {activeSessions.length > 0 && (
+            {activeCount > 0 && (
               <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
-                {activeSessions.length}
+                {activeCount}
               </span>
             )}
           </TabsTrigger>
           <TabsTrigger value="history">
             History
-            {completedSessions.length > 0 && (
+            {completedCount > 0 && (
               <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
-                {completedSessions.length}
+                {completedCount}
               </span>
             )}
           </TabsTrigger>
@@ -124,43 +136,41 @@ export default async function DashboardPage() {
         </TabsList>
 
         <TabsContent value="active">
-          {activeSessions.length > 0 ? (
-            <CardGrid>
-              {activeSessions.map((session) => (
-                <SessionCard key={session.id} session={session} />
-              ))}
-            </CardGrid>
-          ) : (
-            <EmptyState
-              icon={<Activity className="size-8 text-muted-foreground/50" />}
-              title="No active interviews"
-              description="Start a new interview session and your active practice will appear here."
-              action={
-                <Link href="/create">
-                  <Button variant="gradient">
-                    <PlusCircle className="size-4" />
-                    New Interview
-                  </Button>
-                </Link>
-              }
-            />
-          )}
+          <DashboardSessionList
+            initialSessions={activeSessions}
+            initialCursor={activeSessionsPage.nextCursor}
+            status="active"
+            emptyState={
+              <EmptyState
+                icon={<Activity className="size-8 text-muted-foreground/50" />}
+                title="No active interviews"
+                description="Start a new interview session and your active practice will appear here."
+                action={
+                  <Link href="/create">
+                    <Button variant="gradient">
+                      <PlusCircle className="size-4" />
+                      New Interview
+                    </Button>
+                  </Link>
+                }
+              />
+            }
+          />
         </TabsContent>
 
         <TabsContent value="history">
-          {completedSessions.length > 0 ? (
-            <CardGrid>
-              {completedSessions.map((session) => (
-                <SessionCard key={session.id} session={session} />
-              ))}
-            </CardGrid>
-          ) : (
-            <EmptyState
-              icon={<Award className="size-8 text-muted-foreground/50" />}
-              title="No completed interviews"
-              description="Complete your first interview to unlock full feedback history and score trends."
-            />
-          )}
+          <DashboardSessionList
+            initialSessions={completedSessions}
+            initialCursor={completedSessionsPage.nextCursor}
+            status="completed"
+            emptyState={
+              <EmptyState
+                icon={<Award className="size-8 text-muted-foreground/50" />}
+                title="No completed interviews"
+                description="Complete your first interview to unlock full feedback history and score trends."
+              />
+            }
+          />
         </TabsContent>
 
         <TabsContent value="templates">

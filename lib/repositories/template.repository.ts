@@ -1,16 +1,12 @@
 import { db } from "@/firebase/admin";
 import { InterviewTemplate } from "@/types";
 import { logger } from "@/lib/logger";
-import { unstable_cache } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { FieldPath } from "firebase-admin/firestore";
 
 const CACHE_REVALIDATE_SECONDS = 300;
 
-// IMPORTANT: getCachedTemplateById and getCachedPublicTemplates must remain at
-// module scope. Next.js unstable_cache uses the function reference for cache
-// identity. Moving these inside a Server Component or request handler creates
-// a new function reference per invocation, defeating the cache entirely.
-// Ref: https://nextjs.org/docs/app/api-reference/functions/unstable_cache
+// Keep cached helpers at module scope so unstable_cache preserves a stable identity.
 const getCachedTemplateById = (id: string) =>
   unstable_cache(
     async () => {
@@ -112,5 +108,35 @@ export const TemplateRepository = {
   async create(data: Omit<InterviewTemplate, "id">): Promise<string> {
     const docRef = await db.collection("interview_templates").add(data);
     return docRef.id;
+  },
+
+  // R-11: Atomically update the running average score for a template.
+  // Uses a transaction to maintain scoreSum/scoreCount and derive avgScore.
+  async updateAvgScore(templateId: string, newScore: number): Promise<void> {
+    const ref = db.collection("interview_templates").doc(templateId);
+    try {
+      await db.runTransaction(async (t) => {
+        const doc = await t.get(ref);
+        if (!doc.exists) return;
+        const data = doc.data()!;
+        const newSum = (data.scoreSum ?? 0) + newScore;
+        const newCount = (data.scoreCount ?? 0) + 1;
+        t.update(ref, {
+          scoreSum: newSum,
+          scoreCount: newCount,
+          avgScore: Math.round((newSum / newCount) * 10) / 10,
+        });
+      });
+      // Mark cached template data stale while letting the next request refresh
+      // it in the background with the Next.js 16 "max" profile.
+      revalidateTag(`template:${templateId}`, "max");
+      revalidateTag("templates-public", "max");
+    } catch (error) {
+      logger.error(
+        `Error updating avgScore for template ${templateId}:`,
+        error,
+      );
+      throw error;
+    }
   },
 };

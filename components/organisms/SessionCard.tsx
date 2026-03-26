@@ -6,6 +6,7 @@ import { Button } from "@/components/atoms/button";
 import { ScoreRing } from "@/components/atoms/progress";
 import DisplayTechIcons from "@/components/molecules/DisplayTechIcons";
 import CompanyLogo from "@/components/molecules/CompanyLogo";
+import { DeleteSessionButton } from "@/components/organisms/DeleteSessionButton";
 import type { SessionCardData } from "@/types";
 
 interface SessionCardProps {
@@ -55,17 +56,20 @@ export function SessionCard({ session }: SessionCardProps) {
             </div>
           </div>
 
-          {isCompleted && session.finalScore !== undefined ? (
-            <ScoreRing score={session.finalScore} size={54} />
-          ) : (
-            <Badge
-              variant={isActive ? "warning" : "secondary"}
-              dot
-              className="shrink-0"
-            >
-              {isActive ? "In Progress" : "Ready"}
-            </Badge>
-          )}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <DeleteSessionButton sessionId={session.id} />
+            {isCompleted && session.finalScore !== undefined ? (
+              <ScoreRing score={session.finalScore} size={54} />
+            ) : (
+              <Badge
+                variant={isActive ? "warning" : "secondary"}
+                dot
+                className="shrink-0"
+              >
+                {isActive ? "In Progress" : "Ready"}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {session.techStack && session.techStack.length > 0 && (

@@ -15,8 +15,12 @@ import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: "Pricing · IntervoxAI",
+  title: "Pricing - IntervoxAI",
   description: "IntervoxAI pricing and plan information.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 const freeTier = [

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/firebase/admin";
-import { withAuth } from "@/lib/api-middleware";
 import { FieldValue } from "firebase-admin/firestore";
 import { revalidateTag } from "next/cache";
-import { logger } from "@/lib/logger";
-import type { User } from "@/types";
-
 import { z } from "zod";
+import { db } from "@/firebase/admin";
+import { withAuth } from "@/lib/api-middleware";
+import { logger } from "@/lib/logger";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import { firestoreIdSchema } from "@/lib/schemas";
+import type { User } from "@/types";
 
 const createSessionSchema = z.object({ templateId: firestoreIdSchema });
 
@@ -16,12 +16,14 @@ export const POST = withAuth(
     try {
       const body = await req.json();
       const result = createSessionSchema.safeParse(body);
+
       if (!result.success) {
         return NextResponse.json(
           { error: "Invalid input", details: result.error.issues },
           { status: 400 },
         );
       }
+
       const { templateId } = result.data;
 
       const templateRef = db.collection("interview_templates").doc(templateId);
@@ -32,6 +34,7 @@ export const POST = withAuth(
           { status: 404 },
         );
       }
+
       const templateData = templateSnap.data();
       if (!templateData?.isPublic && templateData?.creatorId !== user.id) {
         return NextResponse.json(
@@ -61,10 +64,18 @@ export const POST = withAuth(
         return newSessionRef.id;
       });
 
-      // Next.js 16 requires a cache-life profile. "max" invalidates stale data
-      // without forcing eager recomputation on the mutation path.
+      // Next.js 16 recommends the "max" cache-life profile so stale template
+      // data can be served immediately while refresh happens in the background.
       revalidateTag(`template:${templateId}`, "max");
       revalidateTag("templates-public", "max");
+
+      // Update the user's active count without blocking session creation on stats errors.
+      UserRepository.updateStats(user.id, { activeDelta: 1 }).catch((err) =>
+        logger.warn(
+          `Stats activeCount increment failed for user ${user.id}:`,
+          err,
+        ),
+      );
 
       return NextResponse.json({ sessionId });
     } catch (error) {

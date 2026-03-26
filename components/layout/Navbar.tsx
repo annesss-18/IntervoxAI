@@ -9,9 +9,8 @@ import {
   PlusCircle,
   LogOut,
   LayoutDashboard,
+  Loader2,
 } from "lucide-react";
-import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/client";
 import { Button } from "@/components/atoms/button";
 import { ThemeToggle } from "@/components/molecules/ThemeToggle";
 import { UserMenu } from "@/components/molecules/UserMenu";
@@ -28,6 +27,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/atoms/sheet";
+import { signOutAndRedirect } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
 
@@ -45,6 +45,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
   const [isScrolled, setIsScrolled] = React.useState(false);
+  const [isSigningOut, setIsSigningOut] = React.useState(false);
   const { user: authUser, loading: authLoading } = useAuth();
 
   React.useEffect(() => {
@@ -65,9 +66,9 @@ export function Navbar({ user: initialUser }: NavbarProps) {
       : null;
 
   const handleSignOut = async () => {
-    await signOut(auth);
-    await fetch("/api/auth/signout", { method: "POST" });
-    window.location.href = "/sign-in";
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    await signOutAndRedirect();
   };
 
   const getInitials = (name: string) =>
@@ -226,9 +227,14 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                           variant="ghost"
                           className="w-full justify-start rounded-xl text-error hover:bg-error/10 hover:text-error"
                           onClick={handleSignOut}
+                          disabled={isSigningOut}
                         >
-                          <LogOut className="size-4" />
-                          Sign Out
+                          {isSigningOut ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <LogOut className="size-4" />
+                          )}
+                          {isSigningOut ? "Signing Out..." : "Sign Out"}
                         </Button>
                       </div>
                     </div>

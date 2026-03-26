@@ -27,16 +27,20 @@
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/file-text.svg" alt="" width="18" /> Overview
 
-**IntervoxAI** is an AI-powered mock interview platform built for realistic, voice-first technical interview practice.
+**IntervoxAI** is a voice-first mock interview platform for realistic technical interview practice.
 
 It combines:
 
-- Live conversational interview simulation (Gemini Live API)
-- Job-description-driven interview template generation
-- Resume-aware context personalization
+- Live conversational interview simulation with Gemini Live
+- Job-description-driven template generation
+- Resume-aware interview context
 - Structured post-interview feedback with scoring and coaching
 
-The application follows a clean layered architecture (UI -> API routes -> services -> repositories -> Firestore), with strong runtime guards for auth, rate limits, and secure data handling.
+The codebase follows a layered architecture:
+
+```text
+UI -> API routes -> services -> repositories -> Firestore
+```
 
 ---
 
@@ -47,36 +51,36 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 ### Core product capabilities
 
 - **Authentication**
-  - Firebase Auth (email/password + Google)
+  - Firebase Auth with email/password and Google sign-in
   - Secure server-side session cookies
 
 - **Template studio**
-  - Analyze JD from text, URL, or file
-  - Extract role, company, level, type, and stack
-  - Generate interview questions and interviewer persona
+  - Analyze a JD from text, URL, or file
+  - Extract role, company, level, type, and tech stack
+  - Generate interview questions, focus areas, and interviewer persona
 
-- **Explore / community templates**
-  - Browse and search public templates created by other users
+- **Explore**
+  - Browse public interview templates
   - Sort by usage count or creation date
-  - One-click session creation from any public template
+  - Start a session from any public template
 
-- **Live voice interviews**
+- **Live interviews**
   - Real-time microphone streaming to Gemini Live
   - AI audio playback, captions, and session controls
-  - Session lifecycle handling and reconnect behavior
+  - Resume-aware context and guided follow-ups
 
 - **Feedback engine**
   - Transcript queueing and async processing
-  - Category scoring, strengths, gaps, and final assessment
-  - Idempotent feedback docs per user/session
+  - Category scoring, strengths, gaps, and coaching
+  - Durable QStash worker path with a local `after()` fallback
 
 ### Platform hardening
 
 - Auth middleware for protected routes
-- Route-level rate limiting (Upstash Redis in production)
-- SSRF-safe URL scraping for JD extraction
-- Resume encryption at rest (AES-256-GCM)
-- CSP and security headers in Next.js config
+- Route-level rate limiting with Upstash Redis in production
+- SSRF-safe JD extraction
+- Resume encryption at rest with AES-256-GCM
+- CSP and security headers in Next.js
 
 ---
 
@@ -86,18 +90,19 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 | Layer         | Technologies                                             |
 | ------------- | -------------------------------------------------------- |
-| Frontend      | Next.js 16 (App Router), React 19, Tailwind CSS 4        |
-| UI System     | Radix UI, shadcn/ui (new-york style), Lucide React icons |
-| Theming       | next-themes (system/light/dark), CSS variables           |
-| Typography    | DM Sans, Instrument Serif, JetBrains Mono (Google Fonts) |
+| Frontend      | Next.js 16, React 19, Tailwind CSS 4                     |
+| UI System     | Radix UI, Lucide React icons                             |
+| Theming       | next-themes, CSS variables                               |
+| Typography    | DM Sans, Instrument Serif, JetBrains Mono                |
 | Validation    | Zod, React Hook Form                                     |
 | AI            | `@google/genai`, `@ai-sdk/google`, `ai`                  |
-| Data          | Firestore + Firebase Admin SDK                           |
-| Auth          | Firebase Auth + server session cookies                   |
-| Rate limiting | Upstash Redis + `@upstash/ratelimit`                     |
+| Data          | Firestore, Firebase Admin SDK                            |
+| Auth          | Firebase Auth, session cookies                           |
+| Rate limiting | Upstash Redis, `@upstash/ratelimit`                      |
+| Queueing      | Upstash QStash                                           |
 | Parsing       | `unpdf`, `mammoth`, `cheerio`                            |
-| Notifications | Sonner (toast notifications)                             |
-| Analytics     | Vercel Analytics (`@vercel/analytics`)                   |
+| Notifications | Sonner                                                   |
+| Analytics     | Vercel Analytics                                         |
 
 ---
 
@@ -105,17 +110,17 @@ The application follows a clean layered architecture (UI -> API routes -> servic
 
 ```text
 Client (Next.js App Router UI)
-  -> API Routes (/app/api/*)
-    -> Service Layer (/lib/services)
-      -> Repository Layer (/lib/repositories)
-        -> Firestore (users, interview_templates, interview_sessions, feedback)
+  -> API routes (/app/api/*)
+    -> Service layer (/lib/services)
+      -> Repository layer (/lib/repositories)
+        -> Firestore
 ```
 
 ### Real-time interview flow
 
 ```text
-Mic Input -> useAudioCapture -> /api/live/token -> Gemini Live WebSocket
-Gemini audio/text -> useAudioPlayback + live transcript state
+Mic input -> useAudioCapture -> /api/live/token -> Gemini Live
+Gemini audio and transcript -> live interview UI
 Interview end -> /api/feedback -> /api/feedback/process -> feedback document
 ```
 
@@ -125,39 +130,43 @@ Interview end -> /api/feedback -> /api/feedback/process -> feedback document
 
 ```text
 app/
-  (public)/                  Marketing, docs, legal, support, pricing
-  (auth)/                    Sign-in / sign-up
-  (root)/                    Dashboard, create, explore, live interview
+  (public)/                  Marketing, docs, legal, support, pricing, explore
+  (auth)/                    Sign-in and sign-up
+  (root)/                    Dashboard, template details, sessions, live interview
   api/                       Route handlers
 components/
-  atoms/                     UI primitives (button, card, dialog, input …)
-  molecules/                 Reusable composites (BrandLogo, TechIcon, ThemeToggle …)
-  organisms/                 Feature components (LiveInterviewAgent, AuthForm …)
+  atoms/                     UI primitives
+  molecules/                 Reusable composites
+  organisms/                 Feature components
   layout/                    Navbar, Footer, Container
-  providers/                 AuthProvider
+  providers/                 App-level providers
 firebase/
-  client.ts                  Firebase client SDK initialization
-  admin.ts                   Firebase Admin SDK initialization
+  client.ts                  Firebase client SDK setup
+  admin.ts                   Firebase Admin SDK setup
 lib/
-  actions/                   Server actions (auth, interview)
-  services/                  Business orchestration (auth, interview)
-  repositories/              Firestore access (user, template, interview, feedback)
-  hooks/                     Audio / live-interview hooks
-  api-middleware.ts          Auth + rate-limit wrappers (withAuth, withRateLimit)
-  rate-limit.ts              Redis / in-memory rate limiting
-  server-utils.ts            Secure file/URL extraction, SSRF protection
-  resume-crypto.ts           AES-256-GCM resume encryption/decryption
-  icon-utils.ts              Tech-stack icon resolution
-  logger.ts                  Structured logging utility
+  actions/                   Server actions
+  services/                  Business orchestration
+  repositories/              Firestore access
+  queue/                     Feedback job publishing helpers
+  hooks/                     Audio and live interview hooks
+  api-middleware.ts          Auth and rate-limit wrappers
+  rate-limit.ts              Redis and in-memory rate limiting
+  server-utils.ts            Safe file and URL extraction
+  resume-crypto.ts           Resume encryption helpers
+  icon-utils.ts              Company and tech icon helpers
+  logger.ts                  Structured logging
+  models.ts                  Centralized Gemini model IDs
   schemas.ts                 Shared Zod schemas
-  validation.ts              Input validation helpers
-  utils.ts                   General utilities (cn)
+  validation.ts              Validation helpers
+  utils.ts                   Shared utilities
+  __tests__/                 Vitest coverage
 public/
-  worklets/                  AudioWorklet processor for live mic capture
+  worklets/                  AudioWorklet source
 types/                       Shared TypeScript contracts
-constants/                   Schemas and mappings
+constants/                   Shared schemas and mappings
 firestore.rules              Firestore security rules
-firestore.indexes.json       Composite Firestore indexes
+firestore.indexes.json       Firestore composite indexes
+vitest.config.ts             Vitest config
 ```
 
 ---
@@ -166,45 +175,48 @@ firestore.indexes.json       Composite Firestore indexes
 
 ### 1. Template generation
 
-1. User submits JD input in `CreateInterviewForm`.
-2. `POST /api/interview/analyze` extracts structured role context.
-3. User confirms edits (role/stack/level/type/visibility).
-4. `POST /api/interview/generate` creates and stores template.
+1. User submits JD input in the template form.
+2. `POST /api/interview/analyze` extracts role context.
+3. User confirms role, stack, level, type, and visibility.
+4. `POST /api/interview/generate` creates and stores the template.
 
-### 2. Session creation + live interview
+### 2. Session creation and live interview
 
-1. `POST /api/interview/session/create` creates a session from template.
-2. `LiveInterviewAgent` requests ephemeral token from `POST /api/live/token`.
-3. Browser streams PCM audio to Gemini Live and receives AI audio/text.
-4. Transcript is collected for feedback generation.
+1. `POST /api/interview/session/create` creates a session from a template.
+2. `LiveInterviewAgent` requests an ephemeral token from `POST /api/live/token`.
+3. The browser streams microphone audio to Gemini Live.
+4. Transcript data is collected for feedback generation.
 
 ### 3. Feedback processing
 
-1. `POST /api/feedback` queues transcript and marks session ready.
-2. `POST /api/feedback/process` claims and starts async feedback generation.
-3. `GET /api/feedback/status` polls until completed/failed.
-4. Results are written to `feedback` and attached to session metadata.
+1. `POST /api/feedback` stores the transcript and marks the session ready.
+2. `POST /api/feedback/process` claims the session and dispatches work.
+3. `GET /api/feedback/status` polls until the result is complete or failed.
+4. Feedback is stored and attached to the session metadata.
 
 ---
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/radio.svg" alt="" width="18" /> API Summary
 
-| Route                                | Method        | Auth              | Purpose                                          |
+| Route                                | Method        | Auth / Guard      | Purpose                                          |
 | ------------------------------------ | ------------- | ----------------- | ------------------------------------------------ |
 | `/api/live/token`                    | `POST`        | Yes               | Create Gemini ephemeral token for live interview |
 | `/api/resume/parse`                  | `POST`        | Yes               | Parse uploaded PDF, DOCX, or TXT resume          |
 | `/api/feedback`                      | `POST`        | Yes               | Queue transcript for feedback                    |
 | `/api/feedback/status`               | `GET`         | Yes               | Retrieve feedback processing state               |
-| `/api/feedback/process`              | `POST`        | Yes               | Start async feedback generation                  |
-| `/api/interview/analyze`             | `POST`        | Yes               | Extract role context from JD                     |
-| `/api/interview/generate`            | `POST`        | Yes               | Generate full interview template                 |
-| `/api/interview/session/create`      | `POST`        | Yes               | Create interview session                         |
-| `/api/interview/session/[sessionId]` | `GET`,`PATCH` | Yes               | Read/update session                              |
-| `/api/auth/signout`                  | `POST`        | No (rate-limited) | Clear server session cookie                      |
+| `/api/feedback/process`              | `POST`        | Yes               | Claim a ready session and dispatch feedback work |
+| `/api/workers/feedback`              | `POST`        | QStash signed     | Process queued feedback jobs                     |
+| `/api/interview/analyze`             | `POST`        | Yes               | Extract role context from a JD                   |
+| `/api/interview/generate`            | `POST`        | Yes               | Generate a full interview template               |
+| `/api/interview/session/create`      | `POST`        | Yes               | Create an interview session                      |
+| `/api/interview/session/[sessionId]` | `GET`,`PATCH` | Yes               | Read or update a session                         |
+| `/api/dashboard/sessions`            | `GET`         | Yes               | Fetch paginated dashboard sessions               |
+| `/api/user/reconcile-stats`          | `POST`        | Yes               | Rebuild aggregate user stats from source data    |
+| `/api/auth/signout`                  | `POST`        | No (rate-limited) | Clear the server session cookie                  |
 
 ---
 
-## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/database.svg" alt="" width="18" /> Data Model (Firestore)
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/database.svg" alt="" width="18" /> Data Model
 
 ### Collections
 
@@ -212,8 +224,8 @@ firestore.indexes.json       Composite Firestore indexes
   - User profile keyed by Firebase UID
 
 - `interview_templates`
-  - Role/company metadata
-  - Generated base questions, system instruction, persona
+  - Role and company metadata
+  - Questions, focus areas, persona, system instruction
   - Visibility and usage stats
 
 - `interview_sessions`
@@ -223,7 +235,7 @@ firestore.indexes.json       Composite Firestore indexes
 
 - `feedback`
   - Deterministic ID: `${userId}_${interviewId}`
-  - Category scores and coaching outputs
+  - Category scores, strengths, gaps, coaching, final assessment
 
 ### Rules and indexes
 
@@ -234,12 +246,12 @@ firestore.indexes.json       Composite Firestore indexes
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/shield-check.svg" alt="" width="18" /> Security and Privacy
 
-- **AuthZ checks**: session/template ownership is validated before reads/writes.
-- **CSRF mitigation**: mutation routes enforce expected `Content-Type`.
-- **Rate limiting**: Redis-backed in production; in-memory fallback for local dev.
-- **SSRF defense**: hostname/IP validation, blocked private ranges, DNS rebinding checks.
-- **Sensitive data**: resumes support AES-256-GCM encryption (`RESUME_ENCRYPTION_KEY`).
-- **Headers**: CSP and defensive security headers configured in `next.config.mjs`.
+- Auth ownership checks gate template and session access.
+- Mutation routes validate `Content-Type` and request origin.
+- Rate limiting uses Redis in production and an in-memory fallback locally.
+- JD extraction blocks SSRF patterns and private-address lookups.
+- Resume text is always encrypted at rest.
+- Next.js responses include CSP and other defensive headers.
 
 ---
 
@@ -251,9 +263,9 @@ firestore.indexes.json       Composite Firestore indexes
 
 - Node.js `>= 20.9.0`
 - npm
-- Firebase project (Auth + Firestore)
-- Gemini API key
-- Upstash Redis (required for production rate limiting)
+- Firebase project with Auth and Firestore
+- Gemini API keys
+- Upstash Redis for production deployments
 
 ### Installation
 
@@ -281,44 +293,51 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
-| Variable                                   | Required      | Description                                                         |
-| ------------------------------------------ | ------------- | ------------------------------------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                                          |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                                          |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                                          |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                                          |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                                          |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                                          |
-| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics / Google Analytics measurement ID                |
-| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK                                                  |
-| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                            |
-| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key (keep `\n` escapes)                  |
-| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for interview template generation                    |
-| `TEMPLATE_GENERATION_MODEL`                | Yes           | Model ID for template generation (e.g. `gemini-3.1-pro-preview`)    |
-| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live audio interviews                            |
-| `LIVE_INTERVIEW_MODEL`                     | Yes           | Model ID for live interviews                                        |
-| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback processing                              |
-| `FEEDBACK_MODEL`                           | Yes           | Model ID for feedback generation                                    |
-| `RESUME_ENCRYPTION_KEY`                    | Recommended   | 32-byte key (base64); required in prod for encrypted resume storage |
-| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting                     |
-| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                            |
-| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering                     |
-| `NEXT_PUBLIC_APP_URL`                      | Recommended   | Canonical app URL for SEO metadata and origin checks                |
+| Variable                                   | Required      | Description                                               |
+| ------------------------------------------ | ------------- | --------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                                |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                                |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                                |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                                |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                                |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                                |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics measurement ID                         |
+| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK project ID                             |
+| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                  |
+| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key with `\n` escapes          |
+| `FIREBASE_DATABASE_ID`                     | Optional      | Firestore database ID, defaults to `prod`                 |
+| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for template generation                    |
+| `TEMPLATE_GENERATION_MODEL`                | Yes           | Gemini model ID for template generation                   |
+| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live interviews                        |
+| `LIVE_INTERVIEW_MODEL`                     | Yes           | Gemini model ID for live interviews                       |
+| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback generation                    |
+| `FEEDBACK_MODEL`                           | Yes           | Gemini model ID for feedback generation                   |
+| `RESUME_ENCRYPTION_KEY`                    | Yes           | 32-byte base64 key for encrypted resume storage           |
+| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering           |
+| `NEXT_PUBLIC_APP_URL`                      | Prod          | Canonical app URL for origin validation and metadata      |
+| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting           |
+| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                  |
+| `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs            |
+| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash request signing key                        |
+| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key                          |
 
 ---
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/terminal-square.svg" alt="" width="18" /> Available Scripts
 
-| Script        | Command               | Purpose                              |
-| ------------- | --------------------- | ------------------------------------ |
-| Dev           | `npm run dev`         | Start Next.js dev server (Turbopack) |
-| Dev (webpack) | `npm run dev:webpack` | Start dev server with webpack        |
-| Build         | `npm run build`       | Create production build              |
-| Start         | `npm run start`       | Run production build                 |
-| Lint          | `npm run lint`        | Run ESLint                           |
-| Lint fix      | `npm run lint:fix`    | Auto-fix lint issues                 |
-| Type check    | `npm run type-check`  | Run TypeScript checks                |
-| CI check      | `npm run ci:check`    | Lint + types + build                 |
+| Script          | Command                 | Purpose                              |
+| --------------- | ----------------------- | ------------------------------------ |
+| Dev             | `npm run dev`           | Start Next.js dev server             |
+| Dev (webpack)   | `npm run dev:webpack`   | Start dev server with webpack        |
+| Build           | `npm run build`         | Create the production build          |
+| Start           | `npm run start`         | Run the production build             |
+| Lint            | `npm run lint`          | Run ESLint                           |
+| Lint fix        | `npm run lint:fix`      | Auto-fix lint issues                 |
+| Type check      | `npm run type-check`    | Run TypeScript checks                |
+| Test            | `npm test`              | Run the Vitest suite                 |
+| Test watch      | `npm run test:watch`    | Run Vitest in watch mode             |
+| Test coverage   | `npm run test:coverage` | Run Vitest with coverage output      |
+| CI check        | `npm run ci:check`      | Run lint, type checks, tests, build  |
 
 ---
 
@@ -326,19 +345,67 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cloud-upload.svg" alt="" width="18" /> Deployment
 
-1. Set **all** required environment variables on your hosting platform (see table above).
-2. Deploy Firestore security rules and composite indexes:
+1. Set all required environment variables on your hosting platform.
+2. Deploy Firestore rules and indexes:
    ```bash
    npx firebase deploy --only firestore:rules
    npx firebase deploy --only firestore:indexes
    ```
-3. Ensure Upstash Redis credentials are configured — the app **requires** Redis in production and will throw on startup without it.
-4. Verify Firebase Admin credentials (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`) are available at runtime.
+3. Configure Upstash Redis for production rate limiting.
+4. Configure QStash if you want durable feedback retries and signed worker delivery.
 5. Run the production build:
    ```bash
    npm run build
    npm run start
    ```
+6. Keep tests versioned in the repository, but deploy the built app output rather than raw source so production stays test-free.
+
+---
+
+## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/shield.svg" alt="" width="18" /> Production Notes
+
+### Async feedback generation
+
+Feedback generation starts at `POST /api/feedback/process` and runs asynchronously in one of two modes.
+
+**Mode 1: Upstash QStash**
+
+When `QSTASH_TOKEN` is set, jobs are published to QStash and delivered to `POST /api/workers/feedback`.
+
+| Feature                 | Detail                                                  |
+| ----------------------- | ------------------------------------------------------- |
+| Retry                   | 3 automatic retries with exponential backoff            |
+| Dead-letter queue       | Failed jobs can be inspected in QStash                  |
+| Deduplication           | One dedup key per interview                             |
+| Signature verification  | Worker validates `upstash-signature` with QStash keys   |
+| Observability           | QStash dashboard and message history                    |
+
+**Mode 2: Next.js `after()` fallback**
+
+When QStash is not configured, the app falls back to `after()` for local development and simple deployments. This path has no external retry queue.
+
+**Execution flow**
+
+```text
+POST /api/feedback/process (client -> claims session)
+  -> QStash path: publishFeedbackJob() -> Upstash QStash
+     -> POST /api/workers/feedback -> runFeedbackGeneration() in lib/services/feedback-runner.ts
+  -> Fallback path: after() -> runFeedbackGeneration()
+```
+
+**Required QStash environment variables**
+
+| Variable                     | Description                 |
+| ---------------------------- | --------------------------- |
+| `QSTASH_TOKEN`               | QStash API token            |
+| `QSTASH_CURRENT_SIGNING_KEY` | Current request signing key |
+| `QSTASH_NEXT_SIGNING_KEY`    | Next rotating signing key   |
+
+**Safety nets**
+
+- 2-minute `AbortController` timeout in `lib/services/feedback-runner.ts`
+- Exponential backoff retry inside `withRetry()`
+- Status-polling recovery in `GET /api/feedback/status`
 
 ---
 
@@ -346,23 +413,24 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/handshake.svg" alt="" width="18" /> Contributing
 
-Contributions are welcome. For meaningful changes:
-
-1. Fork and create a feature branch.
+1. Create a focused branch for your change.
 2. Run `npm run ci:check` before opening a PR.
-3. Keep commits focused and include context in PR description.
+3. Keep commits small and describe behavioral impact in the PR.
 
 ---
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/alert-circle.svg" alt="" width="18" /> Troubleshooting
 
 - **Unauthorized route errors**
-  - Check Firebase auth/session cookie setup.
-- **Feedback stuck in pending/processing**
-  - Validate Gemini key and server logs.
-- **Resume parsing fails**
-  - Ensure the file is PDF, DOCX, or TXT and under 5MB for `/api/resume/parse`.
-- **Live connection instability**
-  - Verify microphone permission and network quality.
-- **Rate-limit issues in prod**
-  - Confirm Upstash env vars are present and valid.
+  - Check Firebase auth and session-cookie setup.
+
+- **Feedback stuck in pending or processing**
+  - Confirm `POST /api/feedback/process` is being called.
+  - Check QStash configuration if the queue is enabled.
+
+- **Microphone issues**
+  - Use HTTPS or localhost.
+  - Confirm browser microphone permission is granted.
+
+- **Missing production env vars**
+  - Startup checks will throw in production if required variables are missing.

@@ -1,5 +1,6 @@
 "use server";
 
+import { UserAlreadyExistsError } from "@/lib/errors/auth.errors";
 import { AuthService } from "@/lib/services/auth.service";
 import { logger } from "../logger";
 import { GoogleAuthParams, SignInParams, SignUpParams, User } from "@/types";
@@ -15,7 +16,7 @@ export async function signUp(params: SignUpParams) {
     };
   } catch (e: unknown) {
     logger.error("Error signing up user:", e);
-    if (e instanceof Error && e.message === "User already exists") {
+    if (e instanceof UserAlreadyExistsError) {
       return {
         success: false,
         message: "Email already in use",
@@ -63,18 +64,14 @@ export async function signOut() {
     if (sessionCookie) {
       try {
         const { auth: adminAuth } = await import("@/firebase/admin");
-        // FIX F-009: Added `true` (checkRevoked) to be consistent with
-        // getCurrentUser() in auth.service.ts which already passes `true`.
-        // Without this, a cookie that was already revoked is still "verified"
-        // here and revokeRefreshTokens is called redundantly.
+        // Match getCurrentUser() by checking revocation before revoking refresh tokens.
         const decodedClaims = await adminAuth.verifySessionCookie(
           sessionCookie,
           true,
         );
         await adminAuth.revokeRefreshTokens(decodedClaims.uid);
       } catch (revokeError) {
-        // Best-effort: continue with cookie deletion even if revocation fails
-        // (e.g. cookie was already revoked or expired).
+        // Continue deleting the cookie even if token revocation fails.
         logger.warn(
           "Failed to revoke refresh tokens during signOut:",
           revokeError,

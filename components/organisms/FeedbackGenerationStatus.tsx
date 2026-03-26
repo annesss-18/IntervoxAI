@@ -38,6 +38,11 @@ export function FeedbackGenerationStatus({
   const pollIntervalRef = useRef(POLL_INITIAL_MS);
   const inFlightRef = useRef(false);
   const completionToastShownRef = useRef(false);
+  const statusRef = useRef<FeedbackJobStatus>("pending");
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   const clearPolling = useCallback(() => {
     if (pollTimerRef.current !== null) {
@@ -46,8 +51,8 @@ export function FeedbackGenerationStatus({
     }
   }, []);
 
-  const checkStatus = useCallback(async () => {
-    if (inFlightRef.current) return;
+  const checkStatus = useCallback(async (): Promise<FeedbackJobStatus | null> => {
+    if (inFlightRef.current) return statusRef.current;
     inFlightRef.current = true;
     try {
       const res = await fetch(
@@ -58,10 +63,13 @@ export function FeedbackGenerationStatus({
       if (!res.ok || !data.success || !data.status)
         throw new Error(data.error || "Failed to fetch feedback status");
 
-      setStatus(data.status);
+      const nextStatus = data.status;
+
+      setStatus(nextStatus);
+      statusRef.current = nextStatus;
       setError(data.error || null);
 
-      if (data.status === "completed") {
+      if (nextStatus === "completed") {
         clearPolling();
         if (!completionToastShownRef.current) {
           completionToastShownRef.current = true;
@@ -69,17 +77,30 @@ export function FeedbackGenerationStatus({
         }
         router.refresh();
       }
-      if (data.status === "failed") clearPolling();
+
+      if (nextStatus === "failed") {
+        clearPolling();
+      }
+
+      if (nextStatus === "pending" || nextStatus === "processing") {
+        pollIntervalRef.current = Math.min(
+          pollIntervalRef.current * POLL_BACKOFF_FACTOR,
+          POLL_MAX_MS,
+        );
+      }
+
+      return nextStatus;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to check feedback status",
       );
+      return statusRef.current;
     } finally {
       inFlightRef.current = false;
     }
   }, [clearPolling, router, sessionId]);
 
-  const triggerProcessing = useCallback(async () => {
+  const triggerProcessing = useCallback(async (): Promise<FeedbackJobStatus> => {
     const res = await fetch("/api/feedback/process", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,21 +110,29 @@ export function FeedbackGenerationStatus({
     if (!res.ok || !data.success || !data.status)
       throw new Error(data.error || "Failed to start feedback processing");
     setStatus(data.status);
+    statusRef.current = data.status;
     setError(data.error || null);
+    return data.status;
   }, [sessionId]);
 
-  const scheduleNextPoll = useCallback(() => {
-    clearPolling();
-    pollTimerRef.current = setTimeout(() => {
-      void checkStatus();
-      // Increase interval with backoff, capped at POLL_MAX_MS.
-      pollIntervalRef.current = Math.min(
-        pollIntervalRef.current * POLL_BACKOFF_FACTOR,
-        POLL_MAX_MS,
-      );
-      scheduleNextPoll();
-    }, pollIntervalRef.current);
-  }, [checkStatus, clearPolling]);
+  const scheduleNextPoll = useCallback(
+    (nextStatus: FeedbackJobStatus | null) => {
+      if (nextStatus !== "pending" && nextStatus !== "processing") {
+        clearPolling();
+        return;
+      }
+
+      if (inFlightRef.current) return;
+
+      clearPolling();
+      pollTimerRef.current = setTimeout(() => {
+        void checkStatus().then((latestStatus) => {
+          scheduleNextPoll(latestStatus);
+        });
+      }, pollIntervalRef.current);
+    },
+    [checkStatus, clearPolling],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -113,6 +142,7 @@ export function FeedbackGenerationStatus({
       } catch (err) {
         if (isMounted) {
           setStatus("failed");
+          statusRef.current = "failed";
           setError(
             err instanceof Error ? err.message : "Failed to start processing",
           );
@@ -120,8 +150,9 @@ export function FeedbackGenerationStatus({
         }
       }
       if (!isMounted) return;
-      await checkStatus();
-      scheduleNextPoll();
+      const latestStatus = await checkStatus();
+      if (!isMounted) return;
+      scheduleNextPoll(latestStatus);
     };
     void init();
     return () => {
@@ -134,25 +165,29 @@ export function FeedbackGenerationStatus({
     setIsRetrying(true);
     setError(null);
     setStatus("pending");
+    statusRef.current = "pending";
+    completionToastShownRef.current = false;
     pollIntervalRef.current = POLL_INITIAL_MS; // Reset backoff on retry.
+    clearPolling();
     try {
       await triggerProcessing();
-      await checkStatus();
-      scheduleNextPoll();
+      const latestStatus = await checkStatus();
+      scheduleNextPoll(latestStatus);
     } catch (err) {
       setStatus("failed");
+      statusRef.current = "failed";
       setError(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setIsRetrying(false);
     }
-  }, [checkStatus, triggerProcessing, scheduleNextPoll]);
+  }, [checkStatus, clearPolling, triggerProcessing, scheduleNextPoll]);
 
   const isFailed = status === "failed";
 
   const copy = {
     title:
       status === "processing"
-        ? "Analysing your interview…"
+        ? "Analysing your interview..."
         : status === "failed"
           ? "Feedback generation failed"
           : "Feedback queued",
@@ -213,7 +248,7 @@ export function FeedbackGenerationStatus({
                 ) : (
                   <RefreshCw className="size-4" />
                 )}
-                {isRetrying ? "Retrying…" : "Retry Generation"}
+                {isRetrying ? "Retrying..." : "Retry Generation"}
               </Button>
             ) : (
               <Button variant="outline" onClick={() => void checkStatus()}>

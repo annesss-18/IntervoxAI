@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { LIVE_INTERVIEW_OUTPUT_SAMPLE_RATE } from "@/lib/live-audio";
 import { logger } from "@/lib/logger";
 
 interface UseAudioPlaybackReturn {
@@ -10,14 +11,11 @@ interface UseAudioPlaybackReturn {
 }
 export function useAudioPlayback(): UseAudioPlaybackReturn {
   const audioContextRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<{ buffer: AudioBuffer; timestamp: number }[]>(
-    [],
-  );
+  const audioQueueRef = useRef<AudioBuffer[]>([]);
   const playbackStartTimeRef = useRef<number | null>(null);
   const playbackStartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
-  const isActiveRef = useRef(false);
 
   const getAudioContext = useCallback(() => {
     if (
@@ -44,7 +42,8 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     const ctx = audioContextRef.current;
     if (!ctx || audioQueueRef.current.length === 0) return;
 
-    const { buffer } = audioQueueRef.current.shift()!;
+    const buffer = audioQueueRef.current.shift();
+    if (!buffer) return;
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(ctx.destination);
@@ -70,7 +69,6 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     (base64Data: string) => {
       try {
         const ctx = getAudioContext();
-        isActiveRef.current = true;
 
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
@@ -87,12 +85,15 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           float32Array[i] = int16 / 32768.0;
         }
 
-        const incomingSampleRate = 24000;
         const systemSampleRate = ctx.sampleRate;
         const finalSamples =
-          incomingSampleRate === systemSampleRate
+          LIVE_INTERVIEW_OUTPUT_SAMPLE_RATE === systemSampleRate
             ? float32Array
-            : resampleAudio(float32Array, incomingSampleRate, systemSampleRate);
+            : resampleAudio(
+                float32Array,
+                LIVE_INTERVIEW_OUTPUT_SAMPLE_RATE,
+                systemSampleRate,
+              );
 
         const audioBuffer = ctx.createBuffer(
           1,
@@ -101,10 +102,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
         );
         audioBuffer.getChannelData(0).set(finalSamples);
 
-        audioQueueRef.current.push({
-          buffer: audioBuffer,
-          timestamp: Date.now(),
-        });
+        audioQueueRef.current.push(audioBuffer);
 
         logger.debug(
           "Audio queued, queue size:",
@@ -137,14 +135,13 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           }
         }
       } catch (error) {
-        console.error("Error playing audio:", error);
+        logger.error("Error playing audio:", error);
       }
     },
     [getAudioContext, playNextInQueue],
   );
 
   const clearQueue = useCallback(() => {
-    isActiveRef.current = false;
     playbackStartTimeRef.current = null;
     audioQueueRef.current = [];
     if (playbackStartTimeoutRef.current) {

@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-
-export const metadata: Metadata = { title: "Interview Template · IntervoxAI" };
+import { getTemplateById } from "@/lib/actions/interview.action";
 
 import {
   ArrowLeft,
@@ -20,12 +19,44 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/lib/actions/auth.action";
-import { getTemplateById } from "@/lib/actions/interview.action";
 import { Badge } from "@/components/atoms/badge";
 import { Container } from "@/components/layout/Container";
 import CompanyLogo from "@/components/molecules/CompanyLogo";
 import DisplayTechIcons from "@/components/molecules/DisplayTechIcons";
 import StartSessionButton from "@/components/organisms/StartSessionButton";
+
+// R-15: Dynamic OG metadata — title and description derived from template data.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}): Promise<Metadata> {
+  const { templateId } = await params;
+  const template = await getTemplateById(templateId);
+
+  if (!template) {
+    return { title: "Template Not Found · IntervoxAI" };
+  }
+
+  const title = `${template.role} Interview · ${template.companyName || "IntervoxAI"}`;
+  const description = `Practice a ${template.level} ${template.type} interview for ${template.role} at ${template.companyName || "any company"}.${template.techStack.length > 0 ? ` Tech: ${template.techStack.slice(0, 5).join(", ")}.` : ""}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      siteName: "IntervoxAI",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
+  };
+}
 
 const TemplatePage = async ({
   params,
@@ -125,7 +156,9 @@ const TemplatePage = async ({
 
             <h1 className="text-xl font-bold leading-tight text-foreground sm:text-2xl">
               {template.role}{" "}
-              <span className="text-muted-foreground font-normal">Interview</span>
+              <span className="text-muted-foreground font-normal">
+                Interview
+              </span>
             </h1>
 
             <div className="flex flex-wrap items-center gap-1.5">
@@ -203,7 +236,9 @@ const TemplatePage = async ({
 
             <div className="flex flex-col gap-1.5 pt-2.5 border-t border-border/50">
               <FeaturePill
-                icon={<ShieldCheck className="size-3.5 text-success shrink-0" />}
+                icon={
+                  <ShieldCheck className="size-3.5 text-success shrink-0" />
+                }
                 text="Personalised AI context"
               />
               <FeaturePill
@@ -238,10 +273,7 @@ const TemplatePage = async ({
           <div className="space-y-4">
             {jobParagraphs.length > 0 ? (
               jobParagraphs.map((paragraph, i) => (
-                <p
-                  key={i}
-                  className="text-sm leading-7 text-muted-foreground"
-                >
+                <p key={i} className="text-sm leading-7 text-muted-foreground">
                   {paragraph}
                 </p>
               ))

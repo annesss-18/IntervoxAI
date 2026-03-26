@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 
 // Keep brand assets at native aspect ratios to avoid visual distortion.
 const WORDMARK_RATIO = 3687 / 561;
-const LOGOFULL_RATIO = 3134 / 2269;
 
 const scale = {
   xs: { icon: 20, wordmarkH: 16, gap: "gap-1.5" },
@@ -52,27 +51,6 @@ export function BrandWordmark({
       width={width}
       height={height}
       className={cn("shrink-0", "dark:brightness-0 dark:invert", className)}
-      unoptimized
-    />
-  );
-}
-
-export function BrandLogoFull({
-  height = 64,
-  className,
-}: {
-  height?: number;
-  className?: string;
-}) {
-  const width = Math.round(height * LOGOFULL_RATIO);
-
-  return (
-    <Image
-      src="/logo-full.svg"
-      alt="IntervoxAI"
-      width={width}
-      height={height}
-      className={cn("shrink-0", className)}
       unoptimized
     />
   );

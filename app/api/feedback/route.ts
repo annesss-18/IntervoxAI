@@ -4,25 +4,15 @@ import { withAuth } from "@/lib/api-middleware";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { logger } from "@/lib/logger";
 import type { User } from "@/types";
-import { firestoreIdSchema } from "@/lib/schemas";
+import { firestoreIdSchema, transcriptArraySchema } from "@/lib/schemas";
 import { z } from "zod";
-
-const transcriptEntrySchema = z.object({
-  role: z.string().trim().min(1).max(40),
-  content: z.string().trim().min(1).max(2000),
-});
 
 const feedbackQueueSchema = z.object({
   interviewId: firestoreIdSchema,
-  transcript: z
-    .array(transcriptEntrySchema)
-    .min(1, "Transcript cannot be empty")
-    .max(300),
+  transcript: transcriptArraySchema,
 });
 
-function normalizeTranscript(
-  transcript: z.infer<typeof transcriptEntrySchema>[],
-) {
+function normalizeTranscript(transcript: z.infer<typeof transcriptArraySchema>) {
   return transcript
     .map((entry) => ({
       role: entry.role.trim().slice(0, 40),

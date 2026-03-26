@@ -12,6 +12,13 @@ export const config = {
 const protectedRoutes = ["/dashboard", "/create", "/interview"];
 const authRoutes = ["/sign-in", "/sign-up"];
 
+// WHY CSP LIVES HERE INSTEAD OF next.config.mjs:
+// A nonce-based Content Security Policy needs a unique random value on every
+// request. Static headers are configured once and cannot safely generate
+// per-request nonces. The proxy creates one nonce, applies it to the CSP
+// response header, and forwards the same value through x-nonce so layout.tsx
+// can attach it to framework-managed inline tags during rendering.
+
 // Firebase session cookies are JWTs: exactly 3 base64url segments separated
 // by dots. A bare truthy string (e.g. "fake") will no longer bypass the guard.
 function isPlausibleSessionCookie(value: string): boolean {
@@ -44,9 +51,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Next.js propagates a single request nonce through the rendering pipeline.
-  // Use the same nonce for both script-src and style-src so framework-managed
-  // inline tags can satisfy CSP consistently.
+  // Reuse one nonce for both script-src and style-src across the request pipeline.
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const isDev = process.env.NODE_ENV === "development";
 
@@ -55,9 +60,7 @@ export function proxy(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""} https://apis.google.com https://*.firebaseapp.com https://va.vercel-scripts.com`,
     `style-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-inline'" : ""} https://fonts.googleapis.com`,
     `img-src 'self' data: https:`,
-    // fonts.gstatic.com serves font files; fonts.googleapis.com serves the CSS
-    // stylesheet. Remove these two if you switch to next/font/google (which
-    // self-hosts fonts at build time and font-src 'self' then covers them).
+    // Keep Google Fonts hosts until the app fully switches to self-hosted fonts.
     `font-src 'self' data: https://fonts.gstatic.com`,
     `media-src 'self' blob:`,
     `worker-src 'self' blob:`,

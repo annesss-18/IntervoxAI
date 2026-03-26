@@ -3,7 +3,7 @@ export interface Feedback {
   interviewId: string;
   userId: string;
   totalScore: number;
-  hiringRecommendation?:
+  hiringRecommendation:
     | "Strong Yes"
     | "Yes"
     | "Lean Yes"
@@ -15,7 +15,7 @@ export interface Feedback {
     score: number;
     comment: string;
   }>;
-  behavioralInsights?: {
+  behavioralInsights: {
     confidenceLevel: "High" | "Moderate" | "Low" | "Variable";
     clarityOfThought: "Excellent" | "Good" | "Developing" | "Needs Improvement";
     technicalDepth: "Expert" | "Proficient" | "Intermediate" | "Foundational";
@@ -25,7 +25,7 @@ export interface Feedback {
   };
   strengths: string[];
   areasForImprovement: string[];
-  careerCoaching?: {
+  careerCoaching: {
     immediateActions: string[];
     learningPath: string[];
     interviewTips: string[];
@@ -62,6 +62,9 @@ export interface InterviewTemplate {
   };
   usageCount: number;
   avgScore: number;
+  // R-11: Running totals for incremental average calculation.
+  scoreSum?: number;
+  scoreCount?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -75,6 +78,8 @@ export interface InterviewSession {
   transcript?: Array<{ role: string; content: string }>;
   status: "setup" | "active" | "completed";
   startedAt: string;
+  // R-9: Set when session transitions to "active" (session PATCH route).
+  activatedAt?: string;
   completedAt?: string;
   feedbackId?: string;
   finalScore?: number;
@@ -113,6 +118,8 @@ export interface SessionCardData {
   feedbackId?: string;
   hasResume: boolean;
 }
+
+export type SessionStatusFilter = "active" | "completed";
 
 export interface InterviewSessionDetail {
   id: string;
@@ -155,6 +162,16 @@ export interface User {
   name: string;
   email: string;
   id: string;
+  // R-12: Google avatar URL, stored on first sign-in / updated on re-login.
+  photoURL?: string;
+  // Pre-aggregated session counters may be absent for legacy accounts.
+  stats?: {
+    activeCount?: number;
+    completedCount?: number;
+    // Store score totals separately so average score can be derived cheaply.
+    scoreSum?: number;
+    scoreCount?: number;
+  };
 }
 
 export interface SignInParams {

@@ -3,6 +3,11 @@
 import { useState, useCallback, useRef } from "react";
 import { FileUp, FileCheck, X, Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  isAllowedResumeFile,
+  MAX_RESUME_SIZE_BYTES,
+  RESUME_FILE_ACCEPT,
+} from "@/lib/resume-types";
 
 interface ResumeUploaderProps {
   onResumeUploaded: (text: string) => void;
@@ -15,23 +20,6 @@ interface UploadState {
   fileName?: string;
   error?: string;
   textPreview?: string;
-}
-
-const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
-const DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-const TXT_MIME = "text/plain";
-
-function isAllowedResumeFile(file: File): boolean {
-  const name = file.name.toLowerCase();
-  return (
-    file.type === "application/pdf" ||
-    file.type === DOCX_MIME ||
-    file.type === TXT_MIME ||
-    name.endsWith(".pdf") ||
-    name.endsWith(".docx") ||
-    name.endsWith(".txt")
-  );
 }
 
 export function ResumeUploader({
@@ -143,7 +131,7 @@ export function ResumeUploader({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+          accept={RESUME_FILE_ACCEPT}
           onChange={handleChange}
           className="hidden"
         />

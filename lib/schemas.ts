@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-// Shared Firestore document ID format validation.
-// Firestore auto-generated IDs are 20 alphanumeric characters, but
-// deterministic IDs (e.g. feedback `userId_interviewId`) use underscores and
-// can be longer. This schema accepts both patterns safely.
+// Validate both auto-generated Firestore IDs and longer deterministic document IDs.
 export const firestoreIdSchema = z
   .string()
   .min(1, "Document ID is required")
@@ -34,37 +31,16 @@ export const ALLOWED_VOICE_NAMES = [
   "Leda",
   "Orus",
   "Zephyr",
-  // Backward compatibility for older templates created before the voice list
-  // was aligned with the current template generator.
+  // Keep older templates valid after the voice list refresh.
   "Orbit",
 ] as const;
 
-// F-008: Validates the interviewContext object sent from the client to
-// /api/live/token. .strict() causes safeParse to FAIL if any extra field is
-// present — this specifically blocks `resumeText` and `systemInstruction`
-// from ever arriving via the client body, preventing prompt injection and PII
-// leakage. Both values are read server-side from Firestore instead.
-export const interviewContextClientSchema = z
-  .object({
-    role: z.string().min(1).max(100),
-    companyName: z.string().max(100).optional(),
-    level: z.string().max(50).optional(),
-    type: z.string().max(50).optional(),
-    techStack: z.array(z.string().max(50)).max(20).optional(),
-    questions: z.array(z.string().max(500)).max(20).optional(),
-    interviewerPersona: z
-      .object({
-        name: z.string().max(100),
-        title: z.string().max(100),
-        personality: z.string().max(300),
-        voice: z.enum(ALLOWED_VOICE_NAMES).optional(),
-      })
-      .optional(),
-    // resumeText    → intentionally absent: server reads from Firestore
-    // systemInstruction → intentionally absent: server reads from Firestore
-  })
-  .strict(); // reject any undeclared field, including resumeText / systemInstruction
+export const transcriptEntrySchema = z.object({
+  role: z.string().trim().min(1).max(40),
+  content: z.string().trim().min(1).max(2000),
+});
 
-export type InterviewContextClient = z.infer<
-  typeof interviewContextClientSchema
->;
+export const transcriptArraySchema = z
+  .array(transcriptEntrySchema)
+  .min(1, "Transcript cannot be empty")
+  .max(300);

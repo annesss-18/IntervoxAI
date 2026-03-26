@@ -12,9 +12,7 @@ export default async function RootLayout({
   const user = await getCurrentUser();
 
   if (!user) {
-    // Clear the stale session cookie so the edge middleware (proxy.ts) won't
-    // redirect back from /sign-in, breaking the redirect loop that occurs when
-    // a cookie is JWT-shaped but expired/revoked.
+    // Clear stale session cookies before redirecting to avoid auth redirect loops.
     const cookieStore = await cookies();
     cookieStore.delete("session");
     redirect("/sign-in");

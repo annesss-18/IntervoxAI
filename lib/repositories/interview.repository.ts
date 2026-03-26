@@ -1,7 +1,7 @@
 import { db } from "@/firebase/admin";
-import { InterviewSession } from "@/types";
 import { logger } from "@/lib/logger";
-import { decryptResumeText } from "@/lib/resume-crypto";
+import { decryptResumeText, isEncryptedResumeText } from "@/lib/resume-crypto";
+import { InterviewSession, SessionStatusFilter } from "@/types";
 
 export interface TranscriptSentence {
   role: string;
@@ -12,10 +12,6 @@ export interface InterviewSessionRecord extends InterviewSession {
   transcript?: TranscriptSentence[];
 }
 
-// F-014 FIX: Replaced the hard-coded limit(50) with cursor-based pagination.
-// The old findByUserId is kept as a convenience wrapper that returns the first
-// page only (used by places in the codebase that don't yet need pagination).
-// New callers should use findByUserIdPaginated directly.
 export interface SessionPage {
   sessions: InterviewSessionRecord[];
   // Pass nextCursor into the next call; null means this is the last page.
@@ -25,27 +21,26 @@ export interface SessionPage {
 const DEFAULT_PAGE_SIZE = 20;
 
 export const InterviewRepository = {
-  // Return the first page of sessions for a user.
-  /** @deprecated For paginated dashboard loads, prefer findByUserIdPaginated. */
-  async findByUserId(userId: string): Promise<InterviewSessionRecord[]> {
-    const page = await this.findByUserIdPaginated(userId);
-    return page.sessions;
-  },
-
-  // Return sessions using cursor-based pagination.
-  // Pass nextCursor back as afterCursor to fetch the following page.
   async findByUserIdPaginated(
     userId: string,
     afterCursor?: string,
     limit: number = DEFAULT_PAGE_SIZE,
+    statusFilter?: SessionStatusFilter,
   ): Promise<SessionPage> {
     try {
-      let query = db
-        .collection("interview_sessions")
-        .where("userId", "==", userId)
+      let query = db.collection("interview_sessions").where("userId", "==", userId);
+
+      if (statusFilter === "completed") {
+        query = query.where("status", "==", "completed");
+      }
+
+      if (statusFilter === "active") {
+        query = query.where("status", "in", ["setup", "active"]);
+      }
+
+      query = query
         .orderBy("startedAt", "desc")
-        // F-004/F-005 FIX: Field mask — exclude large fields not needed for
-        // session cards: transcript (up to 600KB) and resumeText (encrypted blob).
+        // Exclude large transcript and resume fields from dashboard session queries.
         .select(
           "templateId",
           "userId",
@@ -59,10 +54,9 @@ export const InterviewRepository = {
           "feedbackStatus",
           "feedbackError",
           "feedbackCompletedAt",
-          // transcript intentionally excluded — up to 600KB per session
+          // Transcript intentionally excluded because it can be large.
         )
-        // Fetch one extra doc so we know whether a next page exists
-        // without a second round-trip.
+        // Fetch one extra doc so we know whether a next page exists without a second round-trip.
         .limit(limit + 1);
 
       if (afterCursor) {
@@ -89,7 +83,13 @@ export const InterviewRepository = {
         nextCursor: hasMore ? (docs[docs.length - 1]?.id ?? null) : null,
       };
     } catch (error) {
-      logger.error("Error fetching paginated interview sessions:", error);
+      logger.error("Error fetching paginated interview sessions:", {
+        userId,
+        afterCursor,
+        limit,
+        statusFilter,
+        error,
+      });
       throw new Error("Failed to fetch interview sessions");
     }
   },
@@ -98,10 +98,27 @@ export const InterviewRepository = {
     try {
       const doc = await db.collection("interview_sessions").doc(id).get();
       if (!doc.exists) return null;
+
       const data = { id: doc.id, ...doc.data() } as InterviewSessionRecord;
+
+      // Log decryption failures separately from missing resume data.
+      const encryptedResume = data.resumeText;
+      const decryptedResume = decryptResumeText(encryptedResume);
+      if (
+        encryptedResume &&
+        isEncryptedResumeText(encryptedResume) &&
+        decryptedResume === undefined
+      ) {
+        logger.error(
+          `Failed to decrypt resumeText for session ${id}. ` +
+            `This may indicate a key rotation issue or data corruption. ` +
+            `The resume will be unavailable for this session.`,
+        );
+      }
+
       return {
         ...data,
-        resumeText: decryptResumeText(data.resumeText),
+        resumeText: decryptedResume,
       };
     } catch (error) {
       logger.error(`Error fetching interview session ${id}:`, error);

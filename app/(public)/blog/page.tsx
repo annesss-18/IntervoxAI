@@ -6,9 +6,13 @@ import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: "Blog · IntervoxAI",
+  title: "Blog - IntervoxAI",
   description:
     "Interview preparation and career growth articles from IntervoxAI.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 const upcomingTopics = [
@@ -38,7 +42,7 @@ const upcomingTopics = [
     category: "Coding",
     title: "Explaining your reasoning while solving LeetCode",
     description:
-      "Interviewers score narration heavily — here's how to practise speaking while thinking.",
+      "Interviewers score narration heavily - here's how to practise speaking while thinking.",
   },
 ];
 

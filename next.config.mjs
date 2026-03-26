@@ -38,10 +38,6 @@ const nextConfig = {
         protocol: "https",
         hostname: "cdn.jsdelivr.net",
       },
-      {
-        protocol: "https",
-        hostname: "logo.clearbit.com",
-      },
     ],
   },
 
@@ -67,11 +63,7 @@ const nextConfig = {
             key: "X-Frame-Options",
             value: "DENY",
           },
-          // FIX F-006: X-XSS-Protection 1; mode=block is a legacy IE header that
-          // was removed from all modern browsers (Chromium dropped it in 2019).
-          // OWASP notes it can introduce new XSS vectors in IE when it "blocks" a page.
-          // Setting to "0" disables the broken auditor. CSP nonces (proxy.ts)
-          // provide the real XSS protection for modern browsers.
+          // Disable the legacy XSS auditor and rely on CSP nonces instead.
           {
             key: "X-XSS-Protection",
             value: "0",
@@ -85,7 +77,8 @@ const nextConfig = {
             value:
               "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
           },
-          // CSP is handled by proxy.ts with per-request nonces.
+          // CSP stays in proxy.ts because nonce-based policies need a fresh
+          // per-request value that static next.config headers cannot provide.
         ],
       },
       // Immutable cache headers for static assets.

@@ -3,6 +3,8 @@
 import { GetFeedbackByInterviewIdParams } from "@/types";
 import { logger } from "../logger";
 import { InterviewService } from "@/lib/services/interview.service";
+import type { SessionPageResult } from "@/lib/services/interview.service";
+import type { SessionStatusFilter } from "@/types";
 
 export async function getInterviewById(id: string, userId?: string) {
   try {
@@ -27,8 +29,18 @@ export async function getUserTemplates(userId: string) {
   return await InterviewService.getUserTemplates(userId);
 }
 
-export async function getUserSessions(userId: string) {
-  return await InterviewService.getUserSessions(userId);
+export async function getUserSessionsPage(
+  userId: string,
+  afterCursor?: string,
+  limit: number = 20,
+  statusFilter?: SessionStatusFilter,
+): Promise<SessionPageResult> {
+  return await InterviewService.getUserSessionsPage(
+    userId,
+    afterCursor,
+    limit,
+    statusFilter,
+  );
 }
 
 export async function getTemplateById(templateId: string, userId?: string) {

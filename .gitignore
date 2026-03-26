@@ -35,8 +35,6 @@ junit.xml
 .env
 .env.*
 !.env.example
-.env.production
-.env.test
 
 # Logs
 *.log

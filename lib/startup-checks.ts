@@ -17,24 +17,12 @@ const REQUIRED_PRODUCTION_VARS: ReadonlyArray<{ key: string; hint: string }> = [
     hint: "Gemini API key for template generation",
   },
   {
-    key: "TEMPLATE_GENERATION_MODEL",
-    hint: "Gemini model ID for template generation",
-  },
-  {
     key: "LIVE_INTERVIEW_API_KEY",
     hint: "Gemini API key for live audio interviews",
   },
   {
-    key: "LIVE_INTERVIEW_MODEL",
-    hint: "Gemini model ID for live interviews",
-  },
-  {
     key: "FEEDBACK_API_KEY",
     hint: "Gemini API key for feedback processing",
-  },
-  {
-    key: "FEEDBACK_MODEL",
-    hint: "Gemini model ID for feedback generation",
   },
   {
     key: "RESUME_ENCRYPTION_KEY",

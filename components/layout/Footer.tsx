@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Twitter, Linkedin } from "lucide-react";
+import { Github, Linkedin, Twitter } from "lucide-react";
 import { BrandIcon, BrandWordmark } from "@/components/molecules/BrandLogo";
 
 const footerLinks = {
@@ -85,7 +85,7 @@ export function Footer() {
           <div className="flex items-center gap-2.5">
             <BrandIcon size={18} />
             <span className="text-sm text-muted-foreground">
-              © {year} IntervoxAI. All rights reserved.
+              Copyright {year} IntervoxAI. All rights reserved.
             </span>
           </div>
           <p className="text-xs text-muted-foreground/60">
@@ -128,12 +128,13 @@ function FooterColumn({
 
 export function FooterCompact() {
   const year = new Date().getFullYear();
+
   return (
     <footer className="border-t border-border/40 py-4">
       <div className="container-app flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
         <div className="flex items-center gap-2">
           <BrandIcon size={16} />
-          <span> © {year} IntervoxAI</span>
+          <span>Copyright {year} IntervoxAI</span>
         </div>
         <div className="flex gap-5">
           {[

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/actions/auth.action";
-import { checkRateLimit, RateLimitConfig } from "@/lib/rate-limit";
 import { logger } from "@/lib/logger";
+import { checkRateLimit, RateLimitConfig } from "@/lib/rate-limit";
 import type { User } from "@/types";
 
 function getRequestScope(req: NextRequest): string {
@@ -44,8 +44,7 @@ export function withAuth<TArgs extends unknown[]>(
         );
       }
 
-      // F-003 FIX: Derive expected origin from Host header when APP_URL is unset,
-      // so the CSRF check is never silently disabled in production.
+      // Fall back to the request host so origin validation still runs when APP_URL is unset.
       const origin = req.headers.get("origin");
       const isDev = process.env.NODE_ENV === "development";
 

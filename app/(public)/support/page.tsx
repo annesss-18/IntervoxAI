@@ -33,7 +33,7 @@ const quickFixes = [
   {
     icon: RefreshCw,
     title: "Feedback not generating",
-    fix: "Return to the dashboard and re-open the session. Feedback generation is async and may take up to 30 seconds.",
+    fix: "Return to the dashboard and re-open the session. Feedback generation is async and may take up to 60 seconds.",
   },
   {
     icon: LayoutDashboard,
@@ -48,7 +48,7 @@ const contactChannels = [
     label: "Email",
     value: "support@intervoxai.com",
     href: "mailto:support@intervoxai.com",
-    sub: "Response within 48 hours",
+    sub: "Response within 2 business days",
   },
   {
     icon: Twitter,

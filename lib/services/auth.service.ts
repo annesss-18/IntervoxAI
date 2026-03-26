@@ -1,5 +1,8 @@
 import { auth } from "@/firebase/admin";
 import { cookies } from "next/headers";
+import {
+  isUserAlreadyExistsError,
+} from "@/lib/errors/auth.errors";
 import { GoogleAuthParams, SignInParams, SignUpParams, User } from "@/types";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { logger } from "@/lib/logger";
@@ -11,6 +14,8 @@ type VerifiedIdentity = {
   uid: string;
   email: string;
   name?: string;
+  // R-12: Google profile photo URL from the ID token.
+  picture?: string;
 };
 
 async function verifyIdentityToken(idToken: string): Promise<VerifiedIdentity> {
@@ -26,6 +31,11 @@ async function verifyIdentityToken(idToken: string): Promise<VerifiedIdentity> {
       uid: decodedToken.uid,
       email: normalizedEmail,
       name: decodedToken.name?.trim(),
+      // R-12: Extract avatar URL from the Google ID token.
+      picture:
+        typeof decodedToken.picture === "string"
+          ? decodedToken.picture.trim()
+          : undefined,
     };
   } catch (error) {
     logger.warn("Invalid ID token submitted for authentication", error);
@@ -58,6 +68,7 @@ export const AuthService = {
     await UserRepository.createTransactionally(identity.uid, {
       name: displayName,
       email: identity.email,
+      ...(identity.picture ? { photoURL: identity.picture } : {}),
     });
     await this.setSessionCookie(idToken);
 
@@ -79,6 +90,15 @@ export const AuthService = {
     }
 
     await this.setSessionCookie(idToken);
+
+    // R-12: Update photoURL on sign-in if it changed (e.g. user updated their Google avatar).
+    if (identity.picture && existingUser.photoURL !== identity.picture) {
+      UserRepository.updatePhotoURL(identity.uid, identity.picture).catch(
+        (err) =>
+          logger.warn(`photoURL update failed for user ${identity.uid}:`, err),
+      );
+    }
+
     return { success: true };
   },
 
@@ -98,13 +118,7 @@ export const AuthService = {
         httpOnly: true,
         secure: isProduction,
         path: "/",
-        // F-006 FIX: changed from 'lax' to 'strict'.
-        // 'strict' ensures the cookie is never sent on any cross-site request,
-        // eliminating cross-site navigation CSRF vectors.
-        // Google OAuth is handled entirely client-side via the Firebase JS SDK,
-        // so this does not break the Google sign-in flow: the cookie is set after
-        // the OAuth redirect completes and the client POSTs an idToken to our
-        // Server Action on a same-origin request.
+        // Use SameSite=strict because Google OAuth finishes client-side before this cookie is set.
         sameSite: "strict",
       });
     } catch (error) {
@@ -143,10 +157,10 @@ export const AuthService = {
       await UserRepository.createTransactionally(identity.uid, {
         name: displayName,
         email: identity.email,
+        ...(identity.picture ? { photoURL: identity.picture } : {}),
       });
     } catch (e: unknown) {
-      if (e instanceof Error && e.message === "User already exists") {
-      } else {
+      if (!isUserAlreadyExistsError(e)) {
         throw e;
       }
     }

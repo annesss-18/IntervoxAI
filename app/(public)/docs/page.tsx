@@ -14,8 +14,12 @@ import { Container, PageHeader, Section } from "@/components/layout/Container";
 import { Button } from "@/components/atoms/button";
 
 export const metadata: Metadata = {
-  title: "Documentation · IntervoxAI",
+  title: "Documentation - IntervoxAI",
   description: "IntervoxAI product and usage documentation.",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 const sections = [
@@ -31,7 +35,7 @@ const sections = [
     icon: MessageSquare,
     title: "Live Interviews",
     description:
-      "How the voice interview engine works — microphone setup, AI turn-taking, and ending a session.",
+      "How the voice interview engine works - microphone setup, AI turn-taking, and ending a session.",
     color: "secondary",
     href: "/explore",
   },
@@ -99,7 +103,7 @@ export default function DocsPage() {
               <p className="mt-0.5 text-sm text-muted-foreground">
                 The app itself is the best guide for now. Core flow:{" "}
                 <span className="text-foreground font-medium">
-                  Explore templates → run interview → review feedback
+                  Explore templates -&gt; run interview -&gt; review feedback
                 </span>
                 . Full docs coming soon.
               </p>

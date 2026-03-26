@@ -1,5 +1,6 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
+// Shared Zod schema for structured interview feedback output.
 export const feedbackSchema = z.object({
   totalScore: z
     .number()

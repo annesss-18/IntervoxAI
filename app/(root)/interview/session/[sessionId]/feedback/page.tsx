@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Feedback · IntervoxAI" };
+export const metadata: Metadata = { title: "Feedback - IntervoxAI" };
 
 import {
   AlertCircle,
@@ -133,7 +133,7 @@ const Page = async ({ params }: RouteParams) => {
     totalScore >= 80
       ? "Outstanding. Clear reasoning, confident delivery, and strong technical depth."
       : totalScore >= 60
-        ? "Solid progress — tighten structure and reduce hedging to close the gap."
+        ? "Solid progress - tighten structure and reduce hedging to close the gap."
         : "Clear room for growth. Focus on the areas below and run another session.";
   return (
     <Container size="xl" className="animate-fade-up space-y-6">
@@ -295,8 +295,8 @@ const Page = async ({ params }: RouteParams) => {
           </div>
           <ul className="space-y-3">
             {Array.isArray(feedback.strengths) &&
-              feedback.strengths.map((s: string, i: number) => (
-                <li key={i} className="flex items-start gap-3">
+              feedback.strengths.map((s: string, index: number) => (
+                <li key={`${s}-${index}`} className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
                   <span className="text-sm text-muted-foreground leading-relaxed">
                     {s}
@@ -315,8 +315,8 @@ const Page = async ({ params }: RouteParams) => {
           </div>
           <ul className="space-y-3">
             {Array.isArray(feedback.areasForImprovement) &&
-              feedback.areasForImprovement.map((item: string, i: number) => (
-                <li key={i} className="flex items-start gap-3">
+              feedback.areasForImprovement.map((item: string, index: number) => (
+                <li key={`${item}-${index}`} className="flex items-start gap-3">
                   <AlertCircle className="mt-0.5 size-4 shrink-0 text-warning" />
                   <span className="text-sm text-muted-foreground leading-relaxed">
                     {item}

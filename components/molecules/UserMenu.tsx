@@ -1,9 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/client";
-import { LogOut, LayoutDashboard } from "lucide-react";
+import { LogOut, LayoutDashboard, Loader2 } from "lucide-react";
 import { Button } from "@/components/atoms/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/atoms/avatar";
 import {
@@ -13,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
+import { signOutAndRedirect } from "@/lib/auth-client";
 
 interface UserMenuProps {
   user: { name: string; email: string; id: string };
@@ -20,10 +20,12 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ user, avatarUrl }: UserMenuProps) {
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
   const handleSignOut = async () => {
-    await signOut(auth);
-    await fetch("/api/auth/signout", { method: "POST" });
-    window.location.href = "/sign-in";
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    await signOutAndRedirect();
   };
 
   const getInitials = (name: string) =>
@@ -75,10 +77,15 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
 
         <DropdownMenuItem
           onClick={handleSignOut}
+          disabled={isSigningOut}
           className="text-error focus:text-error focus:bg-error/8"
         >
-          <LogOut className="size-4" />
-          Sign Out
+          {isSigningOut ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <LogOut className="size-4" />
+          )}
+          {isSigningOut ? "Signing Out..." : "Sign Out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
