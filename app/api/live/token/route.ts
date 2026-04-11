@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { db } from "@/firebase/admin";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
-import { MODEL_CONFIG } from "@/lib/models";
 import { decryptResumeText } from "@/lib/resume-crypto";
 import { ALLOWED_VOICE_NAMES, firestoreIdSchema } from "@/lib/schemas";
-import type { User } from "@/types";
+import type { AuthClaims } from "@/types";
 
 const client = new GoogleGenAI({
   apiKey: process.env.LIVE_INTERVIEW_API_KEY,
 });
 
-export const POST = withAuth(
-  async (req: NextRequest, user: User) => {
+const LIVE_INTERVIEW_MODEL = process.env.LIVE_INTERVIEW_MODEL;
+
+if (!LIVE_INTERVIEW_MODEL) {
+  throw new Error("LIVE_INTERVIEW_MODEL is required");
+}
+
+export const POST = withAuthClaims(
+  async (req: NextRequest, user: AuthClaims) => {
     try {
       const body = await req.json();
       const idResult = firestoreIdSchema.safeParse(body?.sessionId);
@@ -26,10 +31,47 @@ export const POST = withAuth(
 
       const sessionId = idResult.data;
 
-      const sessionDoc = await db
-        .collection("interview_sessions")
-        .doc(sessionId)
-        .get();
+      // The client may optionally include templateId (exposed on
+      // InterviewSessionDetail since the types/index.ts fix) so we can fire
+      // both Firestore reads in parallel instead of waiting for the session
+      // document before starting the template read.
+      const hintTemplateId =
+        typeof body?.templateId === "string" && body.templateId.length > 0
+          ? firestoreIdSchema.safeParse(body.templateId).data
+          : undefined;
+
+      // ---------------------------------------------------------------------------
+      // Parallel Firestore reads
+      //
+      // Previous: sequential — session read (≈40 ms) then template read (≈40 ms)
+      //           = ≈80 ms minimum before token generation can start.
+      //
+      // When the client provides a templateId hint we fire both reads at once:
+      //   - session read: always needed (auth check + resumeText)
+      //   - template read: uses the hint so it starts immediately
+      //
+      // If no hint is available we fall back to the sequential path (read session
+      // first, extract templateId, then read template).  This keeps the code
+      // correct for any client that does not yet send the hint.
+      // ---------------------------------------------------------------------------
+
+      let sessionDoc: FirebaseFirestore.DocumentSnapshot;
+      let templateDoc: FirebaseFirestore.DocumentSnapshot | null = null;
+
+      if (hintTemplateId) {
+        // Both IDs are known up-front — fire in parallel.
+        [sessionDoc, templateDoc] = await Promise.all([
+          db.collection("interview_sessions").doc(sessionId).get(),
+          db.collection("interview_templates").doc(hintTemplateId).get(),
+        ]);
+      } else {
+        // No hint — read session first to extract templateId.
+        sessionDoc = await db
+          .collection("interview_sessions")
+          .doc(sessionId)
+          .get();
+      }
+
       if (!sessionDoc.exists) {
         return NextResponse.json(
           { error: "Session not found" },
@@ -42,6 +84,17 @@ export const POST = withAuth(
         return NextResponse.json(
           { error: "Unauthorized access to session" },
           { status: 403 },
+        );
+      }
+
+      // Completed and expired sessions must not issue new live tokens —
+      // reopening them would let new transcript data overwrite the stored
+      // transcript while keeping the old feedback, leaving the two out of sync.
+      const sessionStatus = sessionData?.status;
+      if (sessionStatus === "completed" || sessionStatus === "expired") {
+        return NextResponse.json(
+          { error: "This session has already ended and cannot be reopened" },
+          { status: 409 },
         );
       }
 
@@ -61,10 +114,24 @@ export const POST = withAuth(
         );
       }
 
-      const templateDoc = await db
-        .collection("interview_templates")
-        .doc(templateId)
-        .get();
+      // Fetch template if we didn't already (no hint, or hint didn't match).
+      if (!templateDoc) {
+        templateDoc = await db
+          .collection("interview_templates")
+          .doc(templateId)
+          .get();
+      } else if (templateDoc.id !== templateId) {
+        // The hint was stale — the session's templateId differs from what the
+        // client sent.  Re-fetch with the authoritative ID.
+        logger.warn(
+          `templateId hint mismatch for session ${sessionId}: hint=${templateDoc.id}, actual=${templateId}`,
+        );
+        templateDoc = await db
+          .collection("interview_templates")
+          .doc(templateId)
+          .get();
+      }
+
       if (!templateDoc.exists) {
         logger.error(
           `Template ${templateId} was not found for session ${sessionId}`,
@@ -90,7 +157,7 @@ export const POST = withAuth(
           uses: 1,
           expireTime,
           liveConnectConstraints: {
-            model: MODEL_CONFIG.liveInterview,
+            model: LIVE_INTERVIEW_MODEL,
             config: {
               systemInstruction,
               // Slightly higher temperature gives more natural conversational variation.
@@ -105,12 +172,11 @@ export const POST = withAuth(
               },
               inputAudioTranscription: {},
               outputAudioTranscription: {},
-              // Use a longer silence window so the model does not cut off candidate answers.
               realtimeInputConfig: {
                 automaticActivityDetection: {
                   disabled: false,
-                  prefixPaddingMs: 300,
-                  silenceDurationMs: 1200,
+                  prefixPaddingMs: 200,
+                  silenceDurationMs: 800,
                 },
               },
             },
@@ -127,7 +193,7 @@ export const POST = withAuth(
         success: true,
         token: token.name,
         expiresAt: expireTime,
-        model: MODEL_CONFIG.liveInterview,
+        model: LIVE_INTERVIEW_MODEL,
         voice: voiceName,
       });
     } catch (error) {

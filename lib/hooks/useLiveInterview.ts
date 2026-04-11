@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   GoogleGenAI,
-  Modality,
   LiveServerMessage,
+  Modality,
   Session,
 } from "@google/genai";
 import { logger } from "@/lib/logger";
@@ -41,6 +41,8 @@ interface UseLiveInterviewReturn {
 
 interface UseLiveInterviewOptions {
   sessionId: string;
+  templateId?: string;
+  initialTranscript?: Array<{ role: string; content: string }>;
   onInterruption?: () => void;
   onInterviewComplete?: () => void;
   holdInitialPrompt?: boolean;
@@ -48,6 +50,9 @@ interface UseLiveInterviewOptions {
 
 const MAX_AUDIO_CHUNK_BYTES = 32768;
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+const CHECKPOINT_INTERVAL_MS = 30_000;
+const CHECKPOINT_TURN_THRESHOLD = 10;
+const RECENT_MODEL_TEXT_LIMIT = 2000;
 
 function estimateBase64Bytes(base64Data: string): number {
   const padding = base64Data.endsWith("==")
@@ -64,11 +69,38 @@ function isValidPcmChunk(base64Data: string): boolean {
   if (!BASE64_PATTERN.test(base64Data)) return false;
 
   const estimatedBytes = estimateBase64Bytes(base64Data);
-  if (estimatedBytes <= 0 || estimatedBytes > MAX_AUDIO_CHUNK_BYTES)
+  if (estimatedBytes <= 0 || estimatedBytes > MAX_AUDIO_CHUNK_BYTES) {
     return false;
-  if (estimatedBytes % 2 !== 0) return false;
+  }
 
-  return true;
+  return estimatedBytes % 2 === 0;
+}
+
+function normalizeInitialTranscript(
+  initialTranscript: UseLiveInterviewOptions["initialTranscript"],
+): TranscriptEntry[] {
+  if (!Array.isArray(initialTranscript)) return [];
+
+  const now = Date.now();
+  return initialTranscript
+    .filter(
+      (entry): entry is { role: "user" | "model"; content: string } =>
+        (entry?.role === "user" || entry?.role === "model") &&
+        typeof entry.content === "string" &&
+        entry.content.trim().length > 0,
+    )
+    .map((entry, index) => ({
+      role: entry.role,
+      content: entry.content.trim(),
+      timestamp: now + index,
+    }));
+}
+
+function toCheckpointEntries(entries: TranscriptEntry[]) {
+  return entries.map((entry) => ({
+    role: entry.role,
+    content: entry.content,
+  }));
 }
 
 export function useLiveInterview(
@@ -76,65 +108,153 @@ export function useLiveInterview(
 ): UseLiveInterviewReturn {
   const {
     sessionId,
+    templateId,
+    initialTranscript,
     onInterruption,
     onInterviewComplete,
     holdInitialPrompt = false,
   } = options;
 
-  const [isHeld, setIsHeld] = useState(holdInitialPrompt);
+  const initialTranscriptRef = useRef(normalizeInitialTranscript(initialTranscript));
 
+  const [isHeld, setIsHeld] = useState(holdInitialPrompt);
   const [status, setStatus] = useState<ConnectionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const transcriptRef = useRef<TranscriptEntry[]>([]);
+  const [transcript, setTranscript] = useState<TranscriptEntry[]>(
+    initialTranscriptRef.current,
+  );
   const [isAIResponding, setIsAIResponding] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [currentCaption, setCurrentCaption] = useState<string>("");
+  const [currentCaption, setCurrentCaption] = useState("");
   const [currentSpeaker, setCurrentSpeaker] = useState<"user" | "model" | null>(
     null,
   );
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
+  const transcriptRef = useRef<TranscriptEntry[]>(initialTranscriptRef.current);
   const sessionIdRef = useRef(sessionId);
-  useEffect(() => {
-    sessionIdRef.current = sessionId;
-  }, [sessionId]);
-
+  const templateIdRef = useRef(templateId);
   const sessionRef = useRef<Session | null>(null);
   const audioCallbackRef = useRef<((base64Data: string) => void) | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const currentTranscriptRef = useRef<string>("");
-  const userTranscriptRef = useRef<string>("");
+  const userTranscriptRef = useRef("");
+  const modelTurnBufferRef = useRef("");
   const userTranscriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectionAttemptsRef = useRef(0);
   const isIntentionalDisconnectRef = useRef(false);
   const isConnectedRef = useRef(false);
   const lastSpeakerRef = useRef<"user" | "model" | null>(null);
-  const modelCaptionRef = useRef<string>("");
+  const recentModelTranscriptRef = useRef("");
   const closingDetectedRef = useRef(false);
-  const fullTranscriptRef = useRef<string>("");
   const connectingPromiseRef = useRef<Promise<void> | null>(null);
+  const checkpointTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const checkpointInFlightRef = useRef(false);
+  const lastCheckpointTurnCountRef = useRef(initialTranscriptRef.current.length);
+  const hasInitialPromptSentRef = useRef(false);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+    templateIdRef.current = templateId;
+  }, [sessionId, templateId]);
+
+  const checkpointTranscript = useCallback(async () => {
+    if (checkpointInFlightRef.current) return;
+
+    const checkpointBase = lastCheckpointTurnCountRef.current;
+    const appendEntries = transcriptRef.current.slice(checkpointBase);
+    if (appendEntries.length === 0) return;
+
+    checkpointInFlightRef.current = true;
+
+    try {
+      const response = await fetch(
+        `/api/interview/session/${sessionIdRef.current}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcriptAppend: toCheckpointEntries(appendEntries),
+            checkpointBase,
+          }),
+        },
+      );
+
+      let payload: unknown = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      if (response.status === 409) {
+        const expectedBase =
+          payload &&
+          typeof payload === "object" &&
+          typeof (payload as { expectedBase?: unknown }).expectedBase === "number"
+            ? (payload as { expectedBase: number }).expectedBase
+            : checkpointBase;
+
+        lastCheckpointTurnCountRef.current = expectedBase;
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Transcript checkpoint failed");
+      }
+
+      const nextCheckpointBase =
+        payload &&
+        typeof payload === "object" &&
+        typeof (payload as { nextCheckpointBase?: unknown }).nextCheckpointBase ===
+          "number"
+          ? (payload as { nextCheckpointBase: number }).nextCheckpointBase
+          : checkpointBase + appendEntries.length;
+
+      lastCheckpointTurnCountRef.current = nextCheckpointBase;
+    } catch (checkpointError) {
+      logger.warn(
+        `Transcript checkpoint failed for session ${sessionIdRef.current}`,
+        checkpointError,
+      );
+    } finally {
+      checkpointInFlightRef.current = false;
+    }
+  }, []);
+
+  const commitTranscriptEntry = useCallback(
+    (entry: TranscriptEntry) => {
+      const next = [...transcriptRef.current, entry];
+      transcriptRef.current = next;
+      setTranscript(next);
+
+      if (
+        next.length - lastCheckpointTurnCountRef.current >=
+        CHECKPOINT_TURN_THRESHOLD
+      ) {
+        void checkpointTranscript();
+      }
+    },
+    [checkpointTranscript],
+  );
 
   useEffect(() => {
     if (status === "connected") {
       timerIntervalRef.current = setInterval(() => {
         setElapsedTime((prev) => prev + 1);
       }, 1000);
-    } else {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = null;
-      }
+    } else if (timerIntervalRef.current) {
+      clearInterval(timerIntervalRef.current);
+      timerIntervalRef.current = null;
     }
 
     return () => {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
       }
     };
   }, [status]);
 
-  const hasInitialPromptSentRef = useRef(false);
   useEffect(() => {
     if (
       status === "connected" &&
@@ -143,7 +263,6 @@ export function useLiveInterview(
       !isHeld
     ) {
       hasInitialPromptSentRef.current = true;
-      logger.debug("Sending initial prompt to start interview");
       try {
         sessionRef.current.sendClientContent({
           turns: [
@@ -158,19 +277,18 @@ export function useLiveInterview(
           ],
           turnComplete: true,
         });
-        logger.debug("Initial prompt sent successfully");
-      } catch (err) {
-        logger.error("Failed to send initial prompt:", err);
+      } catch (sendError) {
+        logger.error("Failed to send initial prompt:", sendError);
       }
     }
 
     if (status === "disconnected" || status === "idle") {
-      // Reset so reconnect attempts can re-prime the first model turn.
       hasInitialPromptSentRef.current = false;
+      recentModelTranscriptRef.current = "";
+      modelTurnBufferRef.current = "";
       closingDetectedRef.current = false;
-      fullTranscriptRef.current = "";
     }
-  }, [status, isHeld]);
+  }, [isHeld, status]);
 
   const releaseHold = useCallback(() => {
     setIsHeld(false);
@@ -181,41 +299,94 @@ export function useLiveInterview(
       if (message.serverContent?.interrupted) {
         setIsAIResponding(false);
         setCurrentSpeaker(null);
-        currentTranscriptRef.current = "";
+        setCurrentCaption("");
+        modelTurnBufferRef.current = "";
         onInterruption?.();
         return;
       }
 
       if (message.serverContent?.modelTurn?.parts) {
-        setIsAIResponding(true);
-        setCurrentSpeaker("model");
-        setIsUserSpeaking(false);
-
         for (const part of message.serverContent.modelTurn.parts) {
           if (part.inlineData?.data) {
-            logger.debug(
-              "Received audio chunk from Gemini, length:",
-              part.inlineData.data.length,
-            );
             if (audioCallbackRef.current) {
               audioCallbackRef.current(part.inlineData.data);
             } else {
               logger.warn("No audio callback registered");
             }
           }
+        }
+      }
 
-          if (part.text) {
-            currentTranscriptRef.current += part.text;
+      if (message.serverContent?.inputTranscription?.text) {
+        if (lastSpeakerRef.current !== "user") {
+          userTranscriptRef.current = "";
+          lastSpeakerRef.current = "user";
+        }
+
+        setCurrentSpeaker("user");
+        setIsUserSpeaking(true);
+
+        userTranscriptRef.current += message.serverContent.inputTranscription.text;
+        setCurrentCaption(userTranscriptRef.current.trim());
+
+        if (userTranscriptTimeoutRef.current) {
+          clearTimeout(userTranscriptTimeoutRef.current);
+        }
+
+        userTranscriptTimeoutRef.current = setTimeout(() => {
+          const accumulatedText = userTranscriptRef.current.trim();
+          if (accumulatedText) {
+            commitTranscriptEntry({
+              role: "user",
+              content: accumulatedText,
+              timestamp: Date.now(),
+            });
+            userTranscriptRef.current = "";
           }
+
+          setIsUserSpeaking(false);
+          setCurrentSpeaker(null);
+          setCurrentCaption("");
+        }, 1500);
+      }
+
+      if (message.serverContent?.outputTranscription?.text) {
+        const modelText = message.serverContent.outputTranscription.text;
+        if (modelText) {
+          if (lastSpeakerRef.current !== "model") {
+            modelTurnBufferRef.current = "";
+            lastSpeakerRef.current = "model";
+          }
+
+          setIsAIResponding(true);
+          setCurrentSpeaker("model");
+          setIsUserSpeaking(false);
+
+          modelTurnBufferRef.current += modelText;
+          recentModelTranscriptRef.current += modelText.toLowerCase();
+          if (recentModelTranscriptRef.current.length > RECENT_MODEL_TEXT_LIMIT) {
+            recentModelTranscriptRef.current = recentModelTranscriptRef.current.slice(
+              -RECENT_MODEL_TEXT_LIMIT,
+            );
+          }
+
+          setCurrentCaption(modelTurnBufferRef.current);
         }
       }
 
       if (message.serverContent?.turnComplete) {
+        const finalModelText = modelTurnBufferRef.current.trim();
+        if (finalModelText) {
+          commitTranscriptEntry({
+            role: "model",
+            content: finalModelText,
+            timestamp: Date.now(),
+          });
+        }
+
         setIsAIResponding(false);
+        modelTurnBufferRef.current = "";
 
-        currentTranscriptRef.current = "";
-
-        const fullModelText = fullTranscriptRef.current.toLowerCase();
         const closingPhrases = [
           "thank you for your time",
           "thanks for your time",
@@ -232,14 +403,13 @@ export function useLiveInterview(
           "we'll be in touch",
         ];
 
-        const hasClosingPhrase = closingPhrases.some((phrase) =>
-          fullModelText.includes(phrase),
-        );
-
-        if (hasClosingPhrase && !closingDetectedRef.current) {
+        if (
+          !closingDetectedRef.current &&
+          closingPhrases.some((phrase) =>
+            recentModelTranscriptRef.current.includes(phrase),
+          )
+        ) {
           closingDetectedRef.current = true;
-
-          // Allow final synthesized audio to finish before ending the session.
           setTimeout(() => {
             onInterviewComplete?.();
           }, 5000);
@@ -250,101 +420,12 @@ export function useLiveInterview(
           setCurrentSpeaker(null);
         }, 2000);
       }
-
-      if (message.serverContent?.inputTranscription) {
-        const userText = message.serverContent.inputTranscription.text;
-        if (userText) {
-          if (lastSpeakerRef.current !== "user") {
-            userTranscriptRef.current = "";
-            lastSpeakerRef.current = "user";
-          }
-
-          setCurrentSpeaker("user");
-          setIsUserSpeaking(true);
-
-          userTranscriptRef.current += userText;
-
-          setCurrentCaption(userTranscriptRef.current.trim());
-
-          if (userTranscriptTimeoutRef.current) {
-            clearTimeout(userTranscriptTimeoutRef.current);
-          }
-
-          userTranscriptTimeoutRef.current = setTimeout(() => {
-            const accumulatedText = userTranscriptRef.current.trim();
-            if (accumulatedText) {
-              setTranscript((prev) => {
-                const next = [
-                  ...prev,
-                  {
-                    role: "user" as const,
-                    content: accumulatedText,
-                    timestamp: Date.now(),
-                  },
-                ];
-                transcriptRef.current = next;
-                return next;
-              });
-              userTranscriptRef.current = "";
-            }
-            setIsUserSpeaking(false);
-            setCurrentSpeaker(null);
-          }, 1500);
-        }
-      }
-
-      if (message.serverContent?.outputTranscription) {
-        const modelText = message.serverContent.outputTranscription.text;
-        if (modelText) {
-          if (lastSpeakerRef.current !== "model") {
-            modelCaptionRef.current = "";
-            lastSpeakerRef.current = "model";
-          }
-
-          modelCaptionRef.current += modelText;
-
-          fullTranscriptRef.current += modelText;
-
-          // Cap to last 2000 chars - only the tail is needed for closing-phrase detection.
-          if (fullTranscriptRef.current.length > 2000) {
-            fullTranscriptRef.current = fullTranscriptRef.current.slice(-2000);
-          }
-
-          setCurrentCaption(modelCaptionRef.current);
-          setCurrentSpeaker("model");
-
-          setTranscript((prev) => {
-            let next: TranscriptEntry[];
-            const lastEntry = prev[prev.length - 1];
-            if (lastEntry?.role === "model") {
-              next = [
-                ...prev.slice(0, -1),
-                { ...lastEntry, content: lastEntry.content + modelText },
-              ];
-            } else {
-              next = [
-                ...prev,
-                {
-                  role: "model",
-                  content: modelText,
-                  timestamp: Date.now(),
-                },
-              ];
-            }
-            transcriptRef.current = next;
-            return next;
-          });
-        }
-      }
     },
-    [onInterruption, onInterviewComplete],
+    [commitTranscriptEntry, onInterruption, onInterviewComplete],
   );
 
   const connect = useCallback(async () => {
-    // Already connected - nothing to do.
-    if (isConnectedRef.current) return;
-
-    // Connection already in-flight - return the shared promise (singleflight).
+    if (isConnectedRef.current) return Promise.resolve();
     if (connectingPromiseRef.current) return connectingPromiseRef.current;
 
     const connectionPromise = (async () => {
@@ -358,6 +439,9 @@ export function useLiveInterview(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             sessionId: sessionIdRef.current,
+            ...(templateIdRef.current
+              ? { templateId: templateIdRef.current }
+              : {}),
           }),
         });
 
@@ -375,8 +459,8 @@ export function useLiveInterview(
           httpOptions: { apiVersion: "v1alpha" },
         });
 
-        const session = await ai.live.connect({
-          model: model,
+        const liveSession = await ai.live.connect({
+          model,
           config: {
             responseModalities: [Modality.AUDIO],
             speechConfig: {
@@ -385,35 +469,42 @@ export function useLiveInterview(
           },
           callbacks: {
             onopen: () => {
-              logger.info("Live API connection established");
               isConnectedRef.current = true;
               setStatus("connected");
               reconnectionAttemptsRef.current = 0;
+
+              if (checkpointTimerRef.current) {
+                clearInterval(checkpointTimerRef.current);
+              }
+
+              checkpointTimerRef.current = setInterval(() => {
+                void checkpointTranscript();
+              }, CHECKPOINT_INTERVAL_MS);
             },
-            onmessage: (message: LiveServerMessage) => {
-              handleMessage(message);
-            },
-            onerror: (e: ErrorEvent) => {
-              logger.error("Live API error:", e);
+            onmessage: handleMessage,
+            onerror: (event: ErrorEvent) => {
+              logger.error("Live API error:", event);
               isConnectedRef.current = false;
-              setError(e.message || "Unknown WebSocket error");
+              setError(event.message || "Unknown WebSocket error");
               setStatus("error");
             },
-            onclose: (e: CloseEvent) => {
-              logger.info("Live API connection closed:", e.reason);
+            onclose: (event: CloseEvent) => {
+              logger.info("Live API connection closed:", event.reason);
               isConnectedRef.current = false;
               setStatus("disconnected");
             },
           },
         });
 
-        sessionRef.current = session;
-      } catch (err) {
+        sessionRef.current = liveSession;
+      } catch (connectError) {
         const errorMessage =
-          err instanceof Error ? err.message : "Connection failed";
+          connectError instanceof Error
+            ? connectError.message
+            : "Connection failed";
         setError(errorMessage);
         setStatus("error");
-        throw err;
+        throw connectError;
       } finally {
         connectingPromiseRef.current = null;
       }
@@ -421,7 +512,7 @@ export function useLiveInterview(
 
     connectingPromiseRef.current = connectionPromise;
     return connectionPromise;
-  }, [handleMessage]);
+  }, [checkpointTranscript, handleMessage]);
 
   useEffect(() => {
     if (status !== "disconnected" || isIntentionalDisconnectRef.current) {
@@ -440,30 +531,34 @@ export function useLiveInterview(
     const delay = baseDelay * Math.pow(2, reconnectionAttemptsRef.current);
     reconnectionAttemptsRef.current += 1;
 
-    logger.info(
-      `Attempting to reconnect in ${delay}ms (attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts})`,
-    );
-
     const timeoutId = setTimeout(() => {
-      connect().catch((error) => {
-        logger.error("Reconnection failed:", error);
+      connect().catch((reconnectError) => {
+        logger.error("Reconnection failed:", reconnectError);
       });
     }, delay);
 
     return () => clearTimeout(timeoutId);
-  }, [status, connect]);
+  }, [connect, status]);
 
   const disconnect = useCallback(() => {
     isIntentionalDisconnectRef.current = true;
     isConnectedRef.current = false;
+
+    if (checkpointTimerRef.current) {
+      clearInterval(checkpointTimerRef.current);
+      checkpointTimerRef.current = null;
+    }
+
     if (userTranscriptTimeoutRef.current) {
       clearTimeout(userTranscriptTimeoutRef.current);
       userTranscriptTimeoutRef.current = null;
     }
+
     if (sessionRef.current) {
       sessionRef.current.close();
       sessionRef.current = null;
     }
+
     setIsAIResponding(false);
     setIsUserSpeaking(false);
     setCurrentCaption("");
@@ -472,13 +567,7 @@ export function useLiveInterview(
   }, []);
 
   const sendAudio = useCallback((base64Data: string) => {
-    if (!sessionRef.current) {
-      return;
-    }
-
-    if (!isConnectedRef.current) {
-      return;
-    }
+    if (!sessionRef.current || !isConnectedRef.current) return;
 
     if (!isValidPcmChunk(base64Data)) {
       logger.warn("Dropping invalid audio chunk before realtime send");
@@ -492,8 +581,8 @@ export function useLiveInterview(
           mimeType: "audio/pcm;rate=16000",
         },
       });
-    } catch (error) {
-      logger.error("Failed to send audio chunk:", error);
+    } catch (sendError) {
+      logger.error("Failed to send audio chunk:", sendError);
     }
   }, []);
 
@@ -504,28 +593,25 @@ export function useLiveInterview(
     [],
   );
 
-  // Flush any trailing user transcript partial into the transcript array.
-  // Call this before ending the interview to capture in-progress speech.
   const flushPendingTranscript = useCallback((): TranscriptEntry[] => {
     if (userTranscriptTimeoutRef.current) {
       clearTimeout(userTranscriptTimeoutRef.current);
       userTranscriptTimeoutRef.current = null;
     }
-    const pending = userTranscriptRef.current.trim();
-    if (pending) {
-      const pendingEntry: TranscriptEntry = {
+
+    const pendingUserText = userTranscriptRef.current.trim();
+    if (pendingUserText) {
+      commitTranscriptEntry({
         role: "user",
-        content: pending,
+        content: pendingUserText,
         timestamp: Date.now(),
-      };
-      const next = [...transcriptRef.current, pendingEntry];
-      transcriptRef.current = next;
-      setTranscript(next);
+      });
       userTranscriptRef.current = "";
     }
+
     setIsUserSpeaking(false);
     return transcriptRef.current;
-  }, []);
+  }, [commitTranscriptEntry]);
 
   useEffect(() => {
     return () => {

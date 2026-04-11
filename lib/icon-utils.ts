@@ -5,6 +5,11 @@ const DEVICON_CDN = "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons";
 const SIMPLE_ICONS_CDN = "https://cdn.simpleicons.org";
 const BRANDFETCH_CLIENT_ID =
   process.env.NEXT_PUBLIC_BRANDFETCH_CLIENT_ID?.trim();
+const TRUSTED_COMPANY_LOGO_HOSTS = new Set([
+  "cdn.brandfetch.io",
+  "www.google.com",
+  "ui-avatars.com",
+]);
 
 // Known company-to-domain mappings improve logo lookup accuracy.
 const COMPANY_DOMAIN_MAP: Record<string, string> = {
@@ -401,6 +406,42 @@ export function getUIAvatarsUrl(
   const initials = getInitials(companyName);
   const normalizedSize = clampImageSize(size, 16, 512);
   return `${UI_AVATARS_API}/?name=${encodeURIComponent(initials)}&size=${normalizedSize}&background=6366f1&color=fff&bold=true&format=svg`;
+}
+
+export function isTrustedCompanyLogoUrl(logoUrl: string): boolean {
+  try {
+    const parsed = new URL(logoUrl);
+    if (
+      parsed.protocol !== "https:" ||
+      !TRUSTED_COMPANY_LOGO_HOSTS.has(parsed.hostname)
+    ) {
+      return false;
+    }
+
+    if (parsed.hostname === "cdn.brandfetch.io") {
+      return parsed.pathname.startsWith("/domain/");
+    }
+
+    if (parsed.hostname === "www.google.com") {
+      return parsed.pathname === "/s2/favicons";
+    }
+
+    if (parsed.hostname === "ui-avatars.com") {
+      return parsed.pathname === "/api/";
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function normalizeTrustedCompanyLogoUrl(
+  logoUrl: string | null | undefined,
+): string | undefined {
+  const trimmed = logoUrl?.trim();
+  if (!trimmed) return undefined;
+  return isTrustedCompanyLogoUrl(trimmed) ? trimmed : undefined;
 }
 
 export function getCompanyLogoUrls(

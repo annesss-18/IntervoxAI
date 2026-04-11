@@ -43,6 +43,25 @@ const Page = async ({ params }: RouteParams) => {
     );
   }
 
+  // Completed or expired sessions must not be reopened — redirect to feedback
+  // or show an appropriate message to prevent transcript/state divergence.
+  if (interview.status === "completed") {
+    redirect(`/interview/session/${sessionId}/feedback`);
+  }
+
+  if (interview.status === "expired") {
+    return (
+      <Container size="md" className="animate-fade-up">
+        <StateCard
+          title="Session Expired"
+          description="This interview session has expired and can no longer be started."
+          actionHref="/create"
+          actionLabel="Create New Interview"
+        />
+      </Container>
+    );
+  }
+
   if (!interview.questions || interview.questions.length === 0) {
     return (
       <Container size="md" className="animate-fade-up">

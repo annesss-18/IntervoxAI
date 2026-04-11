@@ -1,13 +1,65 @@
 "use server";
 
+import { headers } from "next/headers";
 import { UserAlreadyExistsError } from "@/lib/errors/auth.errors";
+import { checkRateLimit, type RateLimitConfig } from "@/lib/rate-limit";
 import { AuthService } from "@/lib/services/auth.service";
 import { logger } from "../logger";
-import { GoogleAuthParams, SignInParams, SignUpParams, User } from "@/types";
-import { cookies } from "next/headers";
+import {
+  AuthClaims,
+  GoogleAuthParams,
+  SignInParams,
+  SignUpParams,
+  User,
+} from "@/types";
+
+const AUTH_ACTION_WINDOW_MS = 60_000;
+
+type HeaderReader = {
+  get(name: string): string | null;
+};
+
+function getClientIp(headerList: HeaderReader): string {
+  const realIp = headerList.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const forwardedFor = headerList.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) return firstIp;
+  }
+
+  return "unknown";
+}
+
+async function isAuthActionAllowed(
+  scope: string,
+  config: RateLimitConfig,
+): Promise<boolean> {
+  const headerList = await headers();
+  const ip = getClientIp(headerList);
+  const result = await checkRateLimit(`auth-action:${scope}:${ip}`, config);
+
+  if (!result.allowed) {
+    logger.warn(`Rate limit exceeded for auth action ${scope} from IP ${ip}`);
+  }
+
+  return result.allowed;
+}
 
 export async function signUp(params: SignUpParams) {
   try {
+    const allowed = await isAuthActionAllowed("sign-up", {
+      maxRequests: 5,
+      windowMs: AUTH_ACTION_WINDOW_MS,
+    });
+    if (!allowed) {
+      return {
+        success: false,
+        message: "Too many attempts. Please try again later.",
+      };
+    }
+
     await AuthService.signUp(params);
 
     return {
@@ -32,6 +84,17 @@ export async function signUp(params: SignUpParams) {
 
 export async function signIn(params: SignInParams) {
   try {
+    const allowed = await isAuthActionAllowed("sign-in", {
+      maxRequests: 20,
+      windowMs: AUTH_ACTION_WINDOW_MS,
+    });
+    if (!allowed) {
+      return {
+        success: false,
+        message: "Too many attempts. Please try again later.",
+      };
+    }
+
     await AuthService.signIn(params);
 
     return {
@@ -55,44 +118,27 @@ export async function signIn(params: SignInParams) {
   }
 }
 
-export async function signOut() {
-  try {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get("session")?.value;
-
-    // Revoke the Firebase refresh tokens to fully invalidate the session.
-    if (sessionCookie) {
-      try {
-        const { auth: adminAuth } = await import("@/firebase/admin");
-        // Match getCurrentUser() by checking revocation before revoking refresh tokens.
-        const decodedClaims = await adminAuth.verifySessionCookie(
-          sessionCookie,
-          true,
-        );
-        await adminAuth.revokeRefreshTokens(decodedClaims.uid);
-      } catch (revokeError) {
-        // Continue deleting the cookie even if token revocation fails.
-        logger.warn(
-          "Failed to revoke refresh tokens during signOut:",
-          revokeError,
-        );
-      }
-    }
-
-    cookieStore.delete("session");
-    return { success: true };
-  } catch (e) {
-    logger.error("Error signing out:", e);
-    return { success: false };
-  }
-}
-
 export async function getCurrentUser(): Promise<User | null> {
   return await AuthService.getCurrentUser();
 }
 
+export async function getCurrentUserClaims(): Promise<AuthClaims | null> {
+  return await AuthService.getCurrentUserClaims();
+}
+
 export async function googleAuthenticate(params: GoogleAuthParams) {
   try {
+    const allowed = await isAuthActionAllowed("google-auth", {
+      maxRequests: 20,
+      windowMs: AUTH_ACTION_WINDOW_MS,
+    });
+    if (!allowed) {
+      return {
+        success: false,
+        message: "Too many attempts. Please try again later.",
+      };
+    }
+
     await AuthService.googleAuthenticate(params);
     return {
       success: true,

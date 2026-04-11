@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Sparkles, Wand2, ShieldCheck, Zap } from "lucide-react";
 import { getCurrentUser } from "@/lib/actions/auth.action";
+import { getTemplateById } from "@/lib/actions/interview.action";
 import { Container, PageHeader } from "@/components/layout/Container";
 import { CreateInterviewForm } from "@/components/organisms/CreateInterviewForm";
 
@@ -38,15 +39,30 @@ const highlights = [
   },
 ];
 
-export default async function CreatePage() {
+export default async function CreatePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
+
+  // Support forking: /create?forkFrom=<templateId>
+  const sp = await searchParams;
+  const forkFromId = typeof sp.forkFrom === "string" ? sp.forkFrom : undefined;
+  const forkTemplate = forkFromId
+    ? await getTemplateById(forkFromId, user.id)
+    : null;
 
   return (
     <Container size="xl">
       <PageHeader
-        title="Create New Interview"
-        description="Paste a job description and let IntervoxAI generate a polished interview template in seconds."
+        title={forkTemplate ? "Fork Interview Template" : "Create New Interview"}
+        description={
+          forkTemplate
+            ? `Forking "${forkTemplate.role}" at ${forkTemplate.companyName || "Unknown Company"}. Customize the details below and generate your own version.`
+            : "Paste a job description and let IntervoxAI generate a polished interview template in seconds."
+        }
       />
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:items-start">
@@ -95,8 +111,9 @@ export default async function CreatePage() {
           </div>
         </div>
 
-        <CreateInterviewForm />
+        <CreateInterviewForm forkTemplate={forkTemplate ?? undefined} />
       </div>
     </Container>
   );
 }
+

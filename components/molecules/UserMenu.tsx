@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { LogOut, LayoutDashboard, Loader2 } from "lucide-react";
+import { LogOut, LayoutDashboard, UserCog, Loader2 } from "lucide-react";
 import { Button } from "@/components/atoms/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/atoms/avatar";
 import {
@@ -70,6 +70,13 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
           <Link href="/dashboard">
             <LayoutDashboard className="size-4 text-muted-foreground" />
             Dashboard
+          </Link>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem asChild>
+          <Link href="/account">
+            <UserCog className="size-4 text-muted-foreground" />
+            Account
           </Link>
         </DropdownMenuItem>
 

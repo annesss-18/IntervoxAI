@@ -1,11 +1,7 @@
-// Initialize Firebase Admin once and assert required production env vars early.
+// Initialize Firebase Admin once.
 import { initializeApp, getApps, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
-import { assertProductionEnv } from "@/lib/startup-checks";
-
-// Validate required env vars during the first production module load.
-assertProductionEnv();
 
 const firebaseAdminConfig = {
   credential: cert({

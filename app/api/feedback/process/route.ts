@@ -1,22 +1,19 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/firebase/admin";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import {
+  getStoredTranscriptTurnCount,
   InterviewRepository,
-  TranscriptSentence,
 } from "@/lib/repositories/interview.repository";
 import {
   isQueueAvailable,
   publishFeedbackJob,
 } from "@/lib/queue/feedback-queue";
-import {
-  firestoreIdSchema,
-  transcriptArraySchema,
-} from "@/lib/schemas";
+import { firestoreIdSchema } from "@/lib/schemas";
 import { runFeedbackGeneration } from "@/lib/services/feedback-runner";
-import type { User } from "@/types";
+import type { AuthClaims, FeedbackJobStatus } from "@/types";
 
 export const runtime = "nodejs";
 
@@ -30,9 +27,25 @@ type ClaimResult =
   | { type: "no_transcript" }
   | { type: "already_processing" }
   | { type: "already_completed"; feedbackId: string | null }
-  | { type: "claimed"; transcript: TranscriptSentence[] };
+  | { type: "claimed" };
 
-// Claim feedback work exactly once, even under concurrent requests or retries.
+function inferFeedbackStatus(
+  session: Record<string, unknown>,
+): FeedbackJobStatus {
+  if (typeof session.feedbackStatus === "string") {
+    return session.feedbackStatus as FeedbackJobStatus;
+  }
+
+  if (
+    typeof session.feedbackId === "string" ||
+    typeof session.finalScore === "number"
+  ) {
+    return "completed";
+  }
+
+  return session.status === "completed" ? "pending" : "idle";
+}
+
 async function claimSession(
   interviewId: string,
   userId: string,
@@ -45,36 +58,31 @@ async function claimSession(
       return { type: "missing" } as const;
     }
 
-    const session = sessionSnap.data()!;
+    const session = sessionSnap.data() ?? {};
 
     if (session.userId !== userId) {
       return { type: "unauthorized" } as const;
     }
 
-    const rawTranscript = session.transcript;
-    if (!rawTranscript || !Array.isArray(rawTranscript)) {
+    if (getStoredTranscriptTurnCount(session) <= 0) {
       return { type: "no_transcript" } as const;
     }
 
-    const parsed = transcriptArraySchema.safeParse(rawTranscript);
-    if (!parsed.success) {
-      return { type: "no_transcript" } as const;
-    }
+    const currentStatus = inferFeedbackStatus(session);
 
-    const current = session.feedbackStatus;
-
-    if (current === "processing") {
+    if (currentStatus === "processing") {
       return { type: "already_processing" } as const;
     }
 
-    if (current === "completed") {
+    if (currentStatus === "completed") {
       return {
         type: "already_completed",
-        feedbackId: session.feedbackId ?? null,
+        feedbackId:
+          typeof session.feedbackId === "string" ? session.feedbackId : null,
       } as const;
     }
 
-    if (!["idle", "pending", "failed", undefined].includes(current)) {
+    if (!["idle", "pending", "failed", undefined].includes(currentStatus)) {
       return { type: "already_processing" } as const;
     }
 
@@ -83,15 +91,18 @@ async function claimSession(
       feedbackStatus: "processing",
       feedbackError: null,
       feedbackProcessingAt: now,
-      feedbackRequestedAt: session.feedbackRequestedAt ?? now,
+      feedbackRequestedAt:
+        typeof session.feedbackRequestedAt === "string"
+          ? session.feedbackRequestedAt
+          : now,
     });
 
-    return { type: "claimed", transcript: parsed.data } as const;
+    return { type: "claimed" } as const;
   });
 }
 
-export const POST = withAuth(
-  async (req: NextRequest, user: User) => {
+export const POST = withAuthClaims(
+  async (req: NextRequest, user: AuthClaims) => {
     try {
       const body = await req.json();
       const validation = processFeedbackSchema.safeParse(body);
@@ -125,14 +136,6 @@ export const POST = withAuth(
       }
 
       if (claim.type === "no_transcript") {
-        try {
-          await InterviewRepository.update(interviewId, {
-            feedbackStatus: "idle",
-          });
-        } catch {
-          // Best effort rollback.
-        }
-
         return NextResponse.json(
           {
             success: false,
@@ -162,13 +165,28 @@ export const POST = withAuth(
         });
       }
 
-      // Queue durable work in production and fall back to after() locally.
+      const transcript = await InterviewRepository.findTranscriptById(interviewId);
+      if (transcript.length === 0) {
+        await InterviewRepository.update(interviewId, {
+          feedbackStatus: "failed",
+          feedbackError: "Transcript could not be reconstructed for feedback.",
+        });
+
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Transcript could not be reconstructed for feedback.",
+          },
+          { status: 500 },
+        );
+      }
+
       if (isQueueAvailable()) {
         try {
           const { messageId } = await publishFeedbackJob({
             interviewId,
             userId: user.id,
-            transcript: claim.transcript,
+            transcript,
           });
 
           logger.info(
@@ -180,23 +198,13 @@ export const POST = withAuth(
             queueError,
           );
 
-          // Fall back to after() so the user does not need to retry manually.
           after(async () => {
-            await runFeedbackGeneration(
-              interviewId,
-              user.id,
-              claim.transcript,
-            );
+            await runFeedbackGeneration(interviewId, user.id, transcript);
           });
         }
       } else {
-        // Run after the response commits when QStash is unavailable.
         after(async () => {
-          await runFeedbackGeneration(
-            interviewId,
-            user.id,
-            claim.transcript,
-          );
+          await runFeedbackGeneration(interviewId, user.id, transcript);
         });
       }
 

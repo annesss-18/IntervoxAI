@@ -23,8 +23,8 @@ import { Label } from "@/components/atoms/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/atoms/tabs";
 import { Textarea } from "@/components/atoms/textarea";
 import { Badge } from "@/components/atoms/badge";
-import { validateAndSanitizeURL } from "@/lib/validation";
 import { cn } from "@/lib/utils";
+import type { InterviewTemplate } from "@/types";
 
 const INTERVIEW_TYPES = [
   {
@@ -54,6 +54,16 @@ const LEVELS = ["Junior", "Mid", "Senior", "Staff", "Executive"];
 const MAX_TECH_ITEMS = 20;
 
 type Stage = "input" | "analyzing" | "config" | "generating";
+
+function isValidHttpUrl(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    return ["http:", "https:"].includes(parsedUrl.protocol);
+  } catch {
+    return false;
+  }
+}
+
 function StepIndicator({ step, done }: { step: 1 | 2; done: boolean }) {
   return (
     <div
@@ -68,29 +78,38 @@ function StepIndicator({ step, done }: { step: 1 | 2; done: boolean }) {
     </div>
   );
 }
-export function CreateInterviewForm() {
+
+interface CreateInterviewFormProps {
+  /** Pre-fill from an existing template when forking. */
+  forkTemplate?: InterviewTemplate;
+}
+
+export function CreateInterviewForm({ forkTemplate }: CreateInterviewFormProps) {
   const router = useRouter();
 
-  const [stage, setStage] = useState<Stage>("input");
+  const isFork = !!forkTemplate;
+  const [stage, setStage] = useState<Stage>(isFork ? "config" : "input");
   const [jdType, setJdType] = useState<"text" | "url" | "file">("text");
-  const [jdText, setJdText] = useState("");
+  const [jdText, setJdText] = useState(forkTemplate?.jobDescription ?? "");
   const [jdUrl, setJdUrl] = useState("");
   const [jdFile, setJdFile] = useState<File | null>(null);
 
-  const [role, setRole] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [companyLogoUrl, setCompanyLogoUrl] = useState("");
-  const [level, setLevel] = useState("Mid");
-  const [type, setType] = useState("Technical");
-  const [techStack, setTechStack] = useState<string[]>([]);
+  const [role, setRole] = useState(forkTemplate?.role ?? "");
+  const [companyName, setCompanyName] = useState(forkTemplate?.companyName ?? "");
+  const [companyLogoUrl, setCompanyLogoUrl] = useState(forkTemplate?.companyLogoUrl ?? "");
+  const [level, setLevel] = useState<string>(forkTemplate?.level ?? "Mid");
+  const [type, setType] = useState<string>(forkTemplate?.type ?? "Technical");
+  const [techStack, setTechStack] = useState<string[]>(
+    (forkTemplate?.techStack ?? []).slice(0, MAX_TECH_ITEMS),
+  );
   const [newTech, setNewTech] = useState("");
-  const [isPublic, setIsPublic] = useState(true);
+  const [isPublic, setIsPublic] = useState(isFork ? false : true);
   const handleAnalyze = async () => {
     if (jdType === "text" && jdText.length < 20)
       return toast.error(
         "Please enter a valid job description (min 20 characters)",
       );
-    if (jdType === "url" && !validateAndSanitizeURL(jdUrl))
+    if (jdType === "url" && !isValidHttpUrl(jdUrl))
       return toast.error("Please enter a valid URL");
     if (jdType === "file" && !jdFile)
       return toast.error("Please upload a file");

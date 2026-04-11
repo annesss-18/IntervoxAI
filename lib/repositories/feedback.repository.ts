@@ -5,20 +5,23 @@ import { logger } from "@/lib/logger";
 export const FeedbackRepository = {
   async create(
     data: Omit<Feedback, "id" | "createdAt"> & { createdAt: string },
-  ): Promise<string> {
+  ): Promise<{ id: string; alreadyExisted: boolean }> {
     try {
       const docId = `${data.userId}_${data.interviewId}`;
       const ref = db.collection("feedback").doc(docId);
+      let alreadyExisted = false;
       await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (snap.exists) {
-          // Idempotent: feedback already exists, do not overwrite
+          // Idempotent: feedback already exists, do not overwrite.
+          // Signal the caller so it can skip side-effects.
+          alreadyExisted = true;
           logger.info(`Feedback ${docId} already exists, skipping create`);
           return;
         }
         tx.set(ref, data); // Full replacement — no merge
       });
-      return docId;
+      return { id: docId, alreadyExisted };
     } catch (error) {
       logger.error("Error creating feedback:", error);
       throw new Error("Failed to create feedback");

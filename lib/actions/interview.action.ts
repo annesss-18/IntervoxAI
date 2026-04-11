@@ -5,6 +5,7 @@ import { logger } from "../logger";
 import { InterviewService } from "@/lib/services/interview.service";
 import type { SessionPageResult } from "@/lib/services/interview.service";
 import type { SessionStatusFilter } from "@/types";
+import type { PublicTemplateSort } from "@/lib/repositories/template.repository";
 
 export async function getInterviewById(id: string, userId?: string) {
   try {
@@ -21,8 +22,11 @@ export async function getFeedbackByInterviewId(
   return await InterviewService.getFeedbackByInterviewId(params);
 }
 
-export async function getPublicTemplates(limit: number = 20) {
-  return await InterviewService.getPublicTemplates(limit);
+export async function getPublicTemplates(
+  limit: number = 20,
+  sort?: PublicTemplateSort,
+) {
+  return await InterviewService.getPublicTemplates(limit, sort);
 }
 
 export async function getUserTemplates(userId: string) {

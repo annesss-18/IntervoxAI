@@ -9,6 +9,7 @@ import {
   PlusCircle,
   LogOut,
   LayoutDashboard,
+  UserCog,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/atoms/button";
@@ -221,6 +222,38 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                           );
                         })}
                       </nav>
+
+                      <div className="border-t border-border pt-3">
+                        <Link
+                          href="/account"
+                          onClick={() => setIsOpen(false)}
+                          className={cn(
+                            "relative flex items-center gap-3 overflow-hidden rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                            pathname === "/account"
+                              ? "text-foreground"
+                              : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                          )}
+                        >
+                          {pathname === "/account" && (
+                            <span className="absolute inset-0 rounded-xl bg-brand-gradient opacity-10" />
+                          )}
+                          <UserCog
+                            className={cn(
+                              "relative size-4",
+                              pathname === "/account" && "text-primary",
+                            )}
+                          />
+                          <span
+                            className={cn(
+                              "relative",
+                              pathname === "/account" &&
+                                "text-gradient-brand font-semibold",
+                            )}
+                          >
+                            Account
+                          </span>
+                        </Link>
+                      </div>
 
                       <div className="mt-auto border-t border-border pt-4">
                         <Button

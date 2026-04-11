@@ -17,7 +17,7 @@ import { Container } from "@/components/layout/Container";
 import type {
   FeedbackJobStatus,
   FeedbackStatusResponse,
-} from "@/lib/schemas/feedback-status.schema";
+} from "@/types";
 interface FeedbackGenerationStatusProps {
   sessionId: string;
 }

@@ -1,42 +1,154 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth } from "@/lib/api-middleware";
+import { z } from "zod";
+import { withAuthClaims } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
-import type { User } from "@/types";
-import { z } from "zod";
 import { firestoreIdSchema } from "@/lib/schemas";
+import type { AuthClaims, FeedbackJobStatus } from "@/types";
 
 const feedbackStatusQuerySchema = z.object({
   interviewId: firestoreIdSchema,
 });
 
-function resolveFeedbackStatus(
-  sessionStatus: string | undefined,
-  feedbackStatus: string | undefined,
-  hasTranscript: boolean,
-): "idle" | "pending" | "processing" | "completed" | "failed" {
-  if (
-    feedbackStatus === "pending" ||
-    feedbackStatus === "processing" ||
-    feedbackStatus === "failed"
-  ) {
-    return feedbackStatus;
-  }
-
-  if (feedbackStatus === "completed") {
-    return "completed";
-  }
-
-  if (sessionStatus === "completed" && hasTranscript) {
-    return "pending";
-  }
-
-  return "idle";
+interface FeedbackStatusSnapshot {
+  userId: string;
+  status: FeedbackJobStatus;
+  feedbackId: string | null;
+  finalScore: number | null;
+  error: string | null;
+  requestedAt: string | null;
+  processingAt: string | null;
+  completedAt: string | null;
 }
 
-export const GET = withAuth(
-  async (req: NextRequest, user: User) => {
+function resolveStatus(session: Awaited<
+  ReturnType<typeof InterviewRepository.findStatusById>
+>): FeedbackStatusSnapshot | null {
+  if (!session) return null;
+
+  const status =
+    typeof session.feedbackStatus === "string"
+      ? (session.feedbackStatus as FeedbackJobStatus)
+      : typeof session.feedbackId === "string" ||
+          typeof session.finalScore === "number"
+        ? "completed"
+        : session.status === "completed"
+          ? "pending"
+          : "idle";
+
+  return {
+    userId: session.userId,
+    status,
+    feedbackId: session.feedbackId ?? null,
+    finalScore: session.finalScore ?? null,
+    error: session.feedbackError ?? null,
+    requestedAt: session.feedbackRequestedAt ?? null,
+    processingAt: session.feedbackProcessingAt ?? null,
+    completedAt: session.feedbackCompletedAt ?? null,
+  };
+}
+
+async function recoverCompletedStatus(
+  interviewId: string,
+  statusRecord: FeedbackStatusSnapshot,
+): Promise<FeedbackStatusSnapshot> {
+  const needsRecovery =
+    statusRecord.status !== "completed" ||
+    !statusRecord.feedbackId ||
+    typeof statusRecord.finalScore !== "number";
+
+  if (!needsRecovery) return statusRecord;
+
+  const session = await InterviewRepository.findStatusById(interviewId);
+  if (!session) return statusRecord;
+
+  const sessionLooksCompleted =
+    session.status === "completed" ||
+    session.feedbackStatus === "completed" ||
+    Boolean(session.feedbackId) ||
+    typeof session.finalScore === "number";
+
+  if (!sessionLooksCompleted) return statusRecord;
+
+  let feedbackId = session.feedbackId ?? statusRecord.feedbackId ?? null;
+  let finalScore =
+    typeof session.finalScore === "number"
+      ? session.finalScore
+      : typeof statusRecord.finalScore === "number"
+        ? statusRecord.finalScore
+        : null;
+  let completedAt =
+    session.feedbackCompletedAt ??
+    session.completedAt ??
+    statusRecord.completedAt ??
+    null;
+
+  if (needsRecovery) {
+    const feedback = await FeedbackRepository.findByInterviewId(
+      interviewId,
+      session.userId,
+    );
+
+    if (!feedback) return statusRecord;
+
+    feedbackId = feedback.id;
+    finalScore = feedback.totalScore;
+    completedAt = completedAt ?? feedback.createdAt;
+  }
+
+  if (!feedbackId || finalScore === null) {
+    return statusRecord;
+  }
+
+  const resolvedCompletedAt = completedAt ?? new Date().toISOString();
+  const resolvedRequestedAt =
+    session.feedbackRequestedAt ?? statusRecord.requestedAt ?? resolvedCompletedAt;
+  const resolvedProcessingAt =
+    session.feedbackProcessingAt ?? statusRecord.processingAt ?? null;
+
+  const recovered: FeedbackStatusSnapshot = {
+    userId: session.userId,
+    status: "completed",
+    feedbackId,
+    finalScore,
+    error: null,
+    requestedAt: resolvedRequestedAt,
+    processingAt: resolvedProcessingAt,
+    completedAt: resolvedCompletedAt,
+  };
+
+  const needsSessionPatch =
+    session.status !== "completed" ||
+    session.feedbackStatus !== "completed" ||
+    session.feedbackId !== feedbackId ||
+    session.finalScore !== finalScore ||
+    session.feedbackError !== null ||
+    session.feedbackCompletedAt !== resolvedCompletedAt ||
+    session.feedbackRequestedAt !== resolvedRequestedAt ||
+    session.feedbackProcessingAt !== (resolvedProcessingAt ?? undefined);
+
+  if (needsSessionPatch) {
+    await InterviewRepository.update(interviewId, {
+      status: "completed",
+      completedAt: session.completedAt || resolvedCompletedAt,
+      feedbackId,
+      finalScore,
+      feedbackStatus: "completed",
+      feedbackError: null,
+      feedbackRequestedAt: resolvedRequestedAt,
+      feedbackCompletedAt: resolvedCompletedAt,
+      ...(resolvedProcessingAt
+        ? { feedbackProcessingAt: resolvedProcessingAt }
+        : {}),
+    });
+  }
+
+  return recovered;
+}
+
+export const GET = withAuthClaims(
+  async (req: NextRequest, user: AuthClaims) => {
     try {
       const rawInterviewId = req.nextUrl.searchParams.get("interviewId") ?? "";
       const validation = feedbackStatusQuerySchema.safeParse({
@@ -54,102 +166,54 @@ export const GET = withAuth(
       }
 
       const { interviewId } = validation.data;
-      const session = await InterviewRepository.findById(interviewId);
+      const session = await InterviewRepository.findStatusById(interviewId);
+      const statusRecord = resolveStatus(session);
 
-      if (!session) {
+      if (!statusRecord) {
         return NextResponse.json(
           { error: "Interview session not found" },
           { status: 404 },
         );
       }
 
-      if (session.userId !== user.id) {
+      if (statusRecord.userId !== user.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      // M3: Auto-recover stuck "processing" state after 5 minutes.
+      const resolvedStatus = await recoverCompletedStatus(
+        interviewId,
+        statusRecord,
+      );
+
       const PROCESSING_TIMEOUT_MS = 5 * 60 * 1000;
-      if (
-        session.feedbackStatus === "processing" &&
-        session.feedbackProcessingAt
-      ) {
-        const processingStart = new Date(
-          session.feedbackProcessingAt,
-        ).getTime();
+      if (resolvedStatus.status === "processing" && resolvedStatus.processingAt) {
+        const processingStart = new Date(resolvedStatus.processingAt).getTime();
         if (Date.now() - processingStart > PROCESSING_TIMEOUT_MS) {
           logger.warn(
             `Feedback for session ${interviewId} stuck in processing for >5m, auto-recovering to failed`,
           );
-          InterviewRepository.update(interviewId, {
+
+          const failureMessage = "Processing timed out. Please try again.";
+          await InterviewRepository.update(interviewId, {
             feedbackStatus: "failed",
-            feedbackError: "Processing timed out. Please try again.",
-          }).catch((err) =>
-            logger.warn(
-              `Timeout recovery failed for interview ${interviewId}:`,
-              err,
-            ),
-          );
-          // Return the failed status immediately so the client can retry.
+            feedbackError: failureMessage,
+          });
+
           return NextResponse.json({
             success: true,
             status: "failed",
-            error: "Processing timed out. Please try again.",
+            error: failureMessage,
           });
         }
       }
 
-      const feedback = await FeedbackRepository.findByInterviewId(
-        interviewId,
-        user.id,
-      );
-
-      if (feedback) {
-        if (
-          session.feedbackStatus !== "completed" ||
-          session.feedbackId !== feedback.id ||
-          session.finalScore !== feedback.totalScore
-        ) {
-          // Best-effort metadata repair keeps session state aligned with feedback docs.
-          InterviewRepository.update(interviewId, {
-            status: "completed",
-            completedAt: session.completedAt || new Date().toISOString(),
-            feedbackStatus: "completed",
-            feedbackError: null,
-            feedbackCompletedAt:
-              session.feedbackCompletedAt || new Date().toISOString(),
-            feedbackId: feedback.id,
-            finalScore: feedback.totalScore,
-          }).catch((err) =>
-            logger.warn(
-              `Metadata repair failed for interview ${interviewId}:`,
-              err,
-            ),
-          );
-        }
-
-        return NextResponse.json({
-          success: true,
-          status: "completed",
-          feedbackId: feedback.id,
-          error: null,
-        });
-      }
-
-      const hasTranscript =
-        Array.isArray(session.transcript) && session.transcript.length > 0;
-      const status = resolveFeedbackStatus(
-        session.status,
-        session.feedbackStatus,
-        hasTranscript,
-      );
-
       return NextResponse.json({
         success: true,
-        status,
-        feedbackId: session.feedbackId || null,
+        status: resolvedStatus.status,
+        feedbackId: resolvedStatus.feedbackId ?? null,
         error:
-          status === "failed"
-            ? (session.feedbackError ?? "Feedback generation failed")
+          resolvedStatus.status === "failed"
+            ? (resolvedStatus.error ?? "Feedback generation failed")
             : null,
       });
     } catch (error) {

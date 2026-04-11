@@ -9,20 +9,28 @@ export interface FeedbackJobPayload {
   transcript: Array<{ role: string; content: string }>;
 }
 
-// Lazily create the QStash client only when the token is configured.
+// Lazily create the QStash client only when the full worker handshake is configured.
 let qstashClient: Client | null = null;
 
+function hasQStashConfig(): boolean {
+  return !!(
+    process.env.QSTASH_TOKEN &&
+    process.env.QSTASH_CURRENT_SIGNING_KEY &&
+    process.env.QSTASH_NEXT_SIGNING_KEY
+  );
+}
+
 function getQStashClient(): Client | null {
-  if (!process.env.QSTASH_TOKEN) return null;
+  if (!hasQStashConfig()) return null;
   if (!qstashClient) {
-    qstashClient = new Client({ token: process.env.QSTASH_TOKEN });
+    qstashClient = new Client({ token: process.env.QSTASH_TOKEN! });
   }
   return qstashClient;
 }
 
 // Report whether QStash is configured for durable background work.
 export function isQueueAvailable(): boolean {
-  return !!process.env.QSTASH_TOKEN;
+  return hasQStashConfig();
 }
 
 // Build the absolute worker URL for both production and local development.
@@ -38,7 +46,7 @@ export async function publishFeedbackJob(
   const client = getQStashClient();
   if (!client) {
     throw new Error(
-      "QStash is not configured. Set QSTASH_TOKEN environment variable.",
+      "QStash is not configured. Set QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY, and QSTASH_NEXT_SIGNING_KEY.",
     );
   }
 

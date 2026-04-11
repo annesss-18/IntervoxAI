@@ -14,6 +14,7 @@ import {
   getUserSessionsPage,
   getUserTemplates,
 } from "@/lib/actions/interview.action";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import { Container, PageHeader } from "@/components/layout/Container";
 import {
   Tabs,
@@ -24,12 +25,65 @@ import {
 import { Button } from "@/components/atoms/button";
 import { DashboardSessionList } from "@/components/organisms/DashboardSessionList";
 import { TemplateCard } from "@/components/organisms/TemplateCard";
+import { ScoreTrendChart } from "@/components/organisms/ScoreTrendChart";
 
 export const metadata: Metadata = {
   title: "Dashboard - IntervoxAI",
   description:
     "Manage your mock interviews, track progress, and create new interview templates.",
 };
+
+function needsStatsReconciliation(args: {
+  activeCount?: number;
+  completedCount?: number;
+  scoreCount?: number;
+  scoreSum?: number;
+  activeSessionsLoaded: number;
+  activeCursor: string | null;
+  completedSessionsLoaded: number;
+  completedCursor: string | null;
+}) {
+  const {
+    activeCount,
+    completedCount,
+    scoreCount,
+    scoreSum,
+    activeSessionsLoaded,
+    activeCursor,
+    completedSessionsLoaded,
+    completedCursor,
+  } = args;
+
+  const hasNegativeCounters =
+    (typeof activeCount === "number" && activeCount < 0) ||
+    (typeof completedCount === "number" && completedCount < 0) ||
+    (typeof scoreCount === "number" && scoreCount < 0);
+
+  const hasImpossibleScoreState =
+    typeof scoreCount === "number" &&
+    typeof scoreSum === "number" &&
+    scoreCount === 0 &&
+    scoreSum !== 0;
+
+  const activeLooksDrifted =
+    typeof activeCount === "number" &&
+    activeCount > 0 &&
+    activeSessionsLoaded === 0 &&
+    !activeCursor;
+
+  const completedLooksDrifted =
+    typeof completedCount === "number" &&
+    completedCount > 0 &&
+    completedSessionsLoaded === 0 &&
+    !completedCursor;
+
+  return (
+    hasNegativeCounters ||
+    hasImpossibleScoreState ||
+    activeLooksDrifted ||
+    completedLooksDrifted
+  );
+}
 
 export default async function DashboardPage() {
   const user = (await getCurrentUser())!;
@@ -43,25 +97,45 @@ export default async function DashboardPage() {
   const activeSessions = activeSessionsPage.sessions;
   const completedSessions = completedSessionsPage.sessions;
 
-  // Prefer pre-aggregated stats and fall back to session-derived values for legacy users.
-  const activeCount = user.stats?.activeCount ?? activeSessions.length;
-  const completedCount = user.stats?.completedCount ?? completedSessions.length;
+  const shouldReconcileStats = needsStatsReconciliation({
+    activeCount: user.stats?.activeCount,
+    completedCount: user.stats?.completedCount,
+    scoreCount: user.stats?.scoreCount,
+    scoreSum: user.stats?.scoreSum,
+    activeSessionsLoaded: activeSessions.length,
+    activeCursor: activeSessionsPage.nextCursor,
+    completedSessionsLoaded: completedSessions.length,
+    completedCursor: completedSessionsPage.nextCursor,
+  });
+
+  const resolvedStats = shouldReconcileStats
+    ? await UserRepository.reconcileStats(user.id)
+    : user.stats;
+
+  // Prefer pre-aggregated stats and fall back to session-derived values for
+  // legacy users.
+  const activeCount = Math.max(
+    0,
+    resolvedStats?.activeCount ?? activeSessions.length,
+  );
+  const completedCount =
+    Math.max(0, resolvedStats?.completedCount ?? completedSessions.length);
   const averageScore: number | null =
-    typeof user.stats?.scoreSum === "number" &&
-    typeof user.stats?.scoreCount === "number" &&
-    user.stats.scoreCount > 0
-      ? Math.round(user.stats.scoreSum / user.stats.scoreCount)
+    typeof resolvedStats?.scoreSum === "number" &&
+      typeof resolvedStats?.scoreCount === "number" &&
+      resolvedStats.scoreCount > 0
+      ? Math.round(resolvedStats.scoreSum / resolvedStats.scoreCount)
       : (() => {
-          const withScores = completedSessions.filter(
-            (s) => typeof s.finalScore === "number",
-          );
-          return withScores.length > 0
-            ? Math.round(
-                withScores.reduce((t, s) => t + (s.finalScore || 0), 0) /
-                  withScores.length,
-              )
-            : null;
-        })();
+        const withScores = completedSessions.filter(
+          (s) => typeof s.finalScore === "number",
+        );
+        return withScores.length > 0
+          ? Math.round(
+            withScores.reduce((t, s) => t + (s.finalScore || 0), 0) /
+            withScores.length,
+          )
+          : null;
+      })();
 
   const firstName = user.name?.split(" ")[0] ?? "there";
 
@@ -79,6 +153,7 @@ export default async function DashboardPage() {
         </Link>
       </PageHeader>
 
+      {/* ── Metric cards ─────────────────────────────────────────────────── */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Active Sessions"
@@ -107,6 +182,7 @@ export default async function DashboardPage() {
         />
       </div>
 
+      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6 w-full sm:w-auto">
           <TabsTrigger value="active">
@@ -135,6 +211,7 @@ export default async function DashboardPage() {
           </TabsTrigger>
         </TabsList>
 
+        {/* Practice tab */}
         <TabsContent value="active">
           <DashboardSessionList
             initialSessions={activeSessions}
@@ -158,7 +235,10 @@ export default async function DashboardPage() {
           />
         </TabsContent>
 
+        {/* History tab — ScoreTrendChart is mounted here so it only fetches
+            data when the user navigates to this tab. */}
         <TabsContent value="history">
+          <ScoreTrendChart />
           <DashboardSessionList
             initialSessions={completedSessions}
             initialCursor={completedSessionsPage.nextCursor}
@@ -173,6 +253,7 @@ export default async function DashboardPage() {
           />
         </TabsContent>
 
+        {/* Templates tab */}
         <TabsContent value="templates">
           {templates.length > 0 ? (
             <CardGrid>
@@ -202,6 +283,9 @@ export default async function DashboardPage() {
     </Container>
   );
 }
+
+// ── Sub-components ─────────────────────────────────────────────────────────
+
 function CardGrid({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{children}</div>

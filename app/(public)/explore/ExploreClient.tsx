@@ -1,22 +1,49 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Container, PageHeader } from "@/components/layout/Container";
 import { TemplateCard } from "@/components/organisms/TemplateCard";
 import { Input } from "@/components/atoms/input";
 import { Badge } from "@/components/atoms/badge";
-import { Search, Compass, SlidersHorizontal, X } from "lucide-react";
+import {
+  Search,
+  Compass,
+  SlidersHorizontal,
+  X,
+  Clock,
+  TrendingUp,
+  Star,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TemplateCardData } from "@/types";
+import type { PublicTemplateSort } from "@/lib/repositories/template.repository";
 
 interface ExploreClientProps {
   templates: TemplateCardData[];
+  initialSort: PublicTemplateSort;
 }
 
 const typeFilters = ["Technical", "System Design", "Behavioral", "HR", "Mixed"];
 const levelFilters = ["Junior", "Mid", "Senior", "Staff", "Executive"];
 
-export default function ExploreClient({ templates }: ExploreClientProps) {
+const sortOptions: {
+  value: PublicTemplateSort;
+  label: string;
+  icon: typeof Clock;
+}[] = [
+  { value: "newest", label: "Newest", icon: Clock },
+  { value: "popular", label: "Most Used", icon: TrendingUp },
+  { value: "top-rated", label: "Top Rated", icon: Star },
+];
+
+export default function ExploreClient({
+  templates,
+  initialSort,
+}: ExploreClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
   const [activeLevels, setActiveLevels] = useState<Set<string>>(new Set());
@@ -41,6 +68,16 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
     setActiveTypes(new Set());
     setActiveLevels(new Set());
   }, []);
+
+  const handleSortChange = useCallback(
+    (sort: PublicTemplateSort) => {
+      const params = new URLSearchParams();
+      if (sort !== "newest") params.set("sort", sort);
+      const query = params.toString();
+      router.push(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+    },
+    [router, pathname],
+  );
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
@@ -78,6 +115,36 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
       />
 
       <div className="mb-8 space-y-5 rounded-2xl border border-border bg-card p-5">
+        {/* ── Sort Toggle ── */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground font-medium">
+            Sort:
+          </span>
+          {sortOptions.map((option) => {
+            const Icon = option.icon;
+            const isActive = initialSort === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleSortChange(option.value)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
+                  isActive
+                    ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.15)]"
+                    : "border-border bg-transparent text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground",
+                )}
+              >
+                <Icon className="size-3" />
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="h-px bg-border/60" />
+
+        {/* ── Search & Count ── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Input
@@ -108,6 +175,7 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
           </div>
         </div>
 
+        {/* ── Type & Level Filters ── */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">
             Type:
@@ -158,6 +226,7 @@ export default function ExploreClient({ templates }: ExploreClientProps) {
           })}
         </div>
 
+        {/* ── Active Filter Tags ── */}
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
             <span className="text-xs text-muted-foreground">Active:</span>

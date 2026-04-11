@@ -18,10 +18,7 @@ dist/
 *.tsbuildinfo
 next-env.d.ts
 
-# Test artifacts
-__tests__/
-vitest.config.ts
-*.test.ts
+# Test artifacts (only exclude generated output, not test source files)
 /coverage
 *.lcov
 .nyc_output

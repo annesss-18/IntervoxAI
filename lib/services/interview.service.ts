@@ -1,21 +1,154 @@
 import { generateObject } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { feedbackSchema } from "@/constants";
+import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { MODEL_CONFIG } from "@/lib/models";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
-import { TemplateRepository } from "@/lib/repositories/template.repository";
+import {
+  PublicTemplateSort,
+  TemplateRepository,
+} from "@/lib/repositories/template.repository";
 import {
   CreateFeedbackParams,
   InterviewSessionDetail,
-  SessionStatusFilter,
   SessionCardData,
+  SessionStatusFilter,
   TemplateCardData,
 } from "@/types";
 
 const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
+});
+
+const FEEDBACK_MODEL = process.env.FEEDBACK_MODEL;
+
+if (!FEEDBACK_MODEL) {
+  throw new Error("FEEDBACK_MODEL is required");
+}
+
+const feedbackSchema = z.object({
+  totalScore: z
+    .number()
+    .min(0)
+    .max(100)
+    .describe(
+      "Weighted average of all category scores, calibrated against the role level. Avoid clustering scores around 50-70 and use the full range based on actual performance.",
+    ),
+  hiringRecommendation: z
+    .enum(["Strong Yes", "Yes", "Lean Yes", "Lean No", "No", "Strong No"])
+    .describe("Clear hiring recommendation based on the interview"),
+  categoryScores: z.object({
+    communicationSkills: z.object({
+      score: z.number().min(0).max(100),
+      comment: z
+        .string()
+        .describe(
+          "Reference specific moments from the transcript. Note how they structured answers, used analogies, or struggled to explain concepts.",
+        ),
+    }),
+    technicalKnowledge: z.object({
+      score: z.number().min(0).max(100),
+      comment: z
+        .string()
+        .describe(
+          "Cite specific technical topics discussed. Note depth of understanding, edge-case awareness, and any knowledge gaps.",
+        ),
+    }),
+    problemSolving: z.object({
+      score: z.number().min(0).max(100),
+      comment: z
+        .string()
+        .describe(
+          "Describe their approach to problems: did they decompose, consider alternatives, optimize? Reference specific questions.",
+        ),
+    }),
+    culturalFit: z.object({
+      score: z.number().min(0).max(100),
+      comment: z
+        .string()
+        .describe(
+          "Assess collaboration signals, growth mindset, openness to feedback, and alignment with engineering culture.",
+        ),
+    }),
+    confidenceAndClarity: z.object({
+      score: z.number().min(0).max(100),
+      comment: z
+        .string()
+        .describe(
+          "Note composure under pressure, consistency across easy and hard questions, and how they handled uncertainty.",
+        ),
+    }),
+  }),
+  behavioralInsights: z.object({
+    confidenceLevel: z
+      .enum(["High", "Moderate", "Low", "Variable"])
+      .describe("Overall confidence displayed throughout the interview"),
+    clarityOfThought: z
+      .enum(["Excellent", "Good", "Developing", "Needs Improvement"])
+      .describe("Ability to articulate ideas clearly and structured"),
+    technicalDepth: z
+      .enum(["Expert", "Proficient", "Intermediate", "Foundational"])
+      .describe("Level of domain expertise demonstrated"),
+    problemApproach: z
+      .enum(["Systematic", "Intuitive", "Exploratory", "Uncertain"])
+      .describe("How they approach new problems"),
+    stressResponse: z
+      .enum(["Composed", "Adaptive", "Hesitant", "Struggled"])
+      .describe("How they handled challenging questions"),
+    observations: z
+      .array(z.string())
+      .max(5)
+      .describe(
+        "Key behavioral observations during the interview; each should be a specific, evidence-based observation, not a generic trait.",
+      ),
+  }),
+  strengths: z
+    .array(z.string())
+    .min(2)
+    .max(5)
+    .describe(
+      "Each strength should reference a specific moment or pattern from the interview, not generic praise.",
+    ),
+  areasForImprovement: z
+    .array(z.string())
+    .min(2)
+    .max(5)
+    .describe(
+      "Each area should identify a specific gap observed in the interview and suggest a concrete way to improve.",
+    ),
+  careerCoaching: z.object({
+    immediateActions: z
+      .array(z.string())
+      .min(1)
+      .max(3)
+      .describe(
+        "Specific actions the candidate should take in the next 2 weeks, tied to gaps observed in this interview.",
+      ),
+    learningPath: z
+      .array(z.string())
+      .min(1)
+      .max(3)
+      .describe(
+        "Skills or technologies to focus on for the next 3 to 6 months to reach the target role level.",
+      ),
+    interviewTips: z
+      .array(z.string())
+      .min(1)
+      .max(3)
+      .describe(
+        "Specific advice for improving interview performance based on patterns observed in this transcript.",
+      ),
+    roleReadiness: z
+      .string()
+      .describe(
+        "Honest assessment of readiness for this specific role and level, including the remaining gap.",
+      ),
+  }),
+  finalAssessment: z
+    .string()
+    .describe(
+      "Comprehensive 2-3 paragraph assessment with overall impression, key gaps, and a path forward grounded in specific examples.",
+    ),
 });
 
 interface CreateFeedbackOptions {
@@ -77,7 +210,7 @@ async function withRetry<T>(
             const err = new Error("The operation was aborted");
             err.name = "AbortError";
             reject(err);
-          });
+          }, { once: true });
         });
       }
     }
@@ -133,6 +266,38 @@ export interface SessionPageResult {
   nextCursor: string | null;
 }
 
+export interface CreateFeedbackResult {
+  success: true;
+  feedbackId: string;
+  reused: boolean;
+  totalScore: number;
+  templateId: string;
+}
+
+async function reconcileCompletedSession(
+  interviewId: string,
+  session: Awaited<ReturnType<typeof InterviewRepository.findById>>,
+  data: {
+    feedbackId: string;
+    totalScore: number;
+    completedAt: string;
+  },
+): Promise<void> {
+  if (!session) return;
+
+  await InterviewRepository.update(interviewId, {
+    status: "completed",
+    completedAt: session.completedAt || data.completedAt,
+    feedbackId: data.feedbackId,
+    finalScore: data.totalScore,
+    feedbackStatus: "completed",
+    feedbackError: null,
+    feedbackCompletedAt: data.completedAt,
+    feedbackRequestedAt: session.feedbackRequestedAt || data.completedAt,
+    // Transcript is already persisted by POST /api/feedback.
+  });
+}
+
 export const InterviewService = {
   async getUserSessionsPage(
     userId: string,
@@ -152,13 +317,18 @@ export const InterviewService = {
     }
 
     const templateIds = page.sessions
+      .filter((session) => !session.templateSnapshot)
       .map((s) => s.templateId)
       .filter(Boolean);
-    const templateMap = await TemplateRepository.findManyByIds(templateIds);
+    const templateMap =
+      templateIds.length > 0
+        ? await TemplateRepository.findManyByIds(templateIds)
+        : new Map<string, Awaited<ReturnType<typeof TemplateRepository.findById>>>();
 
     const sessions = page.sessions
       .map((session) => {
-        const template = templateMap.get(session.templateId);
+        const template =
+          session.templateSnapshot ?? templateMap.get(session.templateId);
         if (!template) {
           logger.warn(
             `Template ${session.templateId} not found for session ${session.id}`,
@@ -200,38 +370,52 @@ export const InterviewService = {
     }
 
     const template = await TemplateRepository.findById(session.templateId);
-    if (!template) {
+    if (!template && !session.templateSnapshot) {
       logger.error(
         `Template ${session.templateId} not found for session ${id}`,
       );
       return null;
     }
 
+    if (!template) {
+      logger.warn(
+        `Template ${session.templateId} missing for session ${id}; falling back to stored snapshot`,
+      );
+    }
+
+    const templateData = template ?? session.templateSnapshot!;
+
     return {
       id: session.id,
       userId: session.userId,
+      templateId: session.templateId,
       createdAt: session.startedAt,
       status: session.status,
+      transcript: session.transcript ?? [],
+      durationMinutes: session.durationMinutes ?? 15,
       resumeText: session.resumeText,
       finalScore: session.finalScore,
       feedbackId: session.feedbackId,
-      role: template.role,
-      companyName: template.companyName || "Unknown Company",
-      companyLogoUrl: template.companyLogoUrl,
-      level: template.level,
-      questions: template.baseQuestions || [],
-      techStack: template.techStack || [],
-      jobDescription: template.jobDescription || "",
-      type: template.type,
-      systemInstruction: template.systemInstruction,
-      interviewerPersona: template.interviewerPersona,
+      role: templateData.role,
+      companyName: templateData.companyName || "Unknown Company",
+      companyLogoUrl: templateData.companyLogoUrl,
+      level: templateData.level,
+      questions: template?.baseQuestions || [],
+      techStack: templateData.techStack || [],
+      jobDescription: template?.jobDescription || "",
+      type: templateData.type,
+      systemInstruction: template?.systemInstruction,
+      interviewerPersona: template?.interviewerPersona,
       // Pass focus areas through so the live agent receives them.
-      focusArea: template.focusArea || [],
+      focusArea: template?.focusArea || [],
     };
   },
 
-  async getPublicTemplates(limit: number = 20): Promise<TemplateCardData[]> {
-    const templates = await TemplateRepository.findPublic(limit);
+  async getPublicTemplates(
+    limit: number = 20,
+    sort: PublicTemplateSort = "newest",
+  ): Promise<TemplateCardData[]> {
+    const templates = await TemplateRepository.findPublic(limit, sort);
     return templates.map((t) => ({
       id: t.id,
       role: t.role,
@@ -267,7 +451,7 @@ export const InterviewService = {
   async createFeedback(
     params: CreateFeedbackParams,
     options: CreateFeedbackOptions = {},
-  ) {
+  ): Promise<CreateFeedbackResult> {
     const { abortSignal } = options;
     const { interviewId, userId, transcript } = params;
 
@@ -299,20 +483,20 @@ export const InterviewService = {
         session.feedbackStatus !== "completed" ||
         !!session.feedbackError
       ) {
-        await InterviewRepository.update(interviewId, {
-          status: "completed",
-          completedAt: session.completedAt || now,
+        await reconcileCompletedSession(interviewId, session, {
           feedbackId: existingFeedback.id,
-          finalScore: existingFeedback.totalScore,
-          feedbackStatus: "completed",
-          feedbackError: null,
-          feedbackCompletedAt: session.feedbackCompletedAt || now,
-          feedbackRequestedAt: session.feedbackRequestedAt || now,
-          // Transcript is already persisted by POST /api/feedback.
+          totalScore: existingFeedback.totalScore,
+          completedAt: now,
         });
       }
 
-      return { success: true, feedbackId: existingFeedback.id, reused: true };
+      return {
+        success: true,
+        feedbackId: existingFeedback.id,
+        reused: true,
+        totalScore: existingFeedback.totalScore,
+        templateId: session.templateId,
+      };
     }
 
     const { formattedTranscript, wasCompacted } =
@@ -328,11 +512,11 @@ export const InterviewService = {
 
     // Calibrate scoring with template-level role context when available.
     let interviewContext = {
-      role: "Software Engineer",
-      level: "Mid",
-      type: "Technical",
-      techStack: [] as string[],
-      companyName: "the company",
+      role: session.templateSnapshot?.role || "Software Engineer",
+      level: session.templateSnapshot?.level || "Mid",
+      type: session.templateSnapshot?.type || "Technical",
+      techStack: session.templateSnapshot?.techStack || ([] as string[]),
+      companyName: session.templateSnapshot?.companyName || "the company",
     };
 
     try {
@@ -358,7 +542,7 @@ export const InterviewService = {
     const genResult = await withRetry(
       () =>
         generateObject({
-          model: feedbackGoogle(MODEL_CONFIG.feedback),
+          model: feedbackGoogle(FEEDBACK_MODEL),
           abortSignal,
           schema: feedbackSchema,
           prompt: `
@@ -480,7 +664,7 @@ Strong No -> No -> Lean No -> Lean Yes -> Yes -> Strong Yes
       },
     ];
 
-    const feedbackId = await FeedbackRepository.create({
+    const { id: feedbackId, alreadyExisted } = await FeedbackRepository.create({
       interviewId,
       userId,
       totalScore: validatedFeedback.totalScore,
@@ -496,20 +680,46 @@ Strong No -> No -> Lean No -> Lean Yes -> Yes -> Strong Yes
 
     const completionTimestamp = new Date().toISOString();
 
-    // Keep session and feedback metadata synchronized after write.
-    await InterviewRepository.update(interviewId, {
-      finalScore: validatedFeedback.totalScore,
+    if (alreadyExisted) {
+      const racedFeedback = await FeedbackRepository.findByInterviewId(
+        interviewId,
+        userId,
+      );
+
+      if (!racedFeedback) {
+        throw new Error(
+          "Feedback was created concurrently but could not be reloaded",
+        );
+      }
+
+      await reconcileCompletedSession(interviewId, session, {
+        feedbackId: racedFeedback.id,
+        totalScore: racedFeedback.totalScore,
+        completedAt: completionTimestamp,
+      });
+
+      return {
+        success: true,
+        feedbackId: racedFeedback.id,
+        reused: true,
+        totalScore: racedFeedback.totalScore,
+        templateId: session.templateId,
+      };
+    }
+
+    await reconcileCompletedSession(interviewId, session, {
       feedbackId,
-      status: "completed",
+      totalScore: validatedFeedback.totalScore,
       completedAt: completionTimestamp,
-      feedbackStatus: "completed",
-      feedbackError: null,
-      feedbackCompletedAt: completionTimestamp,
-      feedbackRequestedAt: session.feedbackRequestedAt || completionTimestamp,
-      // Transcript is already persisted by POST /api/feedback.
     });
 
-    return { success: true, feedbackId };
+    return {
+      success: true,
+      feedbackId,
+      reused: false,
+      totalScore: validatedFeedback.totalScore,
+      templateId: session.templateId,
+    };
   },
 
   async getTemplateById(id: string, userId?: string) {

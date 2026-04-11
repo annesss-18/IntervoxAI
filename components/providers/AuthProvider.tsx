@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/firebase/client";
-import { signOut as signOutAction } from "@/lib/actions/auth.action";
 import { useRouter } from "next/navigation";
 
 type AuthContextType = {
@@ -33,7 +32,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const hadAuthenticatedUser = lastUserIdRef.current !== null;
         lastUserIdRef.current = null;
         if (hadAuthenticatedUser) {
-          await signOutAction();
+          await fetch("/api/auth/signout", {
+            method: "POST",
+            credentials: "same-origin",
+          }).catch(() => undefined);
           router.refresh();
         }
         return;

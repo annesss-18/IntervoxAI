@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -46,6 +46,12 @@ export function LiveInterviewAgent({
   );
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
 
+  // ---------------------------------------------------------------------------
+  // Duration — derive the total session seconds once from the interview prop.
+  // Falls back to 15 minutes for sessions created before this field existed.
+  // ---------------------------------------------------------------------------
+  const totalSeconds = (interview.durationMinutes ?? 15) * 60;
+
   const {
     status: connectionStatus,
     error: connectionError,
@@ -63,6 +69,10 @@ export function LiveInterviewAgent({
     flushPendingTranscript,
   } = useLiveInterview({
     sessionId,
+    // Pass templateId so /api/live/token can fire session + template reads in
+    // parallel (see the previous performance fixes).
+    templateId: interview.templateId,
+    initialTranscript: interview.transcript,
     holdInitialPrompt: true,
     onInterruption: () => {
       clearAudioQueue();
@@ -156,7 +166,6 @@ export function LiveInterviewAgent({
       await connect();
     } catch (error) {
       logger.warn("Background connection failed during audio test:", error);
-      // Don't block - user can still test audio; connection will retry.
     }
   };
 
@@ -170,7 +179,6 @@ export function LiveInterviewAgent({
       await connect();
       releaseHold();
 
-      // Persist the active status without blocking the interview start flow.
       fetch(`/api/interview/session/${sessionId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -241,24 +249,45 @@ export function LiveInterviewAgent({
     toast.info(isMuted ? "Microphone unmuted" : "Microphone muted");
   };
 
-  const latestModelCaption = useMemo(() => {
-    for (let i = transcript.length - 1; i >= 0; i--) {
-      const e = transcript[i];
-      if (e?.role === "model" && e.content.trim()) return e.content;
-    }
-    return null;
-  }, [transcript]);
+  // ---------------------------------------------------------------------------
+  // Latest captions — single backward scan that stops as soon as both roles
+  // are found (O(1) in practice since both entries are typically the last 2–3).
+  // ---------------------------------------------------------------------------
+  const transcriptLength = transcript.length;
+  let latestModelCaption: string | null = null;
+  let latestUserCaption: string | null = null;
 
-  const latestUserCaption = useMemo(() => {
-    for (let i = transcript.length - 1; i >= 0; i--) {
+  if (transcriptLength > 0) {
+    for (let i = transcriptLength - 1; i >= 0; i--) {
       const e = transcript[i];
-      if (e?.role === "user" && e.content.trim()) return e.content;
+      if (!e) continue;
+      if (latestModelCaption === null && e.role === "model" && e.content.trim()) {
+        latestModelCaption = e.content;
+      }
+      if (latestUserCaption === null && e.role === "user" && e.content.trim()) {
+        latestUserCaption = e.content;
+      }
+      if (latestModelCaption !== null && latestUserCaption !== null) break;
     }
-    return null;
-  }, [transcript]);
+  }
 
-  const sessionTimeWarning = elapsedTime >= 840;
-  const remainingSeconds = Math.max(0, 900 - elapsedTime);
+  // ---------------------------------------------------------------------------
+  // Progress indicator — soft heuristic based on model turn count vs expected
+  // question count.  Each question typically spans 2–3 model turns (greeting,
+  // follow-up, transition), so we scale against questions.length × 2.5.
+  // Capped at 95 % so we never show 100 % until the session explicitly ends.
+  // ---------------------------------------------------------------------------
+  const modelTurnCount = transcript.filter((e) => e.role === "model").length;
+  const estimatedProgress = Math.min(
+    Math.round(
+      (modelTurnCount / Math.max(1, interview.questions.length * 2.5)) * 100,
+    ),
+    95,
+  );
+
+  // Warning threshold — 60 seconds before session end.
+  const sessionTimeWarning = elapsedTime >= totalSeconds - 60;
+  const remainingSeconds = Math.max(0, totalSeconds - elapsedTime);
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-xl)]">
@@ -293,6 +322,7 @@ export function LiveInterviewAgent({
             onResumeUploaded={handleResumeUploaded}
             onResumeClear={handleResumeClear}
             onStart={handleEnterAudioTest}
+            interviewerPersona={interview.interviewerPersona}
           />
         </div>
       ) : phase === "audio_test" ? (
@@ -305,6 +335,22 @@ export function LiveInterviewAgent({
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
+          {/* Soft progress bar — 2 px tall, no label, subtle primary fill */}
+          <div
+            className="h-0.5 w-full bg-surface-3"
+            role="progressbar"
+            aria-valuenow={estimatedProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Interview progress"
+          >
+            <div
+              className="h-full bg-primary/60 transition-all duration-1000 ease-out"
+              style={{ width: `${estimatedProgress}%` }}
+            />
+          </div>
+
+          {/* Header bar */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <Badge
@@ -341,6 +387,7 @@ export function LiveInterviewAgent({
             </div>
           </div>
 
+          {/* Captions */}
           <div className="grid gap-4 px-4 py-4 md:grid-cols-2">
             <InterviewCaptions
               currentCaption={currentCaption}
@@ -358,11 +405,13 @@ export function LiveInterviewAgent({
             />
           </div>
 
+          {/* Controls — pass totalSeconds so warning threshold uses configured duration */}
           <InterviewControls
             connectionStatus={connectionStatus}
             isMuted={isMuted}
             isSubmitting={isSubmitting}
             elapsedTime={elapsedTime}
+            totalSeconds={totalSeconds}
             onToggleMute={handleToggleMute}
             onEndInterview={handleEndInterview}
           />

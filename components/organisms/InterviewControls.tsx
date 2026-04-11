@@ -29,6 +29,12 @@ interface InterviewControlsProps {
   isSubmitting: boolean;
   onToggleMute: () => void;
   onEndInterview: () => void;
+  /**
+   * Total session duration in seconds.
+   * Defaults to 900 (15 min) for backward compatibility.
+   * Used to compute the warning threshold and remaining time display.
+   */
+  totalSeconds?: number;
 }
 
 export function InterviewControls({
@@ -38,6 +44,7 @@ export function InterviewControls({
   isSubmitting,
   onToggleMute,
   onEndInterview,
+  totalSeconds = 900,
 }: InterviewControlsProps) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
 
@@ -45,6 +52,7 @@ export function InterviewControls({
     const m = Math.floor(s / 60);
     return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   };
+
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (
@@ -69,10 +77,14 @@ export function InterviewControls({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
   const isConnected = connectionStatus === "connected";
   const isConnecting = connectionStatus === "connecting";
-  const isWarning = elapsedTime >= 840;
-  const remainingSeconds = Math.max(0, 900 - elapsedTime);
+
+  // Warn when 60 seconds remain regardless of total duration.
+  const warningThreshold = totalSeconds - 60;
+  const isWarning = elapsedTime >= warningThreshold;
+  const remainingSeconds = Math.max(0, totalSeconds - elapsedTime);
 
   const statusVariant = isConnected
     ? "success"

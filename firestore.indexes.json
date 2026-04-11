@@ -33,6 +33,20 @@
       ]
     },
     {
+      "collectionGroup": "interview_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "interview_templates",
       "queryScope": "COLLECTION",
       "fields": [
@@ -70,6 +84,20 @@
         },
         {
           "fieldPath": "usageCount",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "interview_templates",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isPublic",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "avgScore",
           "order": "DESCENDING"
         }
       ]

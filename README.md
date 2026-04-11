@@ -58,6 +58,7 @@ UI -> API routes -> services -> repositories -> Firestore
   - Analyze a JD from text, URL, or file
   - Extract role, company, level, type, and tech stack
   - Generate interview questions, focus areas, and interviewer persona
+  - Edit your own templates after generation before starting sessions
 
 - **Explore**
   - Browse public interview templates
@@ -67,12 +68,18 @@ UI -> API routes -> services -> repositories -> Firestore
 - **Live interviews**
   - Real-time microphone streaming to Gemini Live
   - AI audio playback, captions, and session controls
-  - Resume-aware context and guided follow-ups
+  - Resume-aware context, guided follow-ups, and selectable session lengths
 
 - **Feedback engine**
   - Transcript queueing and async processing
   - Category scoring, strengths, gaps, and coaching
   - Durable QStash worker path with a local `after()` fallback
+  - Optional feedback-ready email notifications via Resend
+
+- **Dashboard and account**
+  - Score trend history for completed sessions
+  - Transcript review on the feedback page
+  - Account settings for display-name updates and account deletion
 
 ### Platform hardening
 
@@ -81,6 +88,7 @@ UI -> API routes -> services -> repositories -> Firestore
 - SSRF-safe JD extraction
 - Resume encryption at rest with AES-256-GCM
 - CSP and security headers in Next.js
+- Daily worker support for expiring abandoned setup sessions
 
 ---
 
@@ -101,7 +109,7 @@ UI -> API routes -> services -> repositories -> Firestore
 | Rate limiting | Upstash Redis, `@upstash/ratelimit`                      |
 | Queueing      | Upstash QStash                                           |
 | Parsing       | `unpdf`, `mammoth`, `cheerio`                            |
-| Notifications | Sonner                                                   |
+| Notifications | Sonner, Resend                                           |
 | Analytics     | Vercel Analytics                                         |
 
 ---
@@ -132,7 +140,7 @@ Interview end -> /api/feedback -> /api/feedback/process -> feedback document
 app/
   (public)/                  Marketing, docs, legal, support, pricing, explore
   (auth)/                    Sign-in and sign-up
-  (root)/                    Dashboard, template details, sessions, live interview
+  (root)/                    Dashboard, account, template details, sessions, live interview
   api/                       Route handlers
 components/
   atoms/                     UI primitives
@@ -149,6 +157,7 @@ lib/
   repositories/              Firestore access
   queue/                     Feedback job publishing helpers
   hooks/                     Audio and live interview hooks
+  services/email.service.ts  Optional Resend notifications
   api-middleware.ts          Auth and rate-limit wrappers
   rate-limit.ts              Redis and in-memory rate limiting
   server-utils.ts            Safe file and URL extraction
@@ -157,13 +166,11 @@ lib/
   logger.ts                  Structured logging
   models.ts                  Centralized Gemini model IDs
   schemas.ts                 Shared Zod schemas
-  validation.ts              Validation helpers
   utils.ts                   Shared utilities
   __tests__/                 Vitest coverage
 public/
   worklets/                  AudioWorklet source
 types/                       Shared TypeScript contracts
-constants/                   Shared schemas and mappings
 firestore.rules              Firestore security rules
 firestore.indexes.json       Firestore composite indexes
 vitest.config.ts             Vitest config
@@ -206,11 +213,15 @@ vitest.config.ts             Vitest config
 | `/api/feedback/status`               | `GET`         | Yes               | Retrieve feedback processing state               |
 | `/api/feedback/process`              | `POST`        | Yes               | Claim a ready session and dispatch feedback work |
 | `/api/workers/feedback`              | `POST`        | QStash signed     | Process queued feedback jobs                     |
+| `/api/workers/session-cleanup`       | `POST`        | QStash signed     | Expire abandoned setup sessions                  |
 | `/api/interview/analyze`             | `POST`        | Yes               | Extract role context from a JD                   |
 | `/api/interview/generate`            | `POST`        | Yes               | Generate a full interview template               |
+| `/api/interview/template/[templateId]` | `PATCH`     | Yes               | Update a user-owned interview template           |
 | `/api/interview/session/create`      | `POST`        | Yes               | Create an interview session                      |
 | `/api/interview/session/[sessionId]` | `GET`,`PATCH` | Yes               | Read or update a session                         |
 | `/api/dashboard/sessions`            | `GET`         | Yes               | Fetch paginated dashboard sessions               |
+| `/api/dashboard/score-history`       | `GET`         | Yes               | Fetch completed-session score trend data         |
+| `/api/account`                       | `PATCH`,`DELETE` | Yes            | Update profile details or delete the account     |
 | `/api/user/reconcile-stats`          | `POST`        | Yes               | Rebuild aggregate user stats from source data    |
 | `/api/auth/signout`                  | `POST`        | No (rate-limited) | Clear the server session cookie                  |
 
@@ -229,9 +240,9 @@ vitest.config.ts             Vitest config
   - Visibility and usage stats
 
 - `interview_sessions`
-  - Session status (`setup`, `active`, `completed`)
-  - Optional transcript and encrypted resume text
-  - Feedback processing metadata
+  - Session status (`setup`, `active`, `completed`, `expired`)
+  - Optional transcript, transcript chunks, and encrypted resume text
+  - Feedback processing metadata stored directly on the session document
 
 - `feedback`
   - Deterministic ID: `${userId}_${interviewId}`
@@ -262,7 +273,7 @@ vitest.config.ts             Vitest config
 ### Prerequisites
 
 - Node.js `>= 20.9.0`
-- npm
+- npm `11.10.1` (pinned via `packageManager` in `package.json`)
 - Firebase project with Auth and Firestore
 - Gemini API keys
 - Upstash Redis for production deployments
@@ -318,8 +329,10 @@ Open `http://localhost:3000`.
 | `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting           |
 | `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                  |
 | `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs            |
-| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash request signing key                        |
-| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key                          |
+| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash signing key for worker verification        |
+| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key for worker verification  |
+| `RESEND_API_KEY`                           | Optional      | Resend API key for feedback-ready email notifications     |
+| `RESEND_FROM_ADDRESS`                      | Optional      | Verified sender address used for feedback-ready emails    |
 
 ---
 
@@ -352,13 +365,15 @@ Open `http://localhost:3000`.
    npx firebase deploy --only firestore:indexes
    ```
 3. Configure Upstash Redis for production rate limiting.
-4. Configure QStash if you want durable feedback retries and signed worker delivery.
-5. Run the production build:
+4. Configure QStash if you want durable feedback retries, signed worker delivery, and scheduled session cleanup.
+5. Schedule `POST /api/workers/session-cleanup` if you want abandoned setup sessions to expire automatically.
+6. Configure Resend if you want feedback-ready email notifications.
+7. Run the production build:
    ```bash
    npm run build
    npm run start
    ```
-6. Keep tests versioned in the repository, but deploy the built app output rather than raw source so production stays test-free.
+8. Keep tests versioned in the repository, but deploy the built app output rather than raw source so production stays test-free.
 
 ---
 
@@ -370,7 +385,7 @@ Feedback generation starts at `POST /api/feedback/process` and runs asynchronous
 
 **Mode 1: Upstash QStash**
 
-When `QSTASH_TOKEN` is set, jobs are published to QStash and delivered to `POST /api/workers/feedback`.
+When `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, and `QSTASH_NEXT_SIGNING_KEY` are all set, jobs are published to QStash and delivered to `POST /api/workers/feedback`.
 
 | Feature                 | Detail                                                  |
 | ----------------------- | ------------------------------------------------------- |
@@ -401,11 +416,19 @@ POST /api/feedback/process (client -> claims session)
 | `QSTASH_CURRENT_SIGNING_KEY` | Current request signing key |
 | `QSTASH_NEXT_SIGNING_KEY`    | Next rotating signing key   |
 
+**Optional Resend environment variables**
+
+| Variable              | Description                                  |
+| --------------------- | -------------------------------------------- |
+| `RESEND_API_KEY`      | Resend API key for feedback-ready emails     |
+| `RESEND_FROM_ADDRESS` | Verified sender address for outgoing emails  |
+
 **Safety nets**
 
 - 2-minute `AbortController` timeout in `lib/services/feedback-runner.ts`
 - Exponential backoff retry inside `withRetry()`
 - Status-polling recovery in `GET /api/feedback/status`
+- A daily QStash-signed cleanup worker can expire abandoned setup sessions
 
 ---
 
@@ -433,4 +456,4 @@ POST /api/feedback/process (client -> claims session)
   - Confirm browser microphone permission is granted.
 
 - **Missing production env vars**
-  - Startup checks will throw in production if required variables are missing.
+  - Ensure all required env vars are configured before starting the app.

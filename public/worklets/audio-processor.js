@@ -2,7 +2,7 @@ class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.TargetSampleRate = 16000;
-    this.BufferSize = 4096; // ~250ms buffer at 16kHz to reduce message overhead.
+    this.BufferSize = 2048; // ~125ms buffer at 16kHz for lower turn-end latency.
     this.buffer = new Float32Array(this.BufferSize);
     this.bufferIndex = 0;
     this.VadThreshold = 0.005;

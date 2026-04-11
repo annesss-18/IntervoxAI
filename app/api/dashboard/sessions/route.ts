@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import { InterviewService } from "@/lib/services/interview.service";
-import type { SessionStatusFilter, User } from "@/types";
+import type { AuthClaims, SessionStatusFilter } from "@/types";
 import { z } from "zod";
 
 const querySchema = z.object({
@@ -13,8 +13,8 @@ const querySchema = z.object({
 
 // GET /api/dashboard/sessions?cursor=<sessionId>&limit=20
 // Returns a single page of session cards for the authenticated user.
-export const GET = withAuth(
-  async (req: NextRequest, user: User) => {
+export const GET = withAuthClaims(
+  async (req: NextRequest, user: AuthClaims) => {
     try {
       const rawCursor = req.nextUrl.searchParams.get("cursor") ?? undefined;
       const rawLimit = req.nextUrl.searchParams.get("limit") ?? undefined;

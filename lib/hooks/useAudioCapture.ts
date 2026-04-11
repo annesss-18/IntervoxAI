@@ -56,8 +56,8 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           ) {
             throw new Error(
               "AudioContext did not become active within 3 seconds. " +
-                "This may be caused by browser autoplay restrictions. " +
-                "Please interact with the page and try again.",
+              "This may be caused by browser autoplay restrictions. " +
+              "Please interact with the page and try again.",
             );
           }
 
@@ -120,8 +120,8 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           logger.error("AudioWorklet failed to load:", workletError);
           throw new Error(
             "Real-time audio processing is not supported in this browser. " +
-              "Please use Chrome 66+, Firefox 76+, or Safari 14.1+ and ensure " +
-              "the page is served over HTTPS.",
+            "Please use Chrome 66+, Firefox 76+, or Safari 14.1+ and ensure " +
+            "the page is served over HTTPS.",
           );
         }
 
@@ -211,11 +211,29 @@ export function useAudioCapture(): UseAudioCaptureReturn {
   };
 }
 
+/**
+ * Convert a Uint8Array to a base64 string.
+ *
+ * Previous implementation: a character-by-character loop that created one
+ * intermediate string object per byte (~8 192 allocations for a typical 4 096-
+ * sample PCM frame).
+ *
+ * This implementation uses String.fromCharCode.apply in fixed-size chunks
+ * (32 768 bytes each), which is both safe against stack overflows and
+ * dramatically reduces the number of intermediate string allocations — crucial
+ * since this function runs at ~4 Hz during every live interview.
+ */
 function uint8ArrayToBase64(bytes: Uint8Array): string {
+  // 32 768 is below the typical call-stack argument limit and processes
+  // a full 4 096-sample Int16 frame in a single chunk.
+  const CHUNK = 0x8000;
   let binary = "";
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(
+      null,
+      // subarray returns a view — no copy — which apply reads as an array-like.
+      bytes.subarray(i, i + CHUNK) as unknown as number[],
+    );
   }
   return btoa(binary);
 }

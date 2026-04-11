@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
-import { decryptResumeText, encryptResumeText } from "@/lib/resume-crypto";
+import { encryptResumeText } from "@/lib/resume-crypto";
+import {
+  getStoredTranscriptTurnCount,
+  InterviewRepository,
+} from "@/lib/repositories/interview.repository";
 import { UserRepository } from "@/lib/repositories/user.repository";
-import type { User } from "@/types";
-import { firestoreIdSchema } from "@/lib/schemas";
+import type { AuthClaims } from "@/types";
+import {
+  checkpointBaseSchema,
+  firestoreIdSchema,
+  transcriptAppendSchema,
+  transcriptArraySchema,
+} from "@/lib/schemas";
 
 interface RouteContext {
   params: Promise<{ sessionId: string }>;
@@ -13,8 +22,8 @@ interface RouteContext {
 
 const MAX_RESUME_LENGTH = 5000;
 
-export const PATCH = withAuth(
-  async (req: NextRequest, user: User, context: RouteContext) => {
+export const PATCH = withAuthClaims(
+  async (req: NextRequest, user: AuthClaims, context: RouteContext) => {
     try {
       const { sessionId } = await context.params;
 
@@ -27,7 +36,8 @@ export const PATCH = withAuth(
       }
 
       const body = await req.json();
-      const { resumeText, status } = body;
+      const { resumeText, status, transcriptAppend, checkpointBase, transcript } =
+        body ?? {};
 
       const sessionRef = db.collection("interview_sessions").doc(sessionId);
       const sessionDoc = await sessionRef.get();
@@ -39,9 +49,9 @@ export const PATCH = withAuth(
         );
       }
 
-      const sessionData = sessionDoc.data();
+      const sessionData = sessionDoc.data() ?? {};
 
-      if (sessionData?.userId !== user.id) {
+      if (sessionData.userId !== user.id) {
         logger.warn(
           `Unauthorized session update attempt: user ${user.id} tried to update session ${sessionId}`,
         );
@@ -51,13 +61,13 @@ export const PATCH = withAuth(
       const updateData: Record<string, unknown> = {};
 
       if (resumeText !== undefined) {
-        // Resume context is mutable only before the live interview starts.
-        if (sessionData?.status !== "setup") {
+        if (sessionData.status !== "setup") {
           return NextResponse.json(
             { error: "Resume cannot be modified after interview starts" },
             { status: 400 },
           );
         }
+
         updateData.resumeText = resumeText
           ? encryptResumeText(String(resumeText).slice(0, MAX_RESUME_LENGTH))
           : null;
@@ -66,7 +76,6 @@ export const PATCH = withAuth(
       }
 
       if (status !== undefined) {
-        // Enforce one-way status progression.
         if (!["active", "completed"].includes(status)) {
           return NextResponse.json(
             { error: "Invalid status transition" },
@@ -74,13 +83,14 @@ export const PATCH = withAuth(
           );
         }
 
-        const currentStatus = sessionData?.status;
+        const currentStatus = sessionData.status;
         if (status === "active" && currentStatus !== "setup") {
           return NextResponse.json(
             { error: "Only setup sessions can be activated" },
             { status: 400 },
           );
         }
+
         if (
           status === "completed" &&
           !["setup", "active"].includes(currentStatus)
@@ -95,28 +105,111 @@ export const PATCH = withAuth(
         if (status === "active") {
           updateData.activatedAt = new Date().toISOString();
         }
-        if (status === "completed" && !sessionData?.completedAt) {
+        if (status === "completed" && !sessionData.completedAt) {
           updateData.completedAt = new Date().toISOString();
         }
       }
 
-      if (Object.keys(updateData).length === 0) {
+      let nextCheckpointBase: number | null = null;
+
+      if (transcriptAppend !== undefined || transcript !== undefined) {
+        if (sessionData.status === "completed") {
+          return NextResponse.json(
+            {
+              error: "Transcript cannot be modified after session is completed",
+            },
+            { status: 400 },
+          );
+        }
+
+        let appendEntries: Array<{ role: string; content: string }> = [];
+        let appendBase: number;
+
+        if (transcriptAppend !== undefined) {
+          const parsedAppend = transcriptAppendSchema.safeParse(transcriptAppend);
+          const parsedBase = checkpointBaseSchema.safeParse(checkpointBase);
+
+          if (!parsedAppend.success || !parsedBase.success) {
+            return NextResponse.json(
+              {
+                error: "Invalid transcript checkpoint payload",
+                details: [
+                  ...(parsedAppend.success ? [] : parsedAppend.error.issues),
+                  ...(parsedBase.success ? [] : parsedBase.error.issues),
+                ],
+              },
+              { status: 400 },
+            );
+          }
+
+          appendEntries = parsedAppend.data;
+          appendBase = parsedBase.data;
+        } else {
+          const parsedTranscript = transcriptArraySchema.safeParse(transcript);
+          if (!parsedTranscript.success) {
+            return NextResponse.json(
+              {
+                error: "Invalid transcript format",
+                details: parsedTranscript.error.issues,
+              },
+              { status: 400 },
+            );
+          }
+
+          appendBase = getStoredTranscriptTurnCount(sessionData);
+          appendEntries = parsedTranscript.data.slice(appendBase);
+        }
+
+        const appendResult = await InterviewRepository.appendTranscriptEntries(
+          sessionId,
+          appendEntries,
+          appendBase,
+        );
+
+        if (!appendResult.success) {
+          if (appendResult.reason === "missing") {
+            return NextResponse.json(
+              { error: "Session not found" },
+              { status: 404 },
+            );
+          }
+
+          return NextResponse.json(
+            {
+              error: "Transcript checkpoint is out of date",
+              expectedBase: appendResult.expectedBase ?? 0,
+            },
+            { status: 409 },
+          );
+        }
+
+        nextCheckpointBase = appendResult.nextBase;
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await sessionRef.update(updateData);
+      }
+
+      if (Object.keys(updateData).length === 0 && nextCheckpointBase === null) {
         return NextResponse.json(
           { error: "No valid fields to update" },
           { status: 400 },
         );
       }
 
-      await sessionRef.update(updateData);
+      const updatedFields = Object.keys(updateData);
+      if (nextCheckpointBase !== null) {
+        updatedFields.push("transcriptAppend");
+      }
 
-      const updatedFields = Object.keys(updateData).join(", ");
       logger.info(
-        `Session ${sessionId} updated (${updatedFields}) by user ${user.id}`,
+        `Session ${sessionId} updated (${updatedFields.join(", ")}) by user ${user.id}`,
       );
 
       return NextResponse.json({
         success: true,
         sessionId,
+        nextCheckpointBase,
       });
     } catch (error) {
       logger.error("Error updating session:", error);
@@ -133,8 +226,8 @@ export const PATCH = withAuth(
   },
 );
 
-export const GET = withAuth(
-  async (_req: NextRequest, user: User, context: RouteContext) => {
+export const GET = withAuthClaims(
+  async (_req: NextRequest, user: AuthClaims, context: RouteContext) => {
     try {
       const { sessionId } = await context.params;
 
@@ -145,35 +238,22 @@ export const GET = withAuth(
         );
       }
 
-      const sessionDoc = await db
-        .collection("interview_sessions")
-        .doc(sessionId)
-        .get();
+      const session = await InterviewRepository.findById(sessionId);
 
-      if (!sessionDoc.exists) {
+      if (!session) {
         return NextResponse.json(
           { error: "Session not found" },
           { status: 404 },
         );
       }
 
-      const sessionData = sessionDoc.data();
-
-      if (sessionData?.userId !== user.id) {
+      if (session.userId !== user.id) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      const decryptedResumeText = decryptResumeText(
-        sessionData?.resumeText as string | undefined,
-      );
-
       return NextResponse.json({
         success: true,
-        session: {
-          id: sessionDoc.id,
-          ...sessionData,
-          resumeText: decryptedResumeText,
-        },
+        session,
       });
     } catch (error) {
       logger.error("Error fetching session:", error);
@@ -190,9 +270,8 @@ export const GET = withAuth(
   },
 );
 
-// R-13: Delete a session and its associated feedback document.
-export const DELETE = withAuth(
-  async (_req: NextRequest, user: User, context: RouteContext) => {
+export const DELETE = withAuthClaims(
+  async (_req: NextRequest, user: AuthClaims, context: RouteContext) => {
     try {
       const { sessionId } = await context.params;
 
@@ -214,31 +293,35 @@ export const DELETE = withAuth(
         );
       }
 
-      const sessionData = sessionDoc.data();
-      if (sessionData?.userId !== user.id) {
+      const sessionData = sessionDoc.data() ?? {};
+      if (sessionData.userId !== user.id) {
         logger.warn(
           `Unauthorized session delete attempt: user ${user.id} tried to delete session ${sessionId}`,
         );
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      // Batch delete: session doc + associated feedback doc (no-op if absent).
-      const feedbackId = sessionData?.feedbackId;
+      const feedbackId = sessionData.feedbackId;
+      const transcriptChunkSnap = await sessionRef.collection("transcript_chunks").get();
+
       const batch = db.batch();
       batch.delete(sessionRef);
+
       if (feedbackId) {
         batch.delete(db.collection("feedback").doc(feedbackId));
       }
+
+      for (const chunkDoc of transcriptChunkSnap.docs) {
+        batch.delete(chunkDoc.ref);
+      }
+
       await batch.commit();
 
-      // Reverse the same aggregate counters that were applied when the session was created or completed.
-      if (sessionData?.status === "completed") {
+      if (sessionData.status === "completed") {
         const finalScore =
-          typeof sessionData?.finalScore === "number"
-            ? sessionData.finalScore
-            : null;
+          typeof sessionData.finalScore === "number" ? sessionData.finalScore : null;
 
-        UserRepository.updateStats(user.id, {
+        await UserRepository.updateStats(user.id, {
           completedDelta: -1,
           ...(finalScore !== null
             ? { scoreDelta: -finalScore, scoreCount: -1 }
@@ -249,8 +332,11 @@ export const DELETE = withAuth(
             err,
           ),
         );
-      } else {
-        UserRepository.updateStats(user.id, { activeDelta: -1 }).catch((err) =>
+      } else if (
+        sessionData.status === "setup" ||
+        sessionData.status === "active"
+      ) {
+        await UserRepository.updateStats(user.id, { activeDelta: -1 }).catch((err) =>
           logger.warn(
             `Stats update failed on active session delete for user ${user.id}:`,
             err,

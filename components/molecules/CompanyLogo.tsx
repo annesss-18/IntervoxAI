@@ -2,7 +2,10 @@
 
 import React, { useState, useCallback, useMemo } from "react";
 import Image from "next/image";
-import { getCompanyLogoUrls } from "@/lib/icon-utils";
+import {
+  getCompanyLogoUrls,
+  normalizeTrustedCompanyLogoUrl,
+} from "@/lib/icon-utils";
 import { cn } from "@/lib/utils";
 
 interface CompanyLogoProps {
@@ -27,13 +30,17 @@ const CompanyLogo: React.FC<CompanyLogoProps> = ({
     companyName,
     cdnRequestSize,
   );
+  const trustedLogoUrl = useMemo(
+    () => normalizeTrustedCompanyLogoUrl(logoUrl),
+    [logoUrl],
+  );
 
   const allUrls = useMemo(() => {
-    const urls = logoUrl
-      ? [logoUrl, primary, ...fallbacks]
+    const urls = trustedLogoUrl
+      ? [trustedLogoUrl, primary, ...fallbacks]
       : [primary, ...fallbacks];
     return Array.from(new Set(urls.filter(Boolean)));
-  }, [logoUrl, primary, fallbacks]);
+  }, [trustedLogoUrl, primary, fallbacks]);
 
   const [currentUrlIndex, setCurrentUrlIndex] = useState(0);
   const [hasError, setHasError] = useState(false);

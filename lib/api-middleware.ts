@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/actions/auth.action";
+import {
+  getCurrentUser,
+  getCurrentUserClaims,
+} from "@/lib/actions/auth.action";
 import { logger } from "@/lib/logger";
 import { checkRateLimit, RateLimitConfig } from "@/lib/rate-limit";
-import type { User } from "@/types";
+import type { AuthClaims, User } from "@/types";
 
 function getRequestScope(req: NextRequest): string {
   return `${req.method}:${req.nextUrl.pathname}`;
@@ -24,27 +27,33 @@ function getClientIp(req: NextRequest): string {
   return "unknown";
 }
 
-export function withAuth<TArgs extends unknown[]>(
-  handler: (req: NextRequest, user: User, ...args: TArgs) => Promise<Response>,
+function createAuthWrapper<TUser extends { id: string }, TArgs extends unknown[]>(
+  resolveUser: () => Promise<TUser | null>,
+  handler: (req: NextRequest, user: TUser, ...args: TArgs) => Promise<Response>,
   rateLimitConfig?: RateLimitConfig,
 ) {
   return async (req: NextRequest, ...args: TArgs): Promise<Response> => {
     const mutationMethods = ["POST", "PATCH", "PUT", "DELETE"];
     if (mutationMethods.includes(req.method)) {
-      const contentType = req.headers.get("content-type") || "";
-      const allowedTypes = ["application/json", "multipart/form-data"];
-      const hasAllowedType = allowedTypes.some((type) =>
-        contentType.includes(type),
-      );
-
-      if (!hasAllowedType && req.method !== "DELETE") {
-        return NextResponse.json(
-          { error: "Unsupported Content-Type" },
-          { status: 415 },
+      // DELETE requests carry no body, so Content-Type validation is skipped for
+      // them.  The CSRF origin check below still applies to every mutation method
+      // including DELETE.
+      if (req.method !== "DELETE") {
+        const contentType = req.headers.get("content-type") || "";
+        const allowedTypes = ["application/json", "multipart/form-data"];
+        const hasAllowedType = allowedTypes.some((type) =>
+          contentType.includes(type),
         );
+        if (!hasAllowedType) {
+          return NextResponse.json(
+            { error: "Unsupported Content-Type" },
+            { status: 415 },
+          );
+        }
       }
 
-      // Fall back to the request host so origin validation still runs when APP_URL is unset.
+      // CSRF: validate request origin for all mutation methods.
+      // Fall back to the request host so validation still runs when APP_URL is unset.
       const origin = req.headers.get("origin");
       const isDev = process.env.NODE_ENV === "development";
 
@@ -62,7 +71,7 @@ export function withAuth<TArgs extends unknown[]>(
       }
     }
 
-    const user = await getCurrentUser();
+    const user = await resolveUser();
 
     if (!user) {
       return NextResponse.json(
@@ -119,6 +128,24 @@ export function withAuth<TArgs extends unknown[]>(
 
     return handler(req, user, ...args);
   };
+}
+
+export function withAuth<TArgs extends unknown[]>(
+  handler: (req: NextRequest, user: User, ...args: TArgs) => Promise<Response>,
+  rateLimitConfig?: RateLimitConfig,
+) {
+  return createAuthWrapper(getCurrentUser, handler, rateLimitConfig);
+}
+
+export function withAuthClaims<TArgs extends unknown[]>(
+  handler: (
+    req: NextRequest,
+    user: AuthClaims,
+    ...args: TArgs
+  ) => Promise<Response>,
+  rateLimitConfig?: RateLimitConfig,
+) {
+  return createAuthWrapper(getCurrentUserClaims, handler, rateLimitConfig);
 }
 
 export function withRateLimit<TArgs extends unknown[]>(

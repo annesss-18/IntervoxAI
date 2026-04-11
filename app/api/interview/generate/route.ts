@@ -6,8 +6,10 @@ import { revalidateTag } from "next/cache";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
 import { withAuth } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
-import { ALLOWED_VOICE_NAMES } from "@/lib/schemas";
-import { MODEL_CONFIG } from "@/lib/models";
+import {
+  ALLOWED_VOICE_NAMES,
+  trustedCompanyLogoUrlSchema,
+} from "@/lib/schemas";
 import { InterviewTemplate, User } from "@/types";
 
 export const runtime = "nodejs";
@@ -19,6 +21,12 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
+const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
+
+if (!TEMPLATE_GENERATION_MODEL) {
+  throw new Error("TEMPLATE_GENERATION_MODEL is required");
+}
+
 const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
 const techStackArraySchema = z.array(techStackItemSchema).max(MAX_TECH_ITEMS);
 
@@ -28,11 +36,7 @@ const requestSchema = z.object({
     .min(3, "Role must be at least 3 characters")
     .max(100, "Role too long"),
   companyName: z.string().max(100, "Company name too long").optional(),
-  companyLogoUrl: z
-    .string()
-    .url("Invalid logo URL")
-    .optional()
-    .or(z.literal("")),
+  companyLogoUrl: trustedCompanyLogoUrlSchema,
   level: z.enum(["Junior", "Mid", "Senior", "Staff", "Executive"]),
   type: z.enum(["Technical", "Behavioral", "System Design", "HR", "Mixed"]),
   jdInput: z
@@ -267,7 +271,7 @@ It must include:
 `.trim();
 
       const result = await generateObject({
-        model: templateGenGoogle(MODEL_CONFIG.templateGeneration),
+        model: templateGenGoogle(TEMPLATE_GENERATION_MODEL),
         schema: templateSchema,
         prompt: constructedPrompt,
       });

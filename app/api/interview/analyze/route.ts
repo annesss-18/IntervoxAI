@@ -6,7 +6,6 @@ import { withAuth } from "@/lib/api-middleware";
 import { extractTextFromUrl, extractTextFromFile } from "@/lib/server-utils";
 import { getCompanyLogoUrl } from "@/lib/icon-utils";
 import { logger } from "@/lib/logger";
-import { MODEL_CONFIG } from "@/lib/models";
 
 export const runtime = "nodejs";
 
@@ -16,6 +15,12 @@ const MAX_JD_LENGTH = 25000;
 const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
+
+const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
+
+if (!TEMPLATE_GENERATION_MODEL) {
+  throw new Error("TEMPLATE_GENERATION_MODEL is required");
+}
 
 const analysisSchema = z.object({
   role: z
@@ -117,7 +122,7 @@ export const POST = withAuth(
       }
 
       const result = await generateObject({
-        model: templateGenGoogle(MODEL_CONFIG.templateGeneration),
+        model: templateGenGoogle(TEMPLATE_GENERATION_MODEL),
         schema: analysisSchema,
         prompt: `
 You extract structured information from a job posting. Be precise and literal. Extract only what the posting supports, and infer only where these instructions explicitly allow it.

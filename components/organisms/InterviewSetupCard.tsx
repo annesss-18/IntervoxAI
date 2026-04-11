@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
   Upload,
+  User2,
 } from "lucide-react";
 import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
@@ -22,6 +23,12 @@ import {
   DialogTrigger,
 } from "@/components/atoms/dialog";
 
+interface InterviewerPersona {
+  name: string;
+  title: string;
+  personality?: string;
+}
+
 interface InterviewSetupCardProps {
   isUpdating: boolean;
   hasResume: boolean;
@@ -29,6 +36,8 @@ interface InterviewSetupCardProps {
   onResumeUploaded: (text: string) => void;
   onResumeClear: () => void;
   onStart: () => void;
+  /** When provided, shows an "about your interviewer" section before start. */
+  interviewerPersona?: InterviewerPersona;
 }
 
 export function InterviewSetupCard({
@@ -38,6 +47,7 @@ export function InterviewSetupCard({
   onResumeUploaded,
   onResumeClear,
   onStart,
+  interviewerPersona,
 }: InterviewSetupCardProps) {
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
 
@@ -59,6 +69,37 @@ export function InterviewSetupCard({
         </p>
       </div>
 
+      {/* Interviewer persona card */}
+      {interviewerPersona && (
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/12 text-sm font-bold text-primary ring-1 ring-primary/20">
+              {interviewerPersona.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <User2 className="size-3.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">
+                  Your interviewer
+                </p>
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                {interviewerPersona.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {interviewerPersona.title}
+              </p>
+            </div>
+          </div>
+          {interviewerPersona.personality && (
+            <p className="mt-3 text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3 italic">
+              "{interviewerPersona.personality}"
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Resume context */}
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -130,7 +171,7 @@ export function InterviewSetupCard({
         disabled={isUpdating}
         variant="gradient"
         size="xl"
-        className="w-full "
+        className="w-full"
       >
         {isUpdating ? (
           <Loader2 className="size-5 animate-spin" />

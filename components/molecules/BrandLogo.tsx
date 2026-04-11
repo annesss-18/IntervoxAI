@@ -1,9 +1,6 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-// Keep brand assets at native aspect ratios to avoid visual distortion.
-const WORDMARK_RATIO = 3687 / 561;
-
 const scale = {
   xs: { icon: 20, wordmarkH: 16, gap: "gap-1.5" },
   sm: { icon: 26, wordmarkH: 20, gap: "gap-2" },
@@ -24,13 +21,12 @@ export function BrandIcon({
 }) {
   return (
     <Image
-      src="/icon.svg"
+      src="/icon.png"
       alt="IntervoxAI icon"
       width={size}
       height={size}
       className={cn("shrink-0", className)}
       priority={priority}
-      unoptimized
     />
   );
 }
@@ -42,17 +38,16 @@ export function BrandWordmark({
   height?: number;
   className?: string;
 }) {
-  const width = Math.round(height * WORDMARK_RATIO);
-
   return (
-    <Image
-      src="/wordmark.svg"
-      alt="IntervoxAI"
-      width={width}
-      height={height}
-      className={cn("shrink-0", "dark:brightness-0 dark:invert", className)}
-      unoptimized
-    />
+    <span
+      className={cn(
+        "shrink-0 font-semibold leading-none tracking-normal text-foreground",
+        className,
+      )}
+      style={{ fontSize: Math.max(12, Math.round(height * 0.85)) }}
+    >
+      IntervoxAI
+    </span>
   );
 }
 
