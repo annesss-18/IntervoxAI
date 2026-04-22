@@ -63,21 +63,26 @@ export async function runFeedbackGeneration(
 
     // Best-effort aggregate updates. Await them so serverless runtimes do not
     // freeze before the dashboard counters and template score are persisted.
-    const statsDelta = {
-      activeDelta: -1,
-      completedDelta: 1,
-      ...(typeof totalScore === "number"
-        ? { scoreDelta: totalScore, scoreCount: 1 }
-        : {}),
-    };
-    const aggregateUpdates: Promise<void>[] = [
-      UserRepository.updateStats(userId, statsDelta).catch((err) =>
-        logger.warn(
-          `Stats update failed after feedback for user ${userId}:`,
-          err,
+    // Note: active→completed counter move (activeDelta/completedDelta) was
+    // already applied at POST /api/feedback time — when the session was first
+    // marked completed. Updating them again here would double-count on every
+    // successful run and, more critically, would not run on failure, leaving
+    // the counters permanently drifted. Only score stats are applied here.
+    const aggregateUpdates: Promise<void>[] = [];
+
+    if (typeof totalScore === "number") {
+      aggregateUpdates.push(
+        UserRepository.updateStats(userId, {
+          scoreDelta: totalScore,
+          scoreCount: 1,
+        }).catch((err) =>
+          logger.warn(
+            `Score stats update failed after feedback for user ${userId}:`,
+            err,
+          ),
         ),
-      ),
-    ];
+      );
+    }
 
     if (typeof totalScore === "number" && templateId) {
       aggregateUpdates.push(

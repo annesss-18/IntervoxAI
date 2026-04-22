@@ -118,24 +118,26 @@ export default async function DashboardPage() {
     0,
     resolvedStats?.activeCount ?? activeSessions.length,
   );
-  const completedCount =
-    Math.max(0, resolvedStats?.completedCount ?? completedSessions.length);
+  const completedCount = Math.max(
+    0,
+    resolvedStats?.completedCount ?? completedSessions.length,
+  );
   const averageScore: number | null =
     typeof resolvedStats?.scoreSum === "number" &&
-      typeof resolvedStats?.scoreCount === "number" &&
-      resolvedStats.scoreCount > 0
+    typeof resolvedStats?.scoreCount === "number" &&
+    resolvedStats.scoreCount > 0
       ? Math.round(resolvedStats.scoreSum / resolvedStats.scoreCount)
       : (() => {
-        const withScores = completedSessions.filter(
-          (s) => typeof s.finalScore === "number",
-        );
-        return withScores.length > 0
-          ? Math.round(
-            withScores.reduce((t, s) => t + (s.finalScore || 0), 0) /
-            withScores.length,
-          )
-          : null;
-      })();
+          const withScores = completedSessions.filter(
+            (s) => typeof s.finalScore === "number",
+          );
+          return withScores.length > 0
+            ? Math.round(
+                withScores.reduce((t, s) => t + (s.finalScore || 0), 0) /
+                  withScores.length,
+              )
+            : null;
+        })();
 
   const firstName = user.name?.split(" ")[0] ?? "there";
 

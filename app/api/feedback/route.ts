@@ -9,6 +9,7 @@ import {
   InterviewRepository,
   TranscriptSentence,
 } from "@/lib/repositories/interview.repository";
+import { UserRepository } from "@/lib/repositories/user.repository";
 import type { AuthClaims } from "@/types";
 import {
   checkpointBaseSchema,
@@ -213,7 +214,9 @@ export const POST = withAuthClaims(
           );
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Failed to persist transcript";
+            error instanceof Error
+              ? error.message
+              : "Failed to persist transcript";
           if (message.startsWith("Transcript checkpoint is out of date:")) {
             return NextResponse.json(
               {
@@ -251,6 +254,27 @@ export const POST = withAuthClaims(
         feedbackError: null,
         feedbackRequestedAt: now,
       });
+
+      // Move the active→completed stat counters here — at the point the session
+      // is definitively marked completed — rather than in feedback-runner, which
+      // only runs on success. This prevents the permanent drift that occurs when
+      // feedback generation fails: session.status=completed but activeCount is
+      // never decremented and completedCount is never incremented.
+      //
+      // Guard on currentStatus to prevent double-counting on retries: if the
+      // session is already "completed" (e.g. feedbackStatus was "failed" and
+      // the user is retrying), the counters were already moved on the first call.
+      if (currentStatus === "active" || currentStatus === "setup") {
+        UserRepository.updateStats(user.id, {
+          activeDelta: -1,
+          completedDelta: 1,
+        }).catch((err) =>
+          logger.warn(
+            `Stats active→completed update failed for user ${user.id}:`,
+            err,
+          ),
+        );
+      }
 
       return NextResponse.json(
         {

@@ -32,7 +32,6 @@ interface InterviewControlsProps {
   /**
    * Total session duration in seconds.
    * Defaults to 900 (15 min) for backward compatibility.
-   * Used to compute the warning threshold and remaining time display.
    */
   totalSeconds?: number;
 }
@@ -48,6 +47,15 @@ export function InterviewControls({
 }: InterviewControlsProps) {
   const [showEndConfirm, setShowEndConfirm] = useState(false);
 
+  const remainingSeconds = Math.max(0, totalSeconds - elapsedTime);
+  const isTimeUp = elapsedTime >= totalSeconds;
+  // Show the warning section for the last 60 seconds of the session.
+  const isWarning = elapsedTime >= totalSeconds - 60;
+  // Switch to a live per-second countdown in the last 60 seconds.
+  // Before that, show elapsed time.
+  const isCountdownMode = isWarning && !isTimeUp;
+
+  /** Format seconds as MM:SS */
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -81,11 +89,6 @@ export function InterviewControls({
   const isConnected = connectionStatus === "connected";
   const isConnecting = connectionStatus === "connecting";
 
-  // Warn when 60 seconds remain regardless of total duration.
-  const warningThreshold = totalSeconds - 60;
-  const isWarning = elapsedTime >= warningThreshold;
-  const remainingSeconds = Math.max(0, totalSeconds - elapsedTime);
-
   const statusVariant = isConnected
     ? "success"
     : isConnecting
@@ -103,9 +106,35 @@ export function InterviewControls({
     onEndInterview();
   };
 
+  // ── Time display logic ─────────────────────────────────────────────────
+  //
+  // Before the warning threshold (last 60 s): show elapsed time as MM:SS.
+  // In the warning window (last 60 s to 0): show remaining time as MM:SS
+  //   with an escalating color and a "left" label.
+  // At time-up: show "0:00 left" in error color.
+  //
+  // This gives candidates clear, actionable time awareness in the final
+  // minute rather than just a static "1m remaining" badge.
+  const timeDisplay =
+    isCountdownMode || isTimeUp
+      ? `${formatTime(remainingSeconds)} left`
+      : formatTime(elapsedTime);
+
+  const timeColor = isTimeUp
+    ? "text-error"
+    : isWarning
+      ? "text-warning"
+      : undefined;
+
+  const timeBorderClass = isTimeUp
+    ? "border-error/40 bg-error/8"
+    : isWarning
+      ? "border-warning/40 bg-warning/8"
+      : "border-border bg-surface-2";
+
   return (
     <>
-      <div className="w-full">
+      <div className="w-full px-4 pb-4">
         <div
           className={cn(
             "mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3",
@@ -125,19 +154,19 @@ export function InterviewControls({
 
             <div
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3 py-1.5",
-                isWarning && "border-warning/40 bg-warning/8 text-warning",
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 transition-colors duration-300",
+                timeBorderClass,
               )}
             >
-              <Clock className="size-3.5 opacity-70" />
-              <span className="font-mono text-sm tabular-nums font-medium">
-                {formatTime(elapsedTime)}
+              <Clock className={cn("size-3.5 opacity-70", timeColor)} />
+              <span
+                className={cn(
+                  "font-mono text-sm tabular-nums font-medium",
+                  timeColor,
+                )}
+              >
+                {timeDisplay}
               </span>
-              {isWarning && (
-                <span className="text-xs text-warning/80 hidden sm:inline">
-                  · {remainingSeconds}s left
-                </span>
-              )}
             </div>
           </div>
 
@@ -206,7 +235,7 @@ export function InterviewControls({
               className="gap-2 border border-error/40 bg-error/10 text-error hover:bg-error hover:text-white hover:border-error"
             >
               <PhoneOff className="size-4" />
-              End & Submit
+              End &amp; Submit
             </Button>
           </div>
         </DialogContent>

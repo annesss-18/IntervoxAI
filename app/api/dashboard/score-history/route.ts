@@ -34,7 +34,8 @@ export const GET = withAuthClaims(
 
       const data: ScoreHistoryEntry[] = [];
       for (const session of sessions) {
-        const template = session.templateSnapshot ?? templateMap.get(session.templateId);
+        const template =
+          session.templateSnapshot ?? templateMap.get(session.templateId);
         if (!template || session.finalScore == null) continue;
         data.push({
           sessionId: session.id,

@@ -1,9 +1,7 @@
 import { cache } from "react";
 import { auth } from "@/firebase/admin";
 import { cookies } from "next/headers";
-import {
-  isUserAlreadyExistsError,
-} from "@/lib/errors/auth.errors";
+import { isUserAlreadyExistsError } from "@/lib/errors/auth.errors";
 import {
   AuthClaims,
   GoogleAuthParams,
@@ -75,35 +73,37 @@ function resolveDisplayName(
 // The cache is automatically scoped per request — there is no risk of a stale
 // user leaking between requests.
 // ---------------------------------------------------------------------------
-const _getCachedCurrentUserClaims = cache(async (): Promise<AuthClaims | null> => {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get("session")?.value;
+const _getCachedCurrentUserClaims = cache(
+  async (): Promise<AuthClaims | null> => {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("session")?.value;
 
-  if (!sessionCookie) return null;
+    if (!sessionCookie) return null;
 
-  try {
-    // checkRevoked: true ensures revoked sessions are rejected immediately.
-    const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
-
-    return {
-      id: decodedClaims.uid,
-      email:
-        typeof decodedClaims.email === "string"
-          ? decodedClaims.email.trim().toLowerCase()
-          : undefined,
-    };
-  } catch (error) {
-    logger.error("Error verifying session cookie:", error);
-    // Clear the invalid/expired cookie so the client stops sending it.
     try {
-      const cs = await cookies();
-      cs.delete("session");
-    } catch {
-      // Cookie deletion may fail in certain rendering contexts — safe to ignore.
+      // checkRevoked: true ensures revoked sessions are rejected immediately.
+      const decodedClaims = await auth.verifySessionCookie(sessionCookie, true);
+
+      return {
+        id: decodedClaims.uid,
+        email:
+          typeof decodedClaims.email === "string"
+            ? decodedClaims.email.trim().toLowerCase()
+            : undefined,
+      };
+    } catch (error) {
+      logger.error("Error verifying session cookie:", error);
+      // Clear the invalid/expired cookie so the client stops sending it.
+      try {
+        const cs = await cookies();
+        cs.delete("session");
+      } catch {
+        // Cookie deletion may fail in certain rendering contexts — safe to ignore.
+      }
+      return null;
     }
-    return null;
-  }
-});
+  },
+);
 
 const _getCachedCurrentUser = cache(async (): Promise<User | null> => {
   const claims = await _getCachedCurrentUserClaims();

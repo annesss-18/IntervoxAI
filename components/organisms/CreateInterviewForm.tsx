@@ -84,7 +84,9 @@ interface CreateInterviewFormProps {
   forkTemplate?: InterviewTemplate;
 }
 
-export function CreateInterviewForm({ forkTemplate }: CreateInterviewFormProps) {
+export function CreateInterviewForm({
+  forkTemplate,
+}: CreateInterviewFormProps) {
   const router = useRouter();
 
   const isFork = !!forkTemplate;
@@ -95,8 +97,12 @@ export function CreateInterviewForm({ forkTemplate }: CreateInterviewFormProps) 
   const [jdFile, setJdFile] = useState<File | null>(null);
 
   const [role, setRole] = useState(forkTemplate?.role ?? "");
-  const [companyName, setCompanyName] = useState(forkTemplate?.companyName ?? "");
-  const [companyLogoUrl, setCompanyLogoUrl] = useState(forkTemplate?.companyLogoUrl ?? "");
+  const [companyName, setCompanyName] = useState(
+    forkTemplate?.companyName ?? "",
+  );
+  const [companyLogoUrl, setCompanyLogoUrl] = useState(
+    forkTemplate?.companyLogoUrl ?? "",
+  );
   const [level, setLevel] = useState<string>(forkTemplate?.level ?? "Mid");
   const [type, setType] = useState<string>(forkTemplate?.type ?? "Technical");
   const [techStack, setTechStack] = useState<string[]>(

@@ -4,11 +4,10 @@ import { logger } from "@/lib/logger";
 import {
   isAllowedResumeFile,
   MAX_RESUME_SIZE_BYTES,
+  RESUME_MAX_STORED_CHARS,
 } from "@/lib/resume-types";
 import { extractTextFromFile } from "@/lib/server-utils";
 import type { User } from "@/types";
-
-const MAX_TEXT_LENGTH = 5000;
 
 export const POST = withAuth(
   async (req: NextRequest, user: User) => {
@@ -62,7 +61,7 @@ export const POST = withAuth(
         .replace(/\n{3,}/g, "\n\n")
         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
         .trim()
-        .slice(0, MAX_TEXT_LENGTH);
+        .slice(0, RESUME_MAX_STORED_CHARS);
 
       logger.info(
         `Successfully parsed resume: ${cleanedText.length} characters extracted`,
@@ -71,7 +70,7 @@ export const POST = withAuth(
       return NextResponse.json({
         success: true,
         text: cleanedText,
-        truncated: text.length > MAX_TEXT_LENGTH,
+        truncated: text.length > RESUME_MAX_STORED_CHARS,
         originalLength: text.trim().length,
       });
     } catch (error) {

@@ -98,7 +98,8 @@ describe("InterviewService.getUserSessionsPage", () => {
     });
     findManyByIdsMock.mockResolvedValue(new Map());
 
-    const { InterviewService } = await import("@/lib/services/interview.service");
+    const { InterviewService } =
+      await import("@/lib/services/interview.service");
     const result = await InterviewService.getUserSessionsPage("user-1");
 
     expect(findManyByIdsMock).not.toHaveBeenCalled();
@@ -167,7 +168,8 @@ describe("InterviewService.getUserSessionsPage", () => {
       ]),
     );
 
-    const { InterviewService } = await import("@/lib/services/interview.service");
+    const { InterviewService } =
+      await import("@/lib/services/interview.service");
     const result = await InterviewService.getUserSessionsPage("user-1");
 
     expect(findManyByIdsMock).toHaveBeenCalledWith(["template-legacy"]);
@@ -190,7 +192,9 @@ describe("InterviewService.getSessionById", () => {
       templateId: "template-1",
       startedAt: "2026-04-05T10:00:00.000Z",
       status: "completed",
-      transcript: [{ role: "assistant", content: "Walk me through your approach." }],
+      transcript: [
+        { role: "assistant", content: "Walk me through your approach." },
+      ],
       durationMinutes: 60,
       resumeText: "resume text",
       finalScore: 91,
@@ -206,7 +210,8 @@ describe("InterviewService.getSessionById", () => {
     });
     findTemplateByIdMock.mockResolvedValue(null);
 
-    const { InterviewService } = await import("@/lib/services/interview.service");
+    const { InterviewService } =
+      await import("@/lib/services/interview.service");
     const result = await InterviewService.getSessionById("session-1", "user-1");
 
     expect(result).toEqual({
@@ -215,7 +220,9 @@ describe("InterviewService.getSessionById", () => {
       templateId: "template-1",
       createdAt: "2026-04-05T10:00:00.000Z",
       status: "completed",
-      transcript: [{ role: "assistant", content: "Walk me through your approach." }],
+      transcript: [
+        { role: "assistant", content: "Walk me through your approach." },
+      ],
       durationMinutes: 60,
       resumeText: "resume text",
       finalScore: 91,
@@ -256,7 +263,8 @@ describe("InterviewService.getPublicTemplates", () => {
       },
     ]);
 
-    const { InterviewService } = await import("@/lib/services/interview.service");
+    const { InterviewService } =
+      await import("@/lib/services/interview.service");
     const result = await InterviewService.getPublicTemplates(5, "popular");
 
     expect(findPublicMock).toHaveBeenCalledWith(5, "popular");

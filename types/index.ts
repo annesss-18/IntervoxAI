@@ -4,12 +4,12 @@ export interface Feedback {
   userId: string;
   totalScore: number;
   hiringRecommendation:
-  | "Strong Yes"
-  | "Yes"
-  | "Lean Yes"
-  | "Lean No"
-  | "No"
-  | "Strong No";
+    | "Strong Yes"
+    | "Yes"
+    | "Lean Yes"
+    | "Lean No"
+    | "No"
+    | "Strong No";
   categoryScores: Array<{
     name: string;
     score: number;

@@ -63,7 +63,8 @@ describe("UserRepository.reconcileStats", () => {
       ],
     });
 
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
     const stats = await UserRepository.reconcileStats("user-1");
 
     expect(stats).toEqual({

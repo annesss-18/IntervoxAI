@@ -3,6 +3,7 @@ import { db } from "@/firebase/admin";
 import { withAuthClaims } from "@/lib/api-middleware";
 import { logger } from "@/lib/logger";
 import { encryptResumeText } from "@/lib/resume-crypto";
+import { RESUME_MAX_STORED_CHARS } from "@/lib/resume-types";
 import {
   getStoredTranscriptTurnCount,
   InterviewRepository,
@@ -20,8 +21,6 @@ interface RouteContext {
   params: Promise<{ sessionId: string }>;
 }
 
-const MAX_RESUME_LENGTH = 5000;
-
 export const PATCH = withAuthClaims(
   async (req: NextRequest, user: AuthClaims, context: RouteContext) => {
     try {
@@ -36,8 +35,13 @@ export const PATCH = withAuthClaims(
       }
 
       const body = await req.json();
-      const { resumeText, status, transcriptAppend, checkpointBase, transcript } =
-        body ?? {};
+      const {
+        resumeText,
+        status,
+        transcriptAppend,
+        checkpointBase,
+        transcript,
+      } = body ?? {};
 
       const sessionRef = db.collection("interview_sessions").doc(sessionId);
       const sessionDoc = await sessionRef.get();
@@ -69,7 +73,9 @@ export const PATCH = withAuthClaims(
         }
 
         updateData.resumeText = resumeText
-          ? encryptResumeText(String(resumeText).slice(0, MAX_RESUME_LENGTH))
+          ? encryptResumeText(
+              String(resumeText).slice(0, RESUME_MAX_STORED_CHARS),
+            )
           : null;
         updateData.hasResume =
           typeof resumeText === "string" && resumeText.trim().length > 0;
@@ -126,7 +132,8 @@ export const PATCH = withAuthClaims(
         let appendBase: number;
 
         if (transcriptAppend !== undefined) {
-          const parsedAppend = transcriptAppendSchema.safeParse(transcriptAppend);
+          const parsedAppend =
+            transcriptAppendSchema.safeParse(transcriptAppend);
           const parsedBase = checkpointBaseSchema.safeParse(checkpointBase);
 
           if (!parsedAppend.success || !parsedBase.success) {
@@ -301,25 +308,53 @@ export const DELETE = withAuthClaims(
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      const feedbackId = sessionData.feedbackId;
-      const transcriptChunkSnap = await sessionRef.collection("transcript_chunks").get();
+      const feedbackCollection = db.collection("feedback");
+      const transcriptChunkSnap = await sessionRef
+        .collection("transcript_chunks")
+        .get();
 
-      const batch = db.batch();
-      batch.delete(sessionRef);
-
-      if (feedbackId) {
-        batch.delete(db.collection("feedback").doc(feedbackId));
+      // FIX: Collect all refs first, then delete in chunks of ≤500.
+      // Firestore batches are capped at 500 write operations. A 60-minute
+      // interview at 10-turn checkpoint intervals can produce 60+ chunk
+      // documents. Attempting to delete them all in a single batch would
+      // silently fail once the count exceeds 500.
+      //
+      // FIX: Always delete using the deterministic feedback ID format
+      // (`${userId}_${sessionId}`), which is what FeedbackRepository.create()
+      // uses as the document ID. The session's feedbackId field holds this same
+      // value for all current sessions, but the field can be missing (session
+      // never completed) or differ from the deterministic ID in legacy sessions.
+      // Using both ensures no document is orphaned regardless of field state.
+      const feedbackDocIds = new Set<string>();
+      const deterministicFeedbackId = `${sessionData.userId}_${sessionId}`;
+      feedbackDocIds.add(deterministicFeedbackId);
+      const sessionFeedbackId = sessionData.feedbackId;
+      if (typeof sessionFeedbackId === "string" && sessionFeedbackId) {
+        feedbackDocIds.add(sessionFeedbackId);
       }
 
+      const allDeleteRefs: FirebaseFirestore.DocumentReference[] = [sessionRef];
+      for (const fid of feedbackDocIds) {
+        allDeleteRefs.push(feedbackCollection.doc(fid));
+      }
       for (const chunkDoc of transcriptChunkSnap.docs) {
-        batch.delete(chunkDoc.ref);
+        allDeleteRefs.push(chunkDoc.ref);
       }
 
-      await batch.commit();
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < allDeleteRefs.length; i += BATCH_LIMIT) {
+        const batch = db.batch();
+        allDeleteRefs
+          .slice(i, i + BATCH_LIMIT)
+          .forEach((ref) => batch.delete(ref));
+        await batch.commit();
+      }
 
       if (sessionData.status === "completed") {
         const finalScore =
-          typeof sessionData.finalScore === "number" ? sessionData.finalScore : null;
+          typeof sessionData.finalScore === "number"
+            ? sessionData.finalScore
+            : null;
 
         await UserRepository.updateStats(user.id, {
           completedDelta: -1,
@@ -336,12 +371,16 @@ export const DELETE = withAuthClaims(
         sessionData.status === "setup" ||
         sessionData.status === "active"
       ) {
-        await UserRepository.updateStats(user.id, { activeDelta: -1 }).catch((err) =>
-          logger.warn(
-            `Stats update failed on active session delete for user ${user.id}:`,
-            err,
-          ),
+        await UserRepository.updateStats(user.id, { activeDelta: -1 }).catch(
+          (err) =>
+            logger.warn(
+              `Stats update failed on active session delete for user ${user.id}:`,
+              err,
+            ),
         );
+        // Note: "expired" sessions are intentionally skipped here. The nightly
+        // cleanup worker already decremented activeCount when it expired the
+        // session, so decrementing again would underflow the counter.
       }
 
       logger.info(`Session ${sessionId} deleted by user ${user.id}`);

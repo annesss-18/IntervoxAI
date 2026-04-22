@@ -16,10 +16,14 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
+const TEMPLATE_GENERATION_MODEL =
+  process.env.TEMPLATE_GENERATION_MODEL || "gemini-2.5-pro";
 
-if (!TEMPLATE_GENERATION_MODEL) {
-  throw new Error("TEMPLATE_GENERATION_MODEL is required");
+if (!process.env.TEMPLATE_GENERATION_MODEL) {
+  console.warn(
+    "[ENV] TEMPLATE_GENERATION_MODEL is not set — defaulting to 'gemini-2.5-pro'. " +
+      "JD analysis will fail if TEMPLATE_GENERATION_API_KEY is also missing.",
+  );
 }
 
 const analysisSchema = z.object({

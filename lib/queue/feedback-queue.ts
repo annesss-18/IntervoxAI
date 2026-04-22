@@ -33,10 +33,34 @@ export function isQueueAvailable(): boolean {
   return hasQStashConfig();
 }
 
-// Build the absolute worker URL for both production and local development.
+/**
+ * Build the absolute worker URL for QStash to deliver jobs to.
+ *
+ * FIX: NEXT_PUBLIC_APP_URL is required in production. QStash needs a fully
+ * qualified URL — a relative path or localhost will cause all queued feedback
+ * jobs to silently fail. Throwing here surfaces the misconfiguration at the
+ * moment the first job is published rather than after a silent delivery failure.
+ *
+ * In development, falls back to http://localhost:3000 so local testing works
+ * without the variable set.
+ */
 function getWorkerUrl(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-  return `${base}/api/workers/feedback`;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+  if (!appUrl) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "NEXT_PUBLIC_APP_URL is required in production. " +
+          "QStash needs an absolute callback URL to deliver feedback jobs. " +
+          "Set NEXT_PUBLIC_APP_URL to the canonical URL of your deployment " +
+          "(e.g. https://your-domain.com).",
+      );
+    }
+    // Safe for local development — QStash is typically not used locally anyway.
+    return "http://localhost:3000/api/workers/feedback";
+  }
+
+  return `${appUrl}/api/workers/feedback`;
 }
 
 // Publish a feedback job and let QStash retry failures on the worker endpoint.

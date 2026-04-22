@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/molecules/BrandLogo";
+import { MaintenanceBanner } from "@/components/molecules/MaintenanceBanner";
 import {
   ArrowRight,
   Mic,
@@ -114,6 +115,9 @@ const iconColorMap: Record<string, string> = {
 export default function LandingPage() {
   return (
     <div className="bg-background overflow-hidden">
+      {/* TODO: Remove MaintenanceBanner once env rotation is complete and full functionality is restored. */}
+      <MaintenanceBanner />
+
       <section className="relative flex min-h-[90vh] items-center border-b border-border/50 py-24 sm:py-32">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <div
@@ -303,7 +307,7 @@ export default function LandingPage() {
                 className={`animate-fade-up fill-both rounded-2xl border border-border bg-card p-6 delay-${(i + 1) * 100}`}
               >
                 <div className="mb-4 font-sans text-4xl font-bold leading-none text-gradient-brand select-none">
-                  "
+                  &ldquo;
                 </div>
                 <p className="mb-6 text-sm leading-relaxed text-foreground/90">
                   {t.quote}
@@ -352,7 +356,7 @@ export default function LandingPage() {
                 Ready to start?
               </h2>
               <p className="mx-auto mb-10 max-w-md text-muted-foreground leading-relaxed">
-                Join thousands of engineers who've used IntervoxAI to prepare,
+                Join thousands of engineers who have used IntervoxAI to prepare,
                 practice, and land their next role.
               </p>
 

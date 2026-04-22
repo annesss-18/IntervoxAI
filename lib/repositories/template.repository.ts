@@ -43,10 +43,7 @@ function getOrCreateTemplateCacheFn(
 
   const fn = unstable_cache(
     async () => {
-      const doc = await db
-        .collection("interview_templates")
-        .doc(id)
-        .get();
+      const doc = await db.collection("interview_templates").doc(id).get();
       if (!doc.exists) return null;
       return { id: doc.id, ...doc.data() } as InterviewTemplate;
     },
@@ -264,7 +261,9 @@ export const TemplateRepository = {
       revalidateTag(`template:${id}`, "max");
       revalidateTag("templates-public", "max");
 
-      logger.info(`Template ${id} updated (fields: ${Object.keys(data).join(", ")})`);
+      logger.info(
+        `Template ${id} updated (fields: ${Object.keys(data).join(", ")})`,
+      );
     } catch (error) {
       logger.error(`Error updating template ${id}:`, error);
       throw new Error("Failed to update template");

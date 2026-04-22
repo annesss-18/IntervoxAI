@@ -20,10 +20,14 @@ const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
 
-const FEEDBACK_MODEL = process.env.FEEDBACK_MODEL;
+const FEEDBACK_MODEL =
+  process.env.FEEDBACK_MODEL || "gemini-2.5-pro";
 
-if (!FEEDBACK_MODEL) {
-  throw new Error("FEEDBACK_MODEL is required");
+if (!process.env.FEEDBACK_MODEL) {
+  console.warn(
+    "[ENV] FEEDBACK_MODEL is not set — defaulting to 'gemini-2.5-pro'. " +
+      "Feedback generation will fail if FEEDBACK_API_KEY is also missing.",
+  );
 }
 
 const feedbackSchema = z.object({
@@ -205,12 +209,16 @@ async function withRetry<T>(
         // Make the backoff wait abort-aware so retries stop immediately on cancellation.
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(resolve, delay);
-          abortSignal?.addEventListener("abort", () => {
-            clearTimeout(timer);
-            const err = new Error("The operation was aborted");
-            err.name = "AbortError";
-            reject(err);
-          }, { once: true });
+          abortSignal?.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              const err = new Error("The operation was aborted");
+              err.name = "AbortError";
+              reject(err);
+            },
+            { once: true },
+          );
         });
       }
     }
@@ -323,7 +331,10 @@ export const InterviewService = {
     const templateMap =
       templateIds.length > 0
         ? await TemplateRepository.findManyByIds(templateIds)
-        : new Map<string, Awaited<ReturnType<typeof TemplateRepository.findById>>>();
+        : new Map<
+            string,
+            Awaited<ReturnType<typeof TemplateRepository.findById>>
+          >();
 
     const sessions = page.sessions
       .map((session) => {

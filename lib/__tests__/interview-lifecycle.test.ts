@@ -96,7 +96,8 @@ describe("Interview lifecycle counter symmetry", () => {
   });
 
   it("session CREATE should increment activeDelta by +1", async () => {
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
 
     await UserRepository.updateStats(userId, { activeDelta: 1 });
 
@@ -106,7 +107,8 @@ describe("Interview lifecycle counter symmetry", () => {
   });
 
   it("feedback COMPLETE should decrement active and increment completed + score", async () => {
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
 
     const finalScore = 82;
     await UserRepository.updateStats(userId, {
@@ -125,7 +127,8 @@ describe("Interview lifecycle counter symmetry", () => {
   });
 
   it("DELETE of a completed session should decrement completedCount and reverse score", async () => {
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
 
     const finalScore = 82;
     await UserRepository.updateStats(userId, {
@@ -142,7 +145,8 @@ describe("Interview lifecycle counter symmetry", () => {
   });
 
   it("DELETE of an active (non-completed) session should only decrement activeDelta", async () => {
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
 
     await UserRepository.updateStats(userId, { activeDelta: -1 });
 
@@ -156,7 +160,8 @@ describe("Interview lifecycle counter symmetry", () => {
   });
 
   it("full lifecycle create -> complete -> delete should net to zero stat changes", async () => {
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
 
     const finalScore = 75;
 
@@ -205,7 +210,8 @@ describe("Interview lifecycle counter symmetry", () => {
   });
 
   it("DELETE of a completed session WITHOUT finalScore should not reverse score counters", async () => {
-    const { UserRepository } = await import("@/lib/repositories/user.repository");
+    const { UserRepository } =
+      await import("@/lib/repositories/user.repository");
 
     await UserRepository.updateStats(userId, { completedDelta: -1 });
 

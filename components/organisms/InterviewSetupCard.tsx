@@ -93,7 +93,7 @@ export function InterviewSetupCard({
           </div>
           {interviewerPersona.personality && (
             <p className="mt-3 text-xs text-muted-foreground leading-relaxed border-t border-border/50 pt-3 italic">
-              "{interviewerPersona.personality}"
+              &ldquo;{interviewerPersona.personality}&rdquo;
             </p>
           )}
         </div>

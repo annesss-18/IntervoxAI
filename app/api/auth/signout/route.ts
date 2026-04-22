@@ -4,7 +4,7 @@ import { withRateLimit } from "@/lib/api-middleware";
 import { auth as adminAuth } from "@/firebase/admin";
 import { logger } from "@/lib/logger";
 
-export const POST = withRateLimit(
+export const DELETE = withRateLimit(
   async () => {
     try {
       const cookieStore = await cookies();

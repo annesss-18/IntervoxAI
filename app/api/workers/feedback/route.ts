@@ -4,16 +4,24 @@ import { Receiver } from "@upstash/qstash";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import {
-  firestoreIdSchema,
-  transcriptArraySchema,
-} from "@/lib/schemas";
+import { firestoreIdSchema, transcriptArraySchema } from "@/lib/schemas";
 import { runFeedbackGeneration } from "@/lib/services/feedback-runner";
 
 export const runtime = "nodejs";
 
-// Keep the worker timeout above the Gemini feedback timeout.
-export const maxDuration = 180; // 3 minutes
+// FIX: Increased from 180 to 300 seconds.
+//
+// Budget breakdown:
+//   • FEEDBACK_AI_TIMEOUT_MS in feedback-runner.ts = 120 s (outer AbortController
+//     that caps all retry attempts combined, not each individual attempt)
+//   • withRetry backoff overhead (1 s + 2 s between up to 3 attempts) = ~3 s
+//   • Post-generation work (stats, template avg, email) = ~10 s worst-case
+//   • QStash signature verification + Firestore reads = ~2 s
+//   Total ceiling: ~135 s
+//
+// 300 s gives ~165 s of headroom for slow Gemini responses, network jitter,
+// and cold-start latency — well within the Vercel Pro function limit.
+export const maxDuration = 300;
 
 const payloadSchema = z.object({
   interviewId: firestoreIdSchema,
@@ -87,10 +95,7 @@ export async function POST(req: NextRequest) {
         issues: validation.error.issues,
       });
       // Schema errors are not retryable.
-      return NextResponse.json(
-        { error: "Invalid payload" },
-        { status: 200 },
-      );
+      return NextResponse.json({ error: "Invalid payload" }, { status: 200 });
     }
 
     const { interviewId, userId, transcript } = validation.data;
@@ -109,9 +114,6 @@ export async function POST(req: NextRequest) {
     logger.error("Worker /api/workers/feedback failed:", error);
 
     // Returning 500 tells QStash to retry the job.
-    return NextResponse.json(
-      { error: "Processing failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

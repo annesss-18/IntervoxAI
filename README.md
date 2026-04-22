@@ -96,21 +96,21 @@ UI -> API routes -> services -> repositories -> Firestore
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/cpu.svg" alt="" width="18" /> Tech Stack
 
-| Layer         | Technologies                                             |
-| ------------- | -------------------------------------------------------- |
-| Frontend      | Next.js 16, React 19, Tailwind CSS 4                     |
-| UI System     | Radix UI, Lucide React icons                             |
-| Theming       | next-themes, CSS variables                               |
-| Typography    | DM Sans, Instrument Serif, JetBrains Mono                |
-| Validation    | Zod, React Hook Form                                     |
-| AI            | `@google/genai`, `@ai-sdk/google`, `ai`                  |
-| Data          | Firestore, Firebase Admin SDK                            |
-| Auth          | Firebase Auth, session cookies                           |
-| Rate limiting | Upstash Redis, `@upstash/ratelimit`                      |
-| Queueing      | Upstash QStash                                           |
-| Parsing       | `unpdf`, `mammoth`, `cheerio`                            |
-| Notifications | Sonner, Resend                                           |
-| Analytics     | Vercel Analytics                                         |
+| Layer         | Technologies                              |
+| ------------- | ----------------------------------------- |
+| Frontend      | Next.js 16, React 19, Tailwind CSS 4      |
+| UI System     | Radix UI, Lucide React icons              |
+| Theming       | next-themes, CSS variables                |
+| Typography    | DM Sans, Instrument Serif, JetBrains Mono |
+| Validation    | Zod, React Hook Form                      |
+| AI            | `@google/genai`, `@ai-sdk/google`, `ai`   |
+| Data          | Firestore, Firebase Admin SDK             |
+| Auth          | Firebase Auth, session cookies            |
+| Rate limiting | Upstash Redis, `@upstash/ratelimit`       |
+| Queueing      | Upstash QStash                            |
+| Parsing       | `unpdf`, `mammoth`, `cheerio`             |
+| Notifications | Sonner, Resend                            |
+| Analytics     | Vercel Analytics                          |
 
 ---
 
@@ -205,25 +205,25 @@ vitest.config.ts             Vitest config
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/radio.svg" alt="" width="18" /> API Summary
 
-| Route                                | Method        | Auth / Guard      | Purpose                                          |
-| ------------------------------------ | ------------- | ----------------- | ------------------------------------------------ |
-| `/api/live/token`                    | `POST`        | Yes               | Create Gemini ephemeral token for live interview |
-| `/api/resume/parse`                  | `POST`        | Yes               | Parse uploaded PDF, DOCX, or TXT resume          |
-| `/api/feedback`                      | `POST`        | Yes               | Queue transcript for feedback                    |
-| `/api/feedback/status`               | `GET`         | Yes               | Retrieve feedback processing state               |
-| `/api/feedback/process`              | `POST`        | Yes               | Claim a ready session and dispatch feedback work |
-| `/api/workers/feedback`              | `POST`        | QStash signed     | Process queued feedback jobs                     |
-| `/api/workers/session-cleanup`       | `POST`        | QStash signed     | Expire abandoned setup sessions                  |
-| `/api/interview/analyze`             | `POST`        | Yes               | Extract role context from a JD                   |
-| `/api/interview/generate`            | `POST`        | Yes               | Generate a full interview template               |
-| `/api/interview/template/[templateId]` | `PATCH`     | Yes               | Update a user-owned interview template           |
-| `/api/interview/session/create`      | `POST`        | Yes               | Create an interview session                      |
-| `/api/interview/session/[sessionId]` | `GET`,`PATCH` | Yes               | Read or update a session                         |
-| `/api/dashboard/sessions`            | `GET`         | Yes               | Fetch paginated dashboard sessions               |
-| `/api/dashboard/score-history`       | `GET`         | Yes               | Fetch completed-session score trend data         |
-| `/api/account`                       | `PATCH`,`DELETE` | Yes            | Update profile details or delete the account     |
-| `/api/user/reconcile-stats`          | `POST`        | Yes               | Rebuild aggregate user stats from source data    |
-| `/api/auth/signout`                  | `POST`        | No (rate-limited) | Clear the server session cookie                  |
+| Route                                  | Method           | Auth / Guard      | Purpose                                          |
+| -------------------------------------- | ---------------- | ----------------- | ------------------------------------------------ |
+| `/api/live/token`                      | `POST`           | Yes               | Create Gemini ephemeral token for live interview |
+| `/api/resume/parse`                    | `POST`           | Yes               | Parse uploaded PDF, DOCX, or TXT resume          |
+| `/api/feedback`                        | `POST`           | Yes               | Queue transcript for feedback                    |
+| `/api/feedback/status`                 | `GET`            | Yes               | Retrieve feedback processing state               |
+| `/api/feedback/process`                | `POST`           | Yes               | Claim a ready session and dispatch feedback work |
+| `/api/workers/feedback`                | `POST`           | QStash signed     | Process queued feedback jobs                     |
+| `/api/workers/session-cleanup`         | `POST`           | QStash signed     | Expire abandoned setup sessions                  |
+| `/api/interview/analyze`               | `POST`           | Yes               | Extract role context from a JD                   |
+| `/api/interview/generate`              | `POST`           | Yes               | Generate a full interview template               |
+| `/api/interview/template/[templateId]` | `PATCH`          | Yes               | Update a user-owned interview template           |
+| `/api/interview/session/create`        | `POST`           | Yes               | Create an interview session                      |
+| `/api/interview/session/[sessionId]`   | `GET`,`PATCH`    | Yes               | Read or update a session                         |
+| `/api/dashboard/sessions`              | `GET`            | Yes               | Fetch paginated dashboard sessions               |
+| `/api/dashboard/score-history`         | `GET`            | Yes               | Fetch completed-session score trend data         |
+| `/api/account`                         | `PATCH`,`DELETE` | Yes               | Update profile details or delete the account     |
+| `/api/user/reconcile-stats`            | `POST`           | Yes               | Rebuild aggregate user stats from source data    |
+| `/api/auth/signout`                    | `POST`           | No (rate-limited) | Clear the server session cookie                  |
 
 ---
 
@@ -304,53 +304,53 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
-| Variable                                   | Required      | Description                                               |
-| ------------------------------------------ | ------------- | --------------------------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                                |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                                |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                                |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                                |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                                |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                                |
-| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics measurement ID                         |
-| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK project ID                             |
-| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                  |
-| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key with `\n` escapes          |
-| `FIREBASE_DATABASE_ID`                     | Optional      | Firestore database ID, defaults to `prod`                 |
-| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for template generation                    |
-| `TEMPLATE_GENERATION_MODEL`                | Yes           | Gemini model ID for template generation                   |
-| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live interviews                        |
-| `LIVE_INTERVIEW_MODEL`                     | Yes           | Gemini model ID for live interviews                       |
-| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback generation                    |
-| `FEEDBACK_MODEL`                           | Yes           | Gemini model ID for feedback generation                   |
-| `RESUME_ENCRYPTION_KEY`                    | Yes           | 32-byte base64 key for encrypted resume storage           |
-| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering           |
-| `NEXT_PUBLIC_APP_URL`                      | Prod          | Canonical app URL for origin validation and metadata      |
-| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting           |
-| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                  |
-| `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs            |
-| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash signing key for worker verification        |
-| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key for worker verification  |
-| `RESEND_API_KEY`                           | Optional      | Resend API key for feedback-ready email notifications     |
-| `RESEND_FROM_ADDRESS`                      | Optional      | Verified sender address used for feedback-ready emails    |
+| Variable                                   | Required      | Description                                              |
+| ------------------------------------------ | ------------- | -------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                               |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics measurement ID                        |
+| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK project ID                            |
+| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                 |
+| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key with `\n` escapes         |
+| `FIREBASE_DATABASE_ID`                     | Optional      | Firestore database ID, defaults to `prod`                |
+| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for template generation                   |
+| `TEMPLATE_GENERATION_MODEL`                | Yes           | Gemini model ID for template generation                  |
+| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live interviews                       |
+| `LIVE_INTERVIEW_MODEL`                     | Yes           | Gemini model ID for live interviews                      |
+| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback generation                   |
+| `FEEDBACK_MODEL`                           | Yes           | Gemini model ID for feedback generation                  |
+| `RESUME_ENCRYPTION_KEY`                    | Yes           | 32-byte base64 key for encrypted resume storage          |
+| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering          |
+| `NEXT_PUBLIC_APP_URL`                      | Prod          | Canonical app URL for origin validation and metadata     |
+| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting          |
+| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                 |
+| `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs           |
+| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash signing key for worker verification       |
+| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key for worker verification |
+| `RESEND_API_KEY`                           | Optional      | Resend API key for feedback-ready email notifications    |
+| `RESEND_FROM_ADDRESS`                      | Optional      | Verified sender address used for feedback-ready emails   |
 
 ---
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/terminal-square.svg" alt="" width="18" /> Available Scripts
 
-| Script          | Command                 | Purpose                              |
-| --------------- | ----------------------- | ------------------------------------ |
-| Dev             | `npm run dev`           | Start Next.js dev server             |
-| Dev (webpack)   | `npm run dev:webpack`   | Start dev server with webpack        |
-| Build           | `npm run build`         | Create the production build          |
-| Start           | `npm run start`         | Run the production build             |
-| Lint            | `npm run lint`          | Run ESLint                           |
-| Lint fix        | `npm run lint:fix`      | Auto-fix lint issues                 |
-| Type check      | `npm run type-check`    | Run TypeScript checks                |
-| Test            | `npm test`              | Run the Vitest suite                 |
-| Test watch      | `npm run test:watch`    | Run Vitest in watch mode             |
-| Test coverage   | `npm run test:coverage` | Run Vitest with coverage output      |
-| CI check        | `npm run ci:check`      | Run lint, type checks, tests, build  |
+| Script        | Command                 | Purpose                             |
+| ------------- | ----------------------- | ----------------------------------- |
+| Dev           | `npm run dev`           | Start Next.js dev server            |
+| Dev (webpack) | `npm run dev:webpack`   | Start dev server with webpack       |
+| Build         | `npm run build`         | Create the production build         |
+| Start         | `npm run start`         | Run the production build            |
+| Lint          | `npm run lint`          | Run ESLint                          |
+| Lint fix      | `npm run lint:fix`      | Auto-fix lint issues                |
+| Type check    | `npm run type-check`    | Run TypeScript checks               |
+| Test          | `npm test`              | Run the Vitest suite                |
+| Test watch    | `npm run test:watch`    | Run Vitest in watch mode            |
+| Test coverage | `npm run test:coverage` | Run Vitest with coverage output     |
+| CI check      | `npm run ci:check`      | Run lint, type checks, tests, build |
 
 ---
 
@@ -387,13 +387,13 @@ Feedback generation starts at `POST /api/feedback/process` and runs asynchronous
 
 When `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, and `QSTASH_NEXT_SIGNING_KEY` are all set, jobs are published to QStash and delivered to `POST /api/workers/feedback`.
 
-| Feature                 | Detail                                                  |
-| ----------------------- | ------------------------------------------------------- |
-| Retry                   | 3 automatic retries with exponential backoff            |
-| Dead-letter queue       | Failed jobs can be inspected in QStash                  |
-| Deduplication           | One dedup key per interview                             |
-| Signature verification  | Worker validates `upstash-signature` with QStash keys   |
-| Observability           | QStash dashboard and message history                    |
+| Feature                | Detail                                                |
+| ---------------------- | ----------------------------------------------------- |
+| Retry                  | 3 automatic retries with exponential backoff          |
+| Dead-letter queue      | Failed jobs can be inspected in QStash                |
+| Deduplication          | One dedup key per interview                           |
+| Signature verification | Worker validates `upstash-signature` with QStash keys |
+| Observability          | QStash dashboard and message history                  |
 
 **Mode 2: Next.js `after()` fallback**
 
@@ -418,10 +418,10 @@ POST /api/feedback/process (client -> claims session)
 
 **Optional Resend environment variables**
 
-| Variable              | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `RESEND_API_KEY`      | Resend API key for feedback-ready emails     |
-| `RESEND_FROM_ADDRESS` | Verified sender address for outgoing emails  |
+| Variable              | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `RESEND_API_KEY`      | Resend API key for feedback-ready emails    |
+| `RESEND_FROM_ADDRESS` | Verified sender address for outgoing emails |
 
 **Safety nets**
 

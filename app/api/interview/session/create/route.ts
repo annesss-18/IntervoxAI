@@ -129,11 +129,12 @@ export const POST = withAuthClaims(
       revalidateTag(`template:${templateId}`, "max");
       revalidateTag("templates-public", "max");
 
-      await UserRepository.updateStats(user.id, { activeDelta: 1 }).catch((err) =>
-        logger.warn(
-          `Stats activeCount increment failed for user ${user.id}:`,
-          err,
-        ),
+      await UserRepository.updateStats(user.id, { activeDelta: 1 }).catch(
+        (err) =>
+          logger.warn(
+            `Stats activeCount increment failed for user ${user.id}:`,
+            err,
+          ),
       );
 
       return NextResponse.json({ sessionId });

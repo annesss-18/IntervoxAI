@@ -22,9 +22,9 @@ interface FeedbackStatusSnapshot {
   completedAt: string | null;
 }
 
-function resolveStatus(session: Awaited<
-  ReturnType<typeof InterviewRepository.findStatusById>
->): FeedbackStatusSnapshot | null {
+function resolveStatus(
+  session: Awaited<ReturnType<typeof InterviewRepository.findStatusById>>,
+): FeedbackStatusSnapshot | null {
   if (!session) return null;
 
   const status =
@@ -103,7 +103,9 @@ async function recoverCompletedStatus(
 
   const resolvedCompletedAt = completedAt ?? new Date().toISOString();
   const resolvedRequestedAt =
-    session.feedbackRequestedAt ?? statusRecord.requestedAt ?? resolvedCompletedAt;
+    session.feedbackRequestedAt ??
+    statusRecord.requestedAt ??
+    resolvedCompletedAt;
   const resolvedProcessingAt =
     session.feedbackProcessingAt ?? statusRecord.processingAt ?? null;
 
@@ -186,7 +188,10 @@ export const GET = withAuthClaims(
       );
 
       const PROCESSING_TIMEOUT_MS = 5 * 60 * 1000;
-      if (resolvedStatus.status === "processing" && resolvedStatus.processingAt) {
+      if (
+        resolvedStatus.status === "processing" &&
+        resolvedStatus.processingAt
+      ) {
         const processingStart = new Date(resolvedStatus.processingAt).getTime();
         if (Date.now() - processingStart > PROCESSING_TIMEOUT_MS) {
           logger.warn(

@@ -4,6 +4,11 @@ import { headers } from "next/headers";
 import { UserAlreadyExistsError } from "@/lib/errors/auth.errors";
 import { checkRateLimit, type RateLimitConfig } from "@/lib/rate-limit";
 import { AuthService } from "@/lib/services/auth.service";
+import {
+  MAINTENANCE_BYPASS,
+  DEMO_USER,
+  DEMO_CLAIMS,
+} from "@/lib/maintenance-bypass";
 import { logger } from "../logger";
 import {
   AuthClaims,
@@ -119,10 +124,14 @@ export async function signIn(params: SignInParams) {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
+  // TODO: Remove maintenance bypass after env rotation is complete.
+  if (MAINTENANCE_BYPASS) return DEMO_USER;
   return await AuthService.getCurrentUser();
 }
 
 export async function getCurrentUserClaims(): Promise<AuthClaims | null> {
+  // TODO: Remove maintenance bypass after env rotation is complete.
+  if (MAINTENANCE_BYPASS) return DEMO_CLAIMS;
   return await AuthService.getCurrentUserClaims();
 }
 

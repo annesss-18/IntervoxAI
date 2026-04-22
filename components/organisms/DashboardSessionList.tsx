@@ -150,7 +150,9 @@ export function DashboardSessionList({
       {filteredSessions.length === 0 ? (
         <div className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/40 py-12 text-center">
           <div className="flex flex-col items-center gap-3 px-8">
-            <p className="text-sm font-semibold">No sessions match your filters</p>
+            <p className="text-sm font-semibold">
+              No sessions match your filters
+            </p>
             <p className="text-sm text-muted-foreground">
               Try broadening your search or adjusting the score filter.
             </p>

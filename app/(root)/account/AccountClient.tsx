@@ -209,8 +209,8 @@ export default function AccountClient({
                   Delete Account
                 </DialogTitle>
                 <DialogDescription>
-                  This action is <strong>permanent and cannot be undone</strong>.
-                  All your interviews, feedback, and personal data will be
+                  This action is <strong>permanent and cannot be undone</strong>
+                  . All your interviews, feedback, and personal data will be
                   permanently deleted.
                 </DialogDescription>
               </DialogHeader>
@@ -254,9 +254,7 @@ export default function AccountClient({
                   ) : (
                     <Trash2 className="size-4" />
                   )}
-                  {isDeleting
-                    ? "Deleting…"
-                    : "Permanently Delete My Account"}
+                  {isDeleting ? "Deleting…" : "Permanently Delete My Account"}
                 </Button>
               </DialogFooter>
             </DialogContent>

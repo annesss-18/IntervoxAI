@@ -54,6 +54,12 @@ const CHECKPOINT_INTERVAL_MS = 30_000;
 const CHECKPOINT_TURN_THRESHOLD = 10;
 const RECENT_MODEL_TEXT_LIMIT = 2000;
 
+// Minimum number of completed model turns before closing-phrase detection
+// activates. Guards against false positives from opening pleasantries:
+// e.g., "It was great connecting with you" during introductions would otherwise
+// trigger an auto-end 8 seconds into the first exchange.
+const MIN_MODEL_TURNS_FOR_CLOSE_DETECTION = 4;
+
 function estimateBase64Bytes(base64Data: string): number {
   const padding = base64Data.endsWith("==")
     ? 2
@@ -115,7 +121,9 @@ export function useLiveInterview(
     holdInitialPrompt = false,
   } = options;
 
-  const initialTranscriptRef = useRef(normalizeInitialTranscript(initialTranscript));
+  const initialTranscriptRef = useRef(
+    normalizeInitialTranscript(initialTranscript),
+  );
 
   const [isHeld, setIsHeld] = useState(holdInitialPrompt);
   const [status, setStatus] = useState<ConnectionStatus>("idle");
@@ -149,8 +157,12 @@ export function useLiveInterview(
   const connectingPromiseRef = useRef<Promise<void> | null>(null);
   const checkpointTimerRef = useRef<NodeJS.Timeout | null>(null);
   const checkpointInFlightRef = useRef(false);
-  const lastCheckpointTurnCountRef = useRef(initialTranscriptRef.current.length);
+  const lastCheckpointTurnCountRef = useRef(
+    initialTranscriptRef.current.length,
+  );
   const hasInitialPromptSentRef = useRef(false);
+  // Tracks completed model turns for the min-turn closing detection guard.
+  const modelTurnCountRef = useRef(0);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -190,11 +202,14 @@ export function useLiveInterview(
         const expectedBase =
           payload &&
           typeof payload === "object" &&
-          typeof (payload as { expectedBase?: unknown }).expectedBase === "number"
+          typeof (payload as { expectedBase?: unknown }).expectedBase ===
+            "number"
             ? (payload as { expectedBase: number }).expectedBase
             : checkpointBase;
 
         lastCheckpointTurnCountRef.current = expectedBase;
+        // Immediately retry to flush any entries above expectedBase.
+        setTimeout(() => void checkpointTranscript(), 100);
         return;
       }
 
@@ -205,8 +220,8 @@ export function useLiveInterview(
       const nextCheckpointBase =
         payload &&
         typeof payload === "object" &&
-        typeof (payload as { nextCheckpointBase?: unknown }).nextCheckpointBase ===
-          "number"
+        typeof (payload as { nextCheckpointBase?: unknown })
+          .nextCheckpointBase === "number"
           ? (payload as { nextCheckpointBase: number }).nextCheckpointBase
           : checkpointBase + appendEntries.length;
 
@@ -287,6 +302,7 @@ export function useLiveInterview(
       recentModelTranscriptRef.current = "";
       modelTurnBufferRef.current = "";
       closingDetectedRef.current = false;
+      modelTurnCountRef.current = 0;
     }
   }, [isHeld, status]);
 
@@ -326,7 +342,8 @@ export function useLiveInterview(
         setCurrentSpeaker("user");
         setIsUserSpeaking(true);
 
-        userTranscriptRef.current += message.serverContent.inputTranscription.text;
+        userTranscriptRef.current +=
+          message.serverContent.inputTranscription.text;
         setCurrentCaption(userTranscriptRef.current.trim());
 
         if (userTranscriptTimeoutRef.current) {
@@ -354,6 +371,25 @@ export function useLiveInterview(
         const modelText = message.serverContent.outputTranscription.text;
         if (modelText) {
           if (lastSpeakerRef.current !== "model") {
+            // FIX: When the model starts speaking, flush any pending user
+            // transcript immediately rather than waiting for the 1500 ms timeout.
+            // Previously, if the timeout fired after the model turn started, the
+            // stale partial user text was committed as a new transcript entry,
+            // producing duplicate or fragmented entries interleaved with model turns.
+            if (userTranscriptTimeoutRef.current) {
+              clearTimeout(userTranscriptTimeoutRef.current);
+              userTranscriptTimeoutRef.current = null;
+            }
+            const pendingUser = userTranscriptRef.current.trim();
+            if (pendingUser) {
+              commitTranscriptEntry({
+                role: "user",
+                content: pendingUser,
+                timestamp: Date.now(),
+              });
+            }
+            userTranscriptRef.current = "";
+
             modelTurnBufferRef.current = "";
             lastSpeakerRef.current = "model";
           }
@@ -364,10 +400,11 @@ export function useLiveInterview(
 
           modelTurnBufferRef.current += modelText;
           recentModelTranscriptRef.current += modelText.toLowerCase();
-          if (recentModelTranscriptRef.current.length > RECENT_MODEL_TEXT_LIMIT) {
-            recentModelTranscriptRef.current = recentModelTranscriptRef.current.slice(
-              -RECENT_MODEL_TEXT_LIMIT,
-            );
+          if (
+            recentModelTranscriptRef.current.length > RECENT_MODEL_TEXT_LIMIT
+          ) {
+            recentModelTranscriptRef.current =
+              recentModelTranscriptRef.current.slice(-RECENT_MODEL_TEXT_LIMIT);
           }
 
           setCurrentCaption(modelTurnBufferRef.current);
@@ -382,37 +419,89 @@ export function useLiveInterview(
             content: finalModelText,
             timestamp: Date.now(),
           });
+          modelTurnCountRef.current += 1;
         }
 
         setIsAIResponding(false);
         modelTurnBufferRef.current = "";
 
-        const closingPhrases = [
-          "thank you for your time",
-          "thanks for your time",
-          "thank you for taking the time",
-          "good luck with your",
-          "best of luck",
-          "wish you all the best",
-          "that concludes our interview",
-          "that wraps up our interview",
-          "it was great talking to you",
-          "it was great speaking with you",
-          "i enjoyed our conversation",
-          "we will be in touch",
-          "we'll be in touch",
-        ];
+        // ── Closing phrase detection ────────────────────────────────────────
+        //
+        // Three improvements over the previous implementation:
+        //
+        // 1. MIN_MODEL_TURNS_FOR_CLOSE_DETECTION guard prevents false positives
+        //    from opening pleasantries. The interview must be substantively
+        //    underway before any closing phrase triggers auto-end.
+        //
+        // 2. Expanded phrase list covers the specific phrases the system prompt
+        //    instructs the AI to use, plus common natural variants the AI may
+        //    produce. The previous 13-phrase list missed many standard closings.
+        //
+        // 3. Delay increased from 5000 ms to 8000 ms. The AI typically delivers
+        //    2–4 sentence closings after the detection phrase. 5 seconds was
+        //    frequently too short for the audio to finish before the submission
+        //    flow began, causing the closing statement to be cut off.
 
         if (
           !closingDetectedRef.current &&
-          closingPhrases.some((phrase) =>
-            recentModelTranscriptRef.current.includes(phrase),
-          )
+          modelTurnCountRef.current >= MIN_MODEL_TURNS_FOR_CLOSE_DETECTION
         ) {
-          closingDetectedRef.current = true;
-          setTimeout(() => {
-            onInterviewComplete?.();
-          }, 5000);
+          const closingPhrases = [
+            // Phrases the system prompt explicitly instructs the AI to use:
+            "thank you so much for your time today",
+            "it's been really great speaking with you",
+            "best of luck — i genuinely hope to see you",
+            // Common natural closing variants:
+            "thank you for your time",
+            "thanks for your time",
+            "thanks so much for your time",
+            "thank you for taking the time",
+            "thanks for taking the time",
+            "it was great speaking with you",
+            "it was great talking with you",
+            "it was really great speaking with you",
+            "it was a pleasure speaking with you",
+            "it was a pleasure talking with you",
+            "it's been a pleasure",
+            "it has been a pleasure",
+            "i really enjoyed our conversation",
+            "i enjoyed our conversation",
+            "i enjoyed learning about your experience",
+            "good luck with your",
+            "best of luck",
+            "all the best",
+            "wish you all the best",
+            "that concludes our interview",
+            "that wraps up our interview",
+            "this brings us to the end of our interview",
+            "that's all the questions i had",
+            "those are all the questions",
+            "i think we've covered everything",
+            "we've covered everything",
+            "we'll be in touch",
+            "we will be in touch",
+            "you'll hear from us",
+            "you will hear from us",
+            "the team will reach out",
+            "someone will follow up",
+            "i hope to see you on the other side",
+          ];
+
+          const recentTranscriptLower =
+            recentModelTranscriptRef.current.toLowerCase();
+          if (
+            closingPhrases.some((phrase) =>
+              recentTranscriptLower.includes(phrase),
+            )
+          ) {
+            closingDetectedRef.current = true;
+            logger.info(
+              `Interview closing detected after ${modelTurnCountRef.current} model turns. Auto-ending in 8s.`,
+            );
+            setTimeout(() => {
+              onInterviewComplete?.();
+            }, 8000);
+          }
         }
 
         setTimeout(() => {

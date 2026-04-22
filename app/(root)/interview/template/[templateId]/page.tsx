@@ -240,10 +240,7 @@ const TemplatePage = async ({
             {/* ── Edit + Fork actions ───────────────────────────────────── */}
             <div className="flex gap-2 pt-1 border-t border-border/50">
               {/* Fork — visible to all logged-in users */}
-              <Link
-                href={`/create?forkFrom=${template.id}`}
-                className="flex-1"
-              >
+              <Link href={`/create?forkFrom=${template.id}`} className="flex-1">
                 <Button
                   variant="outline"
                   size="sm"

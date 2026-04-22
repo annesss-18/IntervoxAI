@@ -59,7 +59,8 @@ export const transcriptAppendSchema = z
     if (totalChars > 20000) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "transcript append too large - maximum 20,000 total characters",
+        message:
+          "transcript append too large - maximum 20,000 total characters",
       });
     }
   });

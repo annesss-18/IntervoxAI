@@ -35,6 +35,14 @@ service cloud.firestore {
       // Server-managed exclusively via Admin SDK (bypasses rules).
       // Explicitly deny all client-side mutations.
       allow create, update, delete: if false;
+
+      // Transcript chunks are owned by the parent session's user.
+      match /transcript_chunks/{chunkId} {
+        allow read: if isOwner(
+          get(/databases/$(database)/documents/interview_sessions/$(sessionId)).data.userId
+        );
+        allow write: if false;
+      }
     }
     
     // Interview feedback.

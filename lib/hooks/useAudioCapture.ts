@@ -56,8 +56,8 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           ) {
             throw new Error(
               "AudioContext did not become active within 3 seconds. " +
-              "This may be caused by browser autoplay restrictions. " +
-              "Please interact with the page and try again.",
+                "This may be caused by browser autoplay restrictions. " +
+                "Please interact with the page and try again.",
             );
           }
 
@@ -120,8 +120,8 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           logger.error("AudioWorklet failed to load:", workletError);
           throw new Error(
             "Real-time audio processing is not supported in this browser. " +
-            "Please use Chrome 66+, Firefox 76+, or Safari 14.1+ and ensure " +
-            "the page is served over HTTPS.",
+              "Please use Chrome 66+, Firefox 76+, or Safari 14.1+ and ensure " +
+              "the page is served over HTTPS.",
           );
         }
 

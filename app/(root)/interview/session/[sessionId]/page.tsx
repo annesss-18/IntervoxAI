@@ -146,7 +146,19 @@ const Page = async ({ params }: RouteParams) => {
       </div>
 
       <section className="min-h-[560px] lg:h-[calc(100vh-18rem)]">
-        <LiveInterviewAgent interview={interview} sessionId={sessionId} />
+        <LiveInterviewAgent
+          interview={
+            // Strip server-only fields before serialising into the RSC payload.
+            // systemInstruction (up to 20 KB of prompt engineering) and
+            // jobDescription (up to 50 KB of raw JD text) are read by the
+            // /api/live/token server route directly from Firestore. Including
+            // them here would expose proprietary prompt content in DevTools with
+            // no client-side benefit.
+            (({ systemInstruction: _si, jobDescription: _jd, ...rest }) =>
+              rest)(interview)
+          }
+          sessionId={sessionId}
+        />
       </section>
     </Container>
   );

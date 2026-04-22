@@ -27,49 +27,87 @@ function getClientIp(req: NextRequest): string {
   return "unknown";
 }
 
-function createAuthWrapper<TUser extends { id: string }, TArgs extends unknown[]>(
+/**
+ * Validate the request origin for mutation methods (POST, PATCH, PUT, DELETE).
+ *
+ * The primary CSRF defence is SameSite=strict session cookies, which prevent
+ * the browser from sending credentials on cross-origin requests. This check
+ * adds a defence-in-depth layer by validating (or requiring) the Origin header.
+ *
+ * FIX: In production, requests that are missing the Origin header entirely are
+ * now rejected with 403. All modern browsers include Origin for
+ * POST/PATCH/PUT/DELETE fetch() calls. A missing Origin on these routes
+ * indicates an unusual caller (non-browser script, misconfigured proxy) rather
+ * than a legitimate user action, so failing closed is the safer choice.
+ *
+ * When Origin is present, it is compared against NEXT_PUBLIC_APP_URL or the
+ * inferred host. x-forwarded-proto and host headers are only used as a fallback
+ * when NEXT_PUBLIC_APP_URL is not set; set it in production to prevent origin
+ * spoofing via those headers.
+ */
+function validateCsrfOrigin(req: NextRequest): NextResponse | null {
+  const mutationMethods = ["POST", "PATCH", "PUT", "DELETE"];
+  if (!mutationMethods.includes(req.method)) return null;
+
+  // DELETE carries no body so Content-Type validation is skipped for it.
+  if (req.method !== "DELETE") {
+    const contentType = req.headers.get("content-type") ?? "";
+    const allowedTypes = ["application/json", "multipart/form-data"];
+    const hasAllowedType = allowedTypes.some((type) =>
+      contentType.includes(type),
+    );
+    if (!hasAllowedType) {
+      return NextResponse.json(
+        { error: "Unsupported Content-Type" },
+        { status: 415 },
+      );
+    }
+  }
+
+  const isDev = process.env.NODE_ENV === "development";
+  if (isDev) return null;
+
+  const origin = req.headers.get("origin");
+
+  // FIX: Require Origin header in production. Modern browsers always send it
+  // for non-GET/HEAD fetch() requests. Its absence signals a non-browser
+  // caller which should not hold a valid session cookie under SameSite=strict.
+  if (!origin) {
+    return NextResponse.json(
+      { error: "Forbidden: missing request origin" },
+      { status: 403 },
+    );
+  }
+
+  // Compare against the canonical app URL. Fall back to reconstructing from
+  // request headers only when NEXT_PUBLIC_APP_URL is not configured (which
+  // should not happen in production — set it to prevent header-spoofing risk).
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const host = req.headers.get("host") ?? "";
+  const expectedOrigin = appUrl ?? (host ? `${proto}://${host}` : null);
+
+  if (expectedOrigin && origin !== expectedOrigin) {
+    return NextResponse.json(
+      { error: "Forbidden: invalid request origin" },
+      { status: 403 },
+    );
+  }
+
+  return null;
+}
+
+function createAuthWrapper<
+  TUser extends { id: string },
+  TArgs extends unknown[],
+>(
   resolveUser: () => Promise<TUser | null>,
   handler: (req: NextRequest, user: TUser, ...args: TArgs) => Promise<Response>,
   rateLimitConfig?: RateLimitConfig,
 ) {
   return async (req: NextRequest, ...args: TArgs): Promise<Response> => {
-    const mutationMethods = ["POST", "PATCH", "PUT", "DELETE"];
-    if (mutationMethods.includes(req.method)) {
-      // DELETE requests carry no body, so Content-Type validation is skipped for
-      // them.  The CSRF origin check below still applies to every mutation method
-      // including DELETE.
-      if (req.method !== "DELETE") {
-        const contentType = req.headers.get("content-type") || "";
-        const allowedTypes = ["application/json", "multipart/form-data"];
-        const hasAllowedType = allowedTypes.some((type) =>
-          contentType.includes(type),
-        );
-        if (!hasAllowedType) {
-          return NextResponse.json(
-            { error: "Unsupported Content-Type" },
-            { status: 415 },
-          );
-        }
-      }
-
-      // CSRF: validate request origin for all mutation methods.
-      // Fall back to the request host so validation still runs when APP_URL is unset.
-      const origin = req.headers.get("origin");
-      const isDev = process.env.NODE_ENV === "development";
-
-      if (!isDev && origin) {
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-        const proto = req.headers.get("x-forwarded-proto") ?? "https";
-        const host = req.headers.get("host") ?? "";
-        const expectedOrigin = appUrl ?? (host ? `${proto}://${host}` : null);
-        if (expectedOrigin && origin !== expectedOrigin) {
-          return NextResponse.json(
-            { error: "Forbidden: invalid request origin" },
-            { status: 403 },
-          );
-        }
-      }
-    }
+    const csrfError = validateCsrfOrigin(req);
+    if (csrfError) return csrfError;
 
     const user = await resolveUser();
 
@@ -153,6 +191,13 @@ export function withRateLimit<TArgs extends unknown[]>(
   config: RateLimitConfig = {},
 ) {
   return async (req: NextRequest, ...args: TArgs): Promise<Response> => {
+    // Apply CSRF origin validation to mutation methods (POST, PATCH, PUT,
+    // DELETE). The SameSite=strict session cookie is the primary defence;
+    // this check adds defence-in-depth for unauthenticated endpoints such
+    // as /api/auth/signout that rely on withRateLimit instead of withAuth.
+    const csrfError = validateCsrfOrigin(req);
+    if (csrfError) return csrfError;
+
     const ip = getClientIp(req);
     const identifier = `${ip}:${getRequestScope(req)}`;
 

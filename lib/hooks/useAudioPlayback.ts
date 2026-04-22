@@ -23,6 +23,19 @@ interface UseAudioPlaybackReturn {
  * Float32Array.prototype.set(), which completes synchronously before the next
  * queueAudio invocation, so there is no risk of aliasing between calls.
  */
+// Module-level singleton resampling buffer.
+//
+// INTENTIONAL DESIGN: this buffer is shared across all hook instances
+// mounted in the same JS module scope.  In this application only one
+// LiveInterviewAgent (and therefore one useAudioPlayback) is ever mounted
+// at a time, so there is no aliasing risk.  If this hook is ever used in
+// parallel (e.g. in tests or a multi-agent future feature), each caller
+// must get its own buffer — move this declaration inside useAudioPlayback
+// or accept it as a parameter.
+//
+// The caller (queueAudio) copies the view into a Web Audio AudioBuffer via
+// Float32Array.set() synchronously before the next call, so the buffer
+// is safe to reuse without a lock.
 let _resampleBuffer: Float32Array | null = null;
 
 export function useAudioPlayback(): UseAudioPlaybackReturn {
@@ -54,7 +67,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     return audioContextRef.current;
   }, []);
 
-  const playNextInQueue = useCallback(() => {
+  const playNextInQueue = useCallback(function playNextInQueue() {
     const ctx = audioContextRef.current;
     if (!ctx || audioQueueRef.current.length === 0) return;
 
@@ -106,10 +119,10 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           LIVE_INTERVIEW_OUTPUT_SAMPLE_RATE === systemSampleRate
             ? float32Array
             : resampleAudio(
-              float32Array,
-              LIVE_INTERVIEW_OUTPUT_SAMPLE_RATE,
-              systemSampleRate,
-            );
+                float32Array,
+                LIVE_INTERVIEW_OUTPUT_SAMPLE_RATE,
+                systemSampleRate,
+              );
 
         const audioBuffer = ctx.createBuffer(
           1,

@@ -11,7 +11,7 @@ const features = [
 
 const stats = [
   { value: "16K+", label: "Sessions" },
-  { value: "90%", label: "Improve" },
+  { value: "Most", label: "Improve" },
   { value: "4.6★", label: "Rating" },
 ];
 
@@ -21,9 +21,9 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative min-h-screen bg-background">
-      <div className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
-        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border/50 bg-surface-1 p-12 lg:flex">
+    <div className="relative min-h-[100dvh] bg-background">
+      <div className="grid min-h-[100dvh] lg:h-[100dvh] lg:grid-cols-[1fr_1fr] lg:overflow-hidden">
+        <aside className="relative hidden flex-col justify-between overflow-hidden border-r border-border/50 bg-surface-1 p-12 lg:flex lg:max-h-[100dvh] lg:overflow-y-auto">
           <div className="pointer-events-none absolute inset-0 -z-10">
             <div
               className="absolute -top-16 -left-16 h-[420px] w-[420px] rounded-full opacity-20 blur-[120px]"
@@ -94,8 +94,8 @@ export default function AuthLayout({
 
           <blockquote className="max-w-xs space-y-3">
             <p className="text-sm text-muted-foreground italic leading-relaxed">
-              "The voice-first format makes it feel like a real interview. I got
-              the job after just two weeks of practice."
+              &ldquo;The voice-first format makes it feel like a real interview.
+              I got the job after just two weeks of practice.&rdquo;
             </p>
             <footer className="flex items-center gap-2">
               <div className="flex size-6 items-center justify-center rounded-full bg-brand-gradient text-[10px] font-bold text-white">
@@ -108,7 +108,7 @@ export default function AuthLayout({
           </blockquote>
         </aside>
 
-        <main className="relative flex flex-col items-center justify-center bg-background px-6 py-16 sm:px-12">
+        <main className="relative flex flex-col items-center justify-center bg-background px-6 py-16 sm:px-12 lg:overflow-y-auto">
           <div className="absolute top-5 right-5">
             <ThemeToggle />
           </div>

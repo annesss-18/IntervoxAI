@@ -21,10 +21,14 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
+const TEMPLATE_GENERATION_MODEL =
+  process.env.TEMPLATE_GENERATION_MODEL || "gemini-2.5-pro";
 
-if (!TEMPLATE_GENERATION_MODEL) {
-  throw new Error("TEMPLATE_GENERATION_MODEL is required");
+if (!process.env.TEMPLATE_GENERATION_MODEL) {
+  console.warn(
+    "[ENV] TEMPLATE_GENERATION_MODEL is not set — defaulting to 'gemini-2.5-pro'. " +
+      "Template generation will fail if TEMPLATE_GENERATION_API_KEY is also missing.",
+  );
 }
 
 const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
@@ -136,7 +140,9 @@ const templateSchema = z.object({
     .describe("Complete persona and behavioral directives for the AI agent"),
 });
 
-function getLevelCalibration(level: z.infer<typeof requestSchema>["level"]): string {
+function getLevelCalibration(
+  level: z.infer<typeof requestSchema>["level"],
+): string {
   switch (level) {
     case "Junior":
       return "fundamentals, learning ability, and clear reasoning matter more than encyclopedic knowledge";
@@ -202,7 +208,8 @@ export const POST = withAuth(
         );
       }
 
-      const companyLabel = validatedData.companyName || "a leading tech company";
+      const companyLabel =
+        validatedData.companyName || "a leading tech company";
       const levelCalibration = getLevelCalibration(validatedData.level);
 
       // Build the template prompt from the validated role, company, and JD context.

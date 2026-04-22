@@ -26,6 +26,10 @@ function isPlausibleSessionCookie(value: string): boolean {
   return parts.length === 3 && parts.every((p) => p.length > 10);
 }
 
+// TODO: Remove MAINTENANCE_BYPASS after env rotation is complete.
+const MAINTENANCE_BYPASS =
+  process.env.MAINTENANCE_BYPASS_MODE === "true";
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -41,14 +45,18 @@ export function proxy(request: NextRequest) {
   const hasValidCookie =
     !!sessionCookie && isPlausibleSessionCookie(sessionCookie);
 
-  if (isProtectedRoute && !hasValidCookie) {
-    const signInUrl = new URL("/sign-in", request.url);
-    signInUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(signInUrl);
-  }
+  // In maintenance bypass mode, skip auth redirects entirely so the demo
+  // user can reach protected routes without a real Firebase session.
+  if (!MAINTENANCE_BYPASS) {
+    if (isProtectedRoute && !hasValidCookie) {
+      const signInUrl = new URL("/sign-in", request.url);
+      signInUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(signInUrl);
+    }
 
-  if (isAuthRoute && hasValidCookie) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    if (isAuthRoute && hasValidCookie) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   // Reuse one nonce for both script-src and style-src across the request pipeline.

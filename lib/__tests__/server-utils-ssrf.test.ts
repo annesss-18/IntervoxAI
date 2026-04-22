@@ -41,9 +41,7 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
 
   it("rejects non-http protocols", async () => {
     const { extractTextFromUrl } = await import("../server-utils");
-    await expect(
-      extractTextFromUrl("file:///etc/passwd"),
-    ).rejects.toThrow();
+    await expect(extractTextFromUrl("file:///etc/passwd")).rejects.toThrow();
     await expect(
       extractTextFromUrl("ftp://example.com/file"),
     ).rejects.toThrow();
@@ -66,11 +64,9 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
   it("rejects when DNS resolves to a private IP (DNS rebinding)", async () => {
     const { extractTextFromUrl } = await import("../server-utils");
 
-    vi.mocked(dns.lookup).mockResolvedValue(
-      [{ address: "192.168.1.100", family: 4 }] as unknown as Awaited<
-        ReturnType<typeof dns.lookup>
-      >,
-    );
+    vi.mocked(dns.lookup).mockResolvedValue([
+      { address: "192.168.1.100", family: 4 },
+    ] as unknown as Awaited<ReturnType<typeof dns.lookup>>);
 
     await expect(
       extractTextFromUrl("http://evil-rebind.com/jobs"),

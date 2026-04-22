@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -65,8 +65,22 @@ interface AuthFormProps {
   type: "sign-in" | "sign-up";
 }
 
+/**
+ * Return a safe post-auth redirect destination.
+ *
+ * Only allows relative paths that start with "/" and do not start with "//"
+ * (protocol-relative URLs). Anything else — including absolute URLs — falls
+ * back to /dashboard to prevent open-redirect attacks.
+ */
+function getSafeCallbackUrl(raw: string | null): string {
+  if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  return "/dashboard";
+}
+
 export function AuthForm({ type }: AuthFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const postAuthUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
   const [isLoading, setIsLoading] = React.useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
@@ -97,7 +111,7 @@ export function AuthForm({ type }: AuthFormProps) {
         if (!result.success)
           throw new Error(result.message || "Failed to sign in");
         toast.success("Welcome back!");
-        router.push("/dashboard");
+        router.push(postAuthUrl);
       } else {
         const { name, email, password } = data as SignUpData;
         const cred = await createUserWithEmailAndPassword(
@@ -111,7 +125,7 @@ export function AuthForm({ type }: AuthFormProps) {
         if (!result.success)
           throw new Error(result.message || "Failed to create account");
         toast.success("Account created successfully!");
-        router.push("/dashboard");
+        router.push(postAuthUrl);
       }
     } catch (error: unknown) {
       // Roll back client-side Firebase auth so it doesn't diverge from the
@@ -147,7 +161,7 @@ export function AuthForm({ type }: AuthFormProps) {
       toast.success(
         isSignIn ? "Welcome back!" : "Account created successfully!",
       );
-      router.push("/dashboard");
+      router.push(postAuthUrl);
     } catch (error: unknown) {
       // Roll back client-side Firebase auth so it doesn't diverge from the
       // server state (which failed to issue a session cookie).

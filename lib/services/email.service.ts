@@ -17,99 +17,102 @@ import { logger } from "@/lib/logger";
 
 // Lazily import Resend to avoid loading it in environments where email is not
 // configured (e.g. CI, local dev without RESEND_API_KEY set).
-type ResendClient = { emails: { send: (payload: ResendPayload) => Promise<unknown> } };
+type ResendClient = {
+  emails: { send: (payload: ResendPayload) => Promise<unknown> };
+};
 interface ResendPayload {
-    from: string;
-    to: string;
-    subject: string;
-    html: string;
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
 }
 
 let _resend: ResendClient | null = null;
 let warnedMissingFromAddress = false;
 
 async function getResendClient(): Promise<ResendClient | null> {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) return null;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
 
-    if (_resend) return _resend;
+  if (_resend) return _resend;
 
-    try {
-        // Dynamic import so bundlers don't tree-shake the missing module error in
-        // environments where the package isn't installed.
-        const { Resend } = await import("resend");
-        _resend = new Resend(apiKey) as unknown as ResendClient;
-        return _resend;
-    } catch {
-        logger.warn(
-            'EmailService: "resend" package not installed. Run: npm install resend',
-        );
-        return null;
-    }
+  try {
+    // Dynamic import so bundlers don't tree-shake the missing module error in
+    // environments where the package isn't installed.
+    const { Resend } = await import("resend");
+    _resend = new Resend(apiKey) as unknown as ResendClient;
+    return _resend;
+  } catch {
+    logger.warn(
+      'EmailService: "resend" package not installed. Run: npm install resend',
+    );
+    return null;
+  }
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 export interface FeedbackReadyParams {
-    toEmail: string;
-    toName: string;
-    sessionId: string;
-    score: number;
-    role: string;
-    companyName: string;
+  toEmail: string;
+  toName: string;
+  sessionId: string;
+  score: number;
+  role: string;
+  companyName: string;
 }
 
 export const EmailService = {
-    /**
-     * Send a "your feedback report is ready" notification.
-     *
-     * Silently returns when:
-     * - RESEND_API_KEY is not set (local dev / CI)
-     * - RESEND_FROM_ADDRESS is not set
-     * - The resend package is not installed
-     *
-     * Throws on Resend API errors so callers can decide whether to retry or
-     * log-and-continue.
-     */
-    async sendFeedbackReady({
-        toEmail,
-        toName,
-        sessionId,
-        score,
-        role,
-        companyName,
-    }: FeedbackReadyParams): Promise<void> {
-        const client = await getResendClient();
-        if (!client) return; // email not configured — silently skip
+  /**
+   * Send a "your feedback report is ready" notification.
+   *
+   * Silently returns when:
+   * - RESEND_API_KEY is not set (local dev / CI)
+   * - RESEND_FROM_ADDRESS is not set
+   * - The resend package is not installed
+   *
+   * Throws on Resend API errors so callers can decide whether to retry or
+   * log-and-continue.
+   */
+  async sendFeedbackReady({
+    toEmail,
+    toName,
+    sessionId,
+    score,
+    role,
+    companyName,
+  }: FeedbackReadyParams): Promise<void> {
+    const client = await getResendClient();
+    if (!client) return; // email not configured — silently skip
 
-        const from =
-            process.env.RESEND_FROM_ADDRESS?.trim();
-        if (!from) {
-            if (!warnedMissingFromAddress) {
-                logger.warn(
-                    "EmailService: RESEND_FROM_ADDRESS is not set. Skipping feedback email delivery.",
-                );
-                warnedMissingFromAddress = true;
-            }
-            return;
-        }
-        const appUrl =
-            process.env.NEXT_PUBLIC_APP_URL ?? "https://intervoxai.com";
-        const feedbackUrl = `${appUrl}/interview/session/${sessionId}/feedback`;
+    const from = process.env.RESEND_FROM_ADDRESS?.trim();
+    if (!from) {
+      if (!warnedMissingFromAddress) {
+        logger.warn(
+          "EmailService: RESEND_FROM_ADDRESS is not set. Skipping feedback email delivery.",
+        );
+        warnedMissingFromAddress = true;
+      }
+      return;
+    }
 
-        const rawFirstName = toName.split(" ")[0] || toName;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://intervoxai.com";
+    const feedbackUrl = `${appUrl}/interview/session/${sessionId}/feedback`;
 
-        // Escape user-controlled strings before interpolating into HTML to
-        // prevent injection of misleading markup or links from malicious
-        // public templates.
-        const firstName = escapeHtml(rawFirstName);
-        const safeRole = escapeHtml(role);
-        const safeCompanyName = escapeHtml(companyName);
+    const rawFirstName = toName.split(" ")[0] || toName;
 
-        const scoreColour =
-            score >= 80 ? "#1a9e6a" : score >= 60 ? "#b87c20" : "#c03848";
+    // Escape user-controlled strings before interpolating into HTML to
+    // prevent injection of misleading markup or links from malicious
+    // public templates. Note: escapeHtml is NOT used in the subject line
+    // because email subjects are plain text — using it there would cause
+    // HTML entities (e.g. &amp;) to appear literally in the subject.
+    const firstName = escapeHtml(rawFirstName);
+    const safeRole = escapeHtml(role);
+    const safeCompanyName = escapeHtml(companyName);
 
-        const html = `
+    const scoreColour =
+      score >= 80 ? "#1a9e6a" : score >= 60 ? "#b87c20" : "#c03848";
+
+    const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -183,25 +186,27 @@ export const EmailService = {
 </html>
     `.trim();
 
-        await client.emails.send({
-            from,
-            to: toEmail,
-            subject: `Your ${escapeHtml(role)} interview feedback is ready — ${score}/100`,
-            html,
-        });
+    // FIX: The subject is plain text — do NOT run it through escapeHtml().
+    // HTML entities in a subject line appear verbatim (e.g. "R&amp;D Engineer").
+    await client.emails.send({
+      from,
+      to: toEmail,
+      subject: `Your ${role} interview feedback is ready — ${score}/100`,
+      html,
+    });
 
-        logger.info(`Feedback email sent to ${toEmail} for session ${sessionId}`);
-    },
+    logger.info(`Feedback email sent to ${toEmail} for session ${sessionId}`);
+  },
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Escape user-controlled text for safe interpolation into HTML. */
+/** Escape user-controlled text for safe interpolation into HTML bodies only. */
 function escapeHtml(str: string): string {
-    return str
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }

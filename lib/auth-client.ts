@@ -14,7 +14,7 @@ export async function signOutAndRedirect(): Promise<void> {
   signOutPromise = (async () => {
     try {
       await signOut(auth);
-      await fetch("/api/auth/signout", { method: "POST" });
+      await fetch("/api/auth/signout", { method: "DELETE" });
     } catch (error) {
       logger.error("Client sign-out failed:", error);
     } finally {

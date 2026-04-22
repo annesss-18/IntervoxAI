@@ -165,7 +165,8 @@ export const POST = withAuthClaims(
         });
       }
 
-      const transcript = await InterviewRepository.findTranscriptById(interviewId);
+      const transcript =
+        await InterviewRepository.findTranscriptById(interviewId);
       if (transcript.length === 0) {
         await InterviewRepository.update(interviewId, {
           feedbackStatus: "failed",

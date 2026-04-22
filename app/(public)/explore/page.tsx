@@ -9,7 +9,11 @@ export const metadata: Metadata = {
     "Discover and practice with community interview templates for various roles and companies.",
 };
 
-const VALID_SORTS = new Set<PublicTemplateSort>(["newest", "popular", "top-rated"]);
+const VALID_SORTS = new Set<PublicTemplateSort>([
+  "newest",
+  "popular",
+  "top-rated",
+]);
 
 export default async function ExplorePage({
   searchParams,

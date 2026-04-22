@@ -57,7 +57,9 @@ export default async function CreatePage({
   return (
     <Container size="xl">
       <PageHeader
-        title={forkTemplate ? "Fork Interview Template" : "Create New Interview"}
+        title={
+          forkTemplate ? "Fork Interview Template" : "Create New Interview"
+        }
         description={
           forkTemplate
             ? `Forking "${forkTemplate.role}" at ${forkTemplate.companyName || "Unknown Company"}. Customize the details below and generate your own version.`
@@ -116,4 +118,3 @@ export default async function CreatePage({
     </Container>
   );
 }
-

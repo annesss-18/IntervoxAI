@@ -174,14 +174,14 @@ export const UserRepository = {
    * Update the user's display name.
    * Trims whitespace and caps at 100 characters.
    */
-  async updateProfile(
-    uid: string,
-    data: { name: string },
-  ): Promise<void> {
+  async updateProfile(uid: string, data: { name: string }): Promise<void> {
     try {
-      await db.collection("users").doc(uid).update({
-        name: data.name.trim().slice(0, 100),
-      });
+      await db
+        .collection("users")
+        .doc(uid)
+        .update({
+          name: data.name.trim().slice(0, 100),
+        });
     } catch (error) {
       logger.error(
         `UserRepository.updateProfile failed for uid ${uid}:`,
@@ -194,8 +194,13 @@ export const UserRepository = {
   /**
    * Permanently delete a user account and all associated data.
    *
-   * 1. Batch-deletes the user document, all interview sessions, and all feedback.
-   * 2. Removes the Firebase Auth user last so Firestore cleanup always runs first.
+   * 1. Collects all document refs to delete (user, sessions, feedback,
+   *    templates, and transcript_chunks subcollections).
+   * 2. Transcript chunk subcollections are fetched in parallel (not
+   *    sequentially) to avoid O(N) serial round-trips for active users.
+   * 3. Deletes everything in Firestore batches (≤500 ops each).
+   * 4. Removes the Firebase Auth user last so Firestore cleanup always
+   *    runs first.
    */
   async deleteAccount(uid: string): Promise<void> {
     const [sessionsSnap, feedbackSnap, templatesSnap] = await Promise.all([
@@ -212,16 +217,18 @@ export const UserRepository = {
         .get(),
     ]);
 
-    // Collect transcript_chunks subcollection refs for each session.
-    // Firestore does not cascade deletes to subcollections.
+    // FIX: Fetch transcript_chunks subcollections in parallel instead of
+    // sequentially. The previous implementation awaited each read inside a
+    // for-loop, producing O(N) serial Firestore round-trips (~40ms each).
+    // A user with 50 sessions would stall for ~2 seconds before deletion began.
+    const chunkSnapshots = await Promise.all(
+      sessionsSnap.docs.map((doc) =>
+        doc.ref.collection("transcript_chunks").select().get(),
+      ),
+    );
     const transcriptChunkRefs: FirebaseFirestore.DocumentReference[] = [];
-
-    for (const sessionDoc of sessionsSnap.docs) {
-      const chunksSnap = await sessionDoc.ref
-        .collection("transcript_chunks")
-        .select()
-        .get();
-      for (const chunkDoc of chunksSnap.docs) {
+    for (const snap of chunkSnapshots) {
+      for (const chunkDoc of snap.docs) {
         transcriptChunkRefs.push(chunkDoc.ref);
       }
     }
@@ -241,7 +248,11 @@ export const UserRepository = {
       await batch.commit();
     }
 
-    // Delete the Firebase Auth user last
+    // Revoke all refresh tokens first so any in-flight Firebase ID tokens
+    // (valid for up to 1 hour) are invalidated immediately. Revoking before
+    // deleteUser means that if deleteUser fails transiently the account is
+    // still locked out and cannot be used to obtain new tokens in the interim.
+    await auth.revokeRefreshTokens(uid);
     await auth.deleteUser(uid);
 
     // Invalidate caches for all deleted templates so stale pages are not
@@ -254,6 +265,8 @@ export const UserRepository = {
       }
     }
 
-    logger.info(`Account ${uid} fully deleted (${allRefs.length} docs removed)`);
+    logger.info(
+      `Account ${uid} fully deleted (${allRefs.length} docs removed)`,
+    );
   },
 };

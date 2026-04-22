@@ -14,10 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 import { Container } from "@/components/layout/Container";
-import type {
-  FeedbackJobStatus,
-  FeedbackStatusResponse,
-} from "@/types";
+import type { FeedbackJobStatus, FeedbackStatusResponse } from "@/types";
 interface FeedbackGenerationStatusProps {
   sessionId: string;
 }
@@ -51,69 +48,73 @@ export function FeedbackGenerationStatus({
     }
   }, []);
 
-  const checkStatus = useCallback(async (): Promise<FeedbackJobStatus | null> => {
-    if (inFlightRef.current) return statusRef.current;
-    inFlightRef.current = true;
-    try {
-      const res = await fetch(
-        `/api/feedback/status?interviewId=${encodeURIComponent(sessionId)}`,
-        { method: "GET", cache: "no-store" },
-      );
+  const checkStatus =
+    useCallback(async (): Promise<FeedbackJobStatus | null> => {
+      if (inFlightRef.current) return statusRef.current;
+      inFlightRef.current = true;
+      try {
+        const res = await fetch(
+          `/api/feedback/status?interviewId=${encodeURIComponent(sessionId)}`,
+          { method: "GET", cache: "no-store" },
+        );
+        const data = (await res.json()) as FeedbackStatusResponse;
+        if (!res.ok || !data.success || !data.status)
+          throw new Error(data.error || "Failed to fetch feedback status");
+
+        const nextStatus = data.status;
+
+        setStatus(nextStatus);
+        statusRef.current = nextStatus;
+        setError(data.error || null);
+
+        if (nextStatus === "completed") {
+          clearPolling();
+          if (!completionToastShownRef.current) {
+            completionToastShownRef.current = true;
+            toast.success("Your interview feedback is ready!");
+          }
+          router.refresh();
+        }
+
+        if (nextStatus === "failed") {
+          clearPolling();
+        }
+
+        if (nextStatus === "pending" || nextStatus === "processing") {
+          pollIntervalRef.current = Math.min(
+            pollIntervalRef.current * POLL_BACKOFF_FACTOR,
+            POLL_MAX_MS,
+          );
+        }
+
+        return nextStatus;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to check feedback status",
+        );
+        return statusRef.current;
+      } finally {
+        inFlightRef.current = false;
+      }
+    }, [clearPolling, router, sessionId]);
+
+  const triggerProcessing =
+    useCallback(async (): Promise<FeedbackJobStatus> => {
+      const res = await fetch("/api/feedback/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ interviewId: sessionId }),
+      });
       const data = (await res.json()) as FeedbackStatusResponse;
       if (!res.ok || !data.success || !data.status)
-        throw new Error(data.error || "Failed to fetch feedback status");
-
-      const nextStatus = data.status;
-
-      setStatus(nextStatus);
-      statusRef.current = nextStatus;
+        throw new Error(data.error || "Failed to start feedback processing");
+      setStatus(data.status);
+      statusRef.current = data.status;
       setError(data.error || null);
-
-      if (nextStatus === "completed") {
-        clearPolling();
-        if (!completionToastShownRef.current) {
-          completionToastShownRef.current = true;
-          toast.success("Your interview feedback is ready!");
-        }
-        router.refresh();
-      }
-
-      if (nextStatus === "failed") {
-        clearPolling();
-      }
-
-      if (nextStatus === "pending" || nextStatus === "processing") {
-        pollIntervalRef.current = Math.min(
-          pollIntervalRef.current * POLL_BACKOFF_FACTOR,
-          POLL_MAX_MS,
-        );
-      }
-
-      return nextStatus;
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to check feedback status",
-      );
-      return statusRef.current;
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, [clearPolling, router, sessionId]);
-
-  const triggerProcessing = useCallback(async (): Promise<FeedbackJobStatus> => {
-    const res = await fetch("/api/feedback/process", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ interviewId: sessionId }),
-    });
-    const data = (await res.json()) as FeedbackStatusResponse;
-    if (!res.ok || !data.success || !data.status)
-      throw new Error(data.error || "Failed to start feedback processing");
-    setStatus(data.status);
-    statusRef.current = data.status;
-    setError(data.error || null);
-    return data.status;
-  }, [sessionId]);
+      return data.status;
+    }, [sessionId]);
 
   const scheduleNextPoll = useCallback(
     (nextStatus: FeedbackJobStatus | null) => {

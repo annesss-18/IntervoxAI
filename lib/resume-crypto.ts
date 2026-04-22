@@ -1,3 +1,40 @@
+/**
+ * AES-256-GCM encryption for resume text stored in Firestore.
+ *
+ * ── Key management ────────────────────────────────────────────────────────
+ *
+ * The encryption key is read from RESUME_ENCRYPTION_KEY at first use and
+ * cached for the lifetime of the process. Generate a key with:
+ *
+ *   openssl rand -base64 32
+ *
+ * ── KEY ROTATION WARNING ──────────────────────────────────────────────────
+ *
+ * Rotating RESUME_ENCRYPTION_KEY is a BREAKING change without a migration.
+ * Every ciphertext encrypted with the old key will return `undefined` from
+ * decryptResumeText (the AES-GCM auth-tag check will fail), and the error
+ * log will read "Failed to decrypt resume text" for all existing sessions.
+ *
+ * Before rotating the key in production:
+ *
+ *   1. Read all interview_sessions documents where resumeText starts with
+ *      the "enc:v1:" prefix.
+ *   2. Decrypt each value with the OLD key.
+ *   3. Re-encrypt each value with the NEW key.
+ *   4. Write the re-encrypted values back to Firestore.
+ *   5. Deploy the new key only after the migration is complete.
+ *
+ * There is currently no automated migration utility for this. Plan carefully.
+ *
+ * ── Encryption format ─────────────────────────────────────────────────────
+ *
+ *   enc:v1:<iv_base64url>:<authtag_base64url>:<ciphertext_base64url>
+ *
+ * A fresh 12-byte IV is generated for every encryption call, so encrypting
+ * the same plaintext twice produces different ciphertexts — this is by design
+ * and prevents ciphertext comparison attacks.
+ */
+
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { logger } from "@/lib/logger";
 
@@ -35,7 +72,7 @@ function parseEncryptionKey(rawKey: string): Buffer {
   );
 }
 
-function getEncryptionKey(): Buffer {
+function getEncryptionKey(): Buffer | null {
   if (cachedKey !== undefined) {
     return cachedKey;
   }
@@ -43,12 +80,12 @@ function getEncryptionKey(): Buffer {
   const rawKey = process.env.RESUME_ENCRYPTION_KEY;
 
   if (!rawKey) {
-    // Require encryption locally too so resume data is never stored in plaintext.
-    throw new Error(
-      "RESUME_ENCRYPTION_KEY is not set. This variable is required in all environments.\n" +
-        "Generate a key with: openssl rand -base64 32\n" +
-        "Then add it to your .env.local file.",
+    logger.warn(
+      "[ENV] RESUME_ENCRYPTION_KEY is not set. Resume text will be stored and read in PLAINTEXT. " +
+        "This is acceptable only as a temporary measure during env variable rotation. " +
+        "Generate a key with: openssl rand -base64 32",
     );
+    return null;
   }
 
   cachedKey = parseEncryptionKey(rawKey);
@@ -69,6 +106,11 @@ export function encryptResumeText(plaintext: string): string {
   }
 
   const key = getEncryptionKey();
+  if (!key) {
+    // No encryption key configured — return plaintext as a temporary measure.
+    return plaintext;
+  }
+
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
   const encrypted = Buffer.concat([
@@ -92,6 +134,13 @@ export function decryptResumeText(value?: string | null): string | undefined {
   }
 
   const key = getEncryptionKey();
+  if (!key) {
+    // No encryption key — cannot decrypt. Return undefined so callers handle gracefully.
+    logger.warn(
+      "Cannot decrypt resume text: RESUME_ENCRYPTION_KEY is not set.",
+    );
+    return undefined;
+  }
 
   const [prefix, version, ivB64, tagB64, payloadB64] = value.split(":");
   if (
@@ -119,7 +168,15 @@ export function decryptResumeText(value?: string | null): string | undefined {
     ]);
     return decrypted.toString("utf8");
   } catch (error) {
-    logger.error("Failed to decrypt resume text:", error);
+    // An auth-tag failure most commonly means the ciphertext was encrypted
+    // with a different key — the likely cause is an unplanned key rotation.
+    // See the KEY ROTATION WARNING at the top of this file for recovery steps.
+    logger.error(
+      "Failed to decrypt resume text. If RESUME_ENCRYPTION_KEY was recently " +
+        "rotated without a data migration, all existing ciphertexts will fail " +
+        "with this error. See lib/resume-crypto.ts for migration guidance.",
+      error,
+    );
     return undefined;
   }
 }

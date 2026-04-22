@@ -110,12 +110,16 @@ function normalizeSnapshot(
     level: level as SessionTemplateSnapshot["level"],
     type: type as SessionTemplateSnapshot["type"],
     techStack: Array.isArray(data.techStack)
-      ? data.techStack.filter((item): item is string => typeof item === "string")
+      ? data.techStack.filter(
+          (item): item is string => typeof item === "string",
+        )
       : [],
   };
 }
 
-async function readTranscriptChunks(sessionId: string): Promise<TranscriptSentence[]> {
+async function readTranscriptChunks(
+  sessionId: string,
+): Promise<TranscriptSentence[]> {
   const snapshot = await db
     .collection("interview_sessions")
     .doc(sessionId)
@@ -174,7 +178,9 @@ export const InterviewRepository = {
     statusFilter?: SessionStatusFilter,
   ): Promise<SessionPage> {
     try {
-      let query = db.collection("interview_sessions").where("userId", "==", userId);
+      let query = db
+        .collection("interview_sessions")
+        .where("userId", "==", userId);
 
       if (statusFilter === "completed") {
         query = query.where("status", "==", "completed");
@@ -289,7 +295,10 @@ export const InterviewRepository = {
 
       return await hydrateTranscript(id, doc.data() ?? {});
     } catch (error) {
-      logger.error(`Error fetching transcript for interview session ${id}:`, error);
+      logger.error(
+        `Error fetching transcript for interview session ${id}:`,
+        error,
+      );
       return [];
     }
   },
@@ -349,7 +358,10 @@ export const InterviewRepository = {
         const sessionSnap = await transaction.get(sessionRef);
 
         if (!sessionSnap.exists) {
-          return { success: false, reason: "missing" } as TranscriptAppendResult;
+          return {
+            success: false,
+            reason: "missing",
+          } as TranscriptAppendResult;
         }
 
         const sessionData = sessionSnap.data() ?? {};

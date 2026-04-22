@@ -5,7 +5,8 @@ import AccountClient from "./AccountClient";
 
 export const metadata: Metadata = {
   title: "Account Settings",
-  description: "Manage your IntervoxAI account, update your profile, or delete your account.",
+  description:
+    "Manage your IntervoxAI account, update your profile, or delete your account.",
 };
 
 export default async function AccountPage() {
@@ -14,10 +15,5 @@ export default async function AccountPage() {
   // Shouldn't happen since (root) layout redirects, but defensive
   if (!user) redirect("/sign-in");
 
-  return (
-    <AccountClient
-      userName={user.name}
-      userEmail={user.email}
-    />
-  );
+  return <AccountClient userName={user.name} userEmail={user.email} />;
 }

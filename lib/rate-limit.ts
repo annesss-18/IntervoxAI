@@ -8,9 +8,10 @@ const isRedisConfigured = !!(
 );
 
 if (!isRedisConfigured && process.env.NODE_ENV === "production") {
-  throw new Error(
-    "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production for rate limiting. " +
-      "In-memory rate limiting is per-instance and provides no protection in serverless environments.",
+  console.warn(
+    "[ENV] UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are not set in production. " +
+      "Falling back to in-memory rate limiting, which is per-instance and provides " +
+      "no protection in serverless environments. Set these variables after rotation.",
   );
 }
 
@@ -129,10 +130,13 @@ export async function checkRateLimit(
     } catch (error) {
       logger.error("Redis rate limit error:", error);
 
-      // In production, fail closed on Redis errors to avoid unsafe per-instance fallback.
+      // During env rotation, Redis may be unavailable. Fall back to in-memory
+      // instead of crashing. This is unsafe for production long-term but allows
+      // a quick deploy while secrets are being rotated.
       if (process.env.NODE_ENV === "production") {
-        throw new Error(
-          "Rate limiter unavailable: Redis error in production. Request rejected.",
+        logger.warn(
+          "Redis rate limit error in production — falling back to in-memory. " +
+            "This is unsafe for serverless and should be resolved after env rotation.",
         );
       }
 

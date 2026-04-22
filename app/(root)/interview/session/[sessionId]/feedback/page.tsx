@@ -202,12 +202,18 @@ const Page = async ({ params }: RouteParams) => {
 
   const behaviouralTraits = behavioralInsights
     ? [
-      { label: "Confidence", value: behavioralInsights.confidenceLevel },
-      { label: "Clarity of thought", value: behavioralInsights.clarityOfThought },
-      { label: "Technical depth", value: behavioralInsights.technicalDepth },
-      { label: "Problem approach", value: behavioralInsights.problemApproach },
-      { label: "Under pressure", value: behavioralInsights.stressResponse },
-    ]
+        { label: "Confidence", value: behavioralInsights.confidenceLevel },
+        {
+          label: "Clarity of thought",
+          value: behavioralInsights.clarityOfThought,
+        },
+        { label: "Technical depth", value: behavioralInsights.technicalDepth },
+        {
+          label: "Problem approach",
+          value: behavioralInsights.problemApproach,
+        },
+        { label: "Under pressure", value: behavioralInsights.stressResponse },
+      ]
     : [];
 
   return (
@@ -332,10 +338,19 @@ const Page = async ({ params }: RouteParams) => {
             </summary>
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
               {[
-                { dot: "bg-success", text: "Strong Hire — top ~5 % for this level" },
-                { dot: "bg-success", text: "Hire — recommend without reservation" },
+                {
+                  dot: "bg-success",
+                  text: "Strong Hire — top ~5 % for this level",
+                },
+                {
+                  dot: "bg-success",
+                  text: "Hire — recommend without reservation",
+                },
                 { dot: "bg-secondary", text: "Lean Hire — minor reservations" },
-                { dot: "bg-warning", text: "Lean No — not recommended, borderline" },
+                {
+                  dot: "bg-warning",
+                  text: "Lean No — not recommended, borderline",
+                },
                 { dot: "bg-error", text: "Not Recommended — significant gaps" },
                 { dot: "bg-error", text: "Strong No — fundamental misfit" },
               ].map(({ dot, text }) => (
@@ -503,9 +518,7 @@ const Page = async ({ params }: RouteParams) => {
                         <Zap className="size-4 text-info" />
                       </span>
                       <div>
-                        <p className="text-sm font-semibold">
-                          Do this week
-                        </p>
+                        <p className="text-sm font-semibold">Do this week</p>
                         <p className="text-[10px] text-muted-foreground">
                           Next 2 weeks
                         </p>
@@ -536,9 +549,7 @@ const Page = async ({ params }: RouteParams) => {
                         <BookOpen className="size-4 text-accent" />
                       </span>
                       <div>
-                        <p className="text-sm font-semibold">
-                          Learning path
-                        </p>
+                        <p className="text-sm font-semibold">Learning path</p>
                         <p className="text-[10px] text-muted-foreground">
                           3–6 month focus
                         </p>
@@ -569,9 +580,7 @@ const Page = async ({ params }: RouteParams) => {
                         <Lightbulb className="size-4 text-warning" />
                       </span>
                       <div>
-                        <p className="text-sm font-semibold">
-                          Interview tips
-                        </p>
+                        <p className="text-sm font-semibold">Interview tips</p>
                         <p className="text-[10px] text-muted-foreground">
                           From this session
                         </p>
@@ -601,9 +610,7 @@ const Page = async ({ params }: RouteParams) => {
                   <Target className="size-4 text-primary" />
                 </span>
                 <div>
-                  <p className="text-sm font-semibold mb-1.5">
-                    Role readiness
-                  </p>
+                  <p className="text-sm font-semibold mb-1.5">Role readiness</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     {careerCoaching.roleReadiness}
                   </p>

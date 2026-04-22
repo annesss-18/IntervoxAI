@@ -3,10 +3,7 @@ import { z } from "zod";
 import { withAuth } from "@/lib/api-middleware";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
 import { logger } from "@/lib/logger";
-import {
-  firestoreIdSchema,
-  trustedCompanyLogoUrlSchema,
-} from "@/lib/schemas";
+import { firestoreIdSchema, trustedCompanyLogoUrlSchema } from "@/lib/schemas";
 import type { User } from "@/types";
 
 interface RouteContext {
@@ -22,10 +19,7 @@ const templateUpdateSchema = z
     type: z
       .enum(["Technical", "System Design", "Behavioral", "HR", "Mixed"])
       .optional(),
-    techStack: z
-      .array(z.string().trim().min(1).max(50))
-      .max(20)
-      .optional(),
+    techStack: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
     jobDescription: z.string().min(50).max(50000).optional(),
     isPublic: z.boolean().optional(),
   })
