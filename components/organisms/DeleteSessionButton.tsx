@@ -14,18 +14,6 @@ import {
 } from "@/components/atoms/dialog";
 import { toast } from "sonner";
 
-// FIX: Replaced window.confirm() with a proper Dialog component.
-//
-// window.confirm() is:
-//   • Synchronous — it blocks the main thread and pauses JavaScript execution.
-//   • Un-styleable — appearance is controlled by the OS/browser, not the app.
-//   • Suppressed in some contexts — iframes, browser extensions, and certain
-//     automation environments silently return `false` without showing the dialog.
-//   • Inconsistent — behaviour and wording differ across browsers and platforms.
-//
-// The Dialog component matches the pattern already used for destructive actions
-// elsewhere in the app (e.g. AccountClient "Delete Account" confirmation).
-
 export function DeleteSessionButton({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -54,7 +42,7 @@ export function DeleteSessionButton({ sessionId }: { sessionId: string }) {
       <Button
         variant="ghost"
         size="icon"
-        className="size-8 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+        className="size-8 text-muted-foreground opacity-50 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:text-destructive"
         onClick={() => setOpen(true)}
         disabled={pending}
         title="Delete session"

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { encryptResumeText } from "@/lib/resume-crypto";
-import { RESUME_MAX_STORED_CHARS } from "@/lib/resume-types";
+import { RESUME_MAX_STORED_CHARS } from "@/lib/resume";
 import {
   getStoredTranscriptTurnCount,
   InterviewRepository,
@@ -209,9 +209,11 @@ export const PATCH = withAuthClaims(
         updatedFields.push("transcriptAppend");
       }
 
-      logger.info(
-        `Session ${sessionId} updated (${updatedFields.join(", ")}) by user ${user.id}`,
-      );
+      logger.audit("session.updated", {
+        actorId: user.id,
+        sessionId,
+        fields: updatedFields,
+      });
 
       return NextResponse.json({
         success: true,
@@ -313,18 +315,7 @@ export const DELETE = withAuthClaims(
         .collection("transcript_chunks")
         .get();
 
-      // FIX: Collect all refs first, then delete in chunks of ≤500.
-      // Firestore batches are capped at 500 write operations. A 60-minute
-      // interview at 10-turn checkpoint intervals can produce 60+ chunk
-      // documents. Attempting to delete them all in a single batch would
-      // silently fail once the count exceeds 500.
-      //
-      // FIX: Always delete using the deterministic feedback ID format
-      // (`${userId}_${sessionId}`), which is what FeedbackRepository.create()
-      // uses as the document ID. The session's feedbackId field holds this same
-      // value for all current sessions, but the field can be missing (session
-      // never completed) or differ from the deterministic ID in legacy sessions.
-      // Using both ensures no document is orphaned regardless of field state.
+      // Collect refs first so deletes can be chunked within Firestore limits.
       const feedbackDocIds = new Set<string>();
       const deterministicFeedbackId = `${sessionData.userId}_${sessionId}`;
       feedbackDocIds.add(deterministicFeedbackId);
@@ -378,12 +369,14 @@ export const DELETE = withAuthClaims(
               err,
             ),
         );
-        // Note: "expired" sessions are intentionally skipped here. The nightly
-        // cleanup worker already decremented activeCount when it expired the
-        // session, so decrementing again would underflow the counter.
+        // Expired sessions are skipped because cleanup already decremented activeCount.
       }
 
-      logger.info(`Session ${sessionId} deleted by user ${user.id}`);
+      logger.audit("session.deleted", {
+        actorId: user.id,
+        sessionId,
+        previousStatus: sessionData.status,
+      });
 
       return NextResponse.json({ success: true });
     } catch (error) {

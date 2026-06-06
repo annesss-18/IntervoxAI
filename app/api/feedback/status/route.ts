@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";

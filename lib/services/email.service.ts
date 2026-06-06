@@ -1,25 +1,5 @@
-/**
- * Email service — feedback-ready transactional notifications.
- *
- * Depends on the `resend` package:
- *   npm install resend
- *
- * Required env vars (see .env.example):
- *   RESEND_API_KEY     — Resend API key (re_...)
- *   RESEND_FROM_ADDRESS — Verified sender address on your Resend account
- *
- * When either RESEND_API_KEY or RESEND_FROM_ADDRESS is absent the service is a
- * no-op: all calls return immediately without throwing so local development and
- * CI environments need no mail credentials.
- */
-
 import { logger } from "@/lib/logger";
 
-// Lazily import Resend to avoid loading it in environments where email is not
-// configured (e.g. CI, local dev without RESEND_API_KEY set).
-type ResendClient = {
-  emails: { send: (payload: ResendPayload) => Promise<unknown> };
-};
 interface ResendPayload {
   from: string;
   to: string;
@@ -27,30 +7,28 @@ interface ResendPayload {
   html: string;
 }
 
-let _resend: ResendClient | null = null;
 let warnedMissingFromAddress = false;
 
-async function getResendClient(): Promise<ResendClient | null> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return null;
+async function sendResendEmail(
+  apiKey: string,
+  payload: ResendPayload,
+): Promise<void> {
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
 
-  if (_resend) return _resend;
-
-  try {
-    // Dynamic import so bundlers don't tree-shake the missing module error in
-    // environments where the package isn't installed.
-    const { Resend } = await import("resend");
-    _resend = new Resend(apiKey) as unknown as ResendClient;
-    return _resend;
-  } catch {
-    logger.warn(
-      'EmailService: "resend" package not installed. Run: npm install resend',
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Resend email request failed (${response.status})${body ? `: ${body}` : ""}`,
     );
-    return null;
   }
 }
-
-// ── Public API ──────────────────────────────────────────────────────────────
 
 export interface FeedbackReadyParams {
   toEmail: string;
@@ -62,17 +40,6 @@ export interface FeedbackReadyParams {
 }
 
 export const EmailService = {
-  /**
-   * Send a "your feedback report is ready" notification.
-   *
-   * Silently returns when:
-   * - RESEND_API_KEY is not set (local dev / CI)
-   * - RESEND_FROM_ADDRESS is not set
-   * - The resend package is not installed
-   *
-   * Throws on Resend API errors so callers can decide whether to retry or
-   * log-and-continue.
-   */
   async sendFeedbackReady({
     toEmail,
     toName,
@@ -81,8 +48,8 @@ export const EmailService = {
     role,
     companyName,
   }: FeedbackReadyParams): Promise<void> {
-    const client = await getResendClient();
-    if (!client) return; // email not configured — silently skip
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return;
 
     const from = process.env.RESEND_FROM_ADDRESS?.trim();
     if (!from) {
@@ -100,11 +67,6 @@ export const EmailService = {
 
     const rawFirstName = toName.split(" ")[0] || toName;
 
-    // Escape user-controlled strings before interpolating into HTML to
-    // prevent injection of misleading markup or links from malicious
-    // public templates. Note: escapeHtml is NOT used in the subject line
-    // because email subjects are plain text — using it there would cause
-    // HTML entities (e.g. &amp;) to appear literally in the subject.
     const firstName = escapeHtml(rawFirstName);
     const safeRole = escapeHtml(role);
     const safeCompanyName = escapeHtml(companyName);
@@ -125,7 +87,6 @@ export const EmailService = {
     <tr>
       <td align="center">
         <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;border:1px solid #d4d8ee;overflow:hidden;">
-          <!-- Header -->
           <tr>
             <td style="padding:32px 40px 24px;border-bottom:1px solid #d4d8ee;">
               <p style="margin:0;font-size:20px;font-weight:600;color:#0e1128;">
@@ -133,7 +94,6 @@ export const EmailService = {
               </p>
             </td>
           </tr>
-          <!-- Body -->
           <tr>
             <td style="padding:32px 40px;">
               <p style="margin:0 0 16px;font-size:16px;color:#0e1128;">
@@ -143,7 +103,6 @@ export const EmailService = {
                 Your mock interview for <strong style="color:#0e1128;">${safeRole}</strong>
                 at <strong style="color:#0e1128;">${safeCompanyName}</strong> has been evaluated.
               </p>
-              <!-- Score pill -->
               <table cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
                 <tr>
                   <td style="background:#f8f9fe;border:1px solid #d4d8ee;border-radius:12px;padding:16px 24px;text-align:center;">
@@ -156,7 +115,6 @@ export const EmailService = {
                   </td>
                 </tr>
               </table>
-              <!-- CTA -->
               <a href="${feedbackUrl}"
                  style="display:inline-block;background:linear-gradient(135deg,#e0507a,#7040c8);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 28px;border-radius:100px;">
                 View your full feedback report →
@@ -168,7 +126,6 @@ export const EmailService = {
               </p>
             </td>
           </tr>
-          <!-- Footer -->
           <tr>
             <td style="padding:20px 40px;border-top:1px solid #d4d8ee;">
               <p style="margin:0;font-size:12px;color:#8890bc;">
@@ -186,12 +143,10 @@ export const EmailService = {
 </html>
     `.trim();
 
-    // FIX: The subject is plain text — do NOT run it through escapeHtml().
-    // HTML entities in a subject line appear verbatim (e.g. "R&amp;D Engineer").
-    await client.emails.send({
+    await sendResendEmail(apiKey, {
       from,
       to: toEmail,
-      subject: `Your ${role} interview feedback is ready — ${score}/100`,
+      subject: `Your ${role.replace(/[\r\n]/g, "")} interview feedback is ready — ${score}/100`,
       html,
     });
 
@@ -199,9 +154,6 @@ export const EmailService = {
   },
 };
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Escape user-controlled text for safe interpolation into HTML bodies only. */
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

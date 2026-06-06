@@ -1,5 +1,4 @@
-// Share feedback generation between the QStash worker and the local after() fallback.
-
+import { isAbortError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import {
   InterviewRepository,
@@ -10,10 +9,8 @@ import { UserRepository } from "@/lib/repositories/user.repository";
 import { EmailService } from "@/lib/services/email.service";
 import { InterviewService } from "@/lib/services/interview.service";
 
-// Abort Gemini feedback generation if it runs too long.
 const FEEDBACK_AI_TIMEOUT_MS = 2 * 60 * 1000;
 
-// Run the full feedback pipeline and persist any terminal failure state.
 export async function runFeedbackGeneration(
   interviewId: string,
   userId: string,
@@ -44,12 +41,6 @@ export async function runFeedbackGeneration(
       );
     }
 
-    // Idempotency guard.
-    // When feedback already existed (QStash retry or manual retry after a
-    // successful first run), createFeedback() reconciled the session document
-    // but the stats, template averages, and email were already applied on the
-    // first pass. Skip all side-effects to avoid double-counting scores and
-    // duplicate "feedback ready" emails.
     if (result.reused) {
       logger.info(
         `Feedback for session ${interviewId} was already generated (reused). Skipping stats/email.`,
@@ -57,17 +48,10 @@ export async function runFeedbackGeneration(
       return;
     }
 
-    // createFeedback returns both values, so no extra Firestore reads are needed.
     const totalScore = result.totalScore ?? null;
     const templateId = result.templateId ?? null;
 
-    // Best-effort aggregate updates. Await them so serverless runtimes do not
-    // freeze before the dashboard counters and template score are persisted.
-    // Note: active→completed counter move (activeDelta/completedDelta) was
-    // already applied at POST /api/feedback time — when the session was first
-    // marked completed. Updating them again here would double-count on every
-    // successful run and, more critically, would not run on failure, leaving
-    // the counters permanently drifted. Only score stats are applied here.
+    // Active/completed counters move when POST /api/feedback claims completion.
     const aggregateUpdates: Promise<void>[] = [];
 
     if (typeof totalScore === "number") {
@@ -96,11 +80,6 @@ export async function runFeedbackGeneration(
     }
     await Promise.allSettled(aggregateUpdates);
 
-    // Best-effort feedback-ready email notification.
-    // We need the user's email address and the template's role/company name.
-    // Both are fetched in parallel to minimize latency. Failures are logged
-    // but never propagate; a failed email must not roll back the generated
-    // feedback.
     try {
       const [user, template] = await Promise.all([
         UserRepository.findById(userId),
@@ -120,7 +99,6 @@ export async function runFeedbackGeneration(
         });
       }
     } catch (emailError) {
-      // Log but do not throw; email delivery is non-critical.
       logger.warn(
         `Feedback-ready email failed for user ${userId} / session ${interviewId}:`,
         emailError,
@@ -129,10 +107,7 @@ export async function runFeedbackGeneration(
   } catch (error) {
     clearTimeout(timeoutHandle);
 
-    const isTimeout =
-      error instanceof Error &&
-      (error.name === "AbortError" ||
-        error.message.toLowerCase().includes("abort"));
+    const isTimeout = isAbortError(error);
 
     const message = isTimeout
       ? "Feedback generation timed out. Please retry."
@@ -157,7 +132,6 @@ export async function runFeedbackGeneration(
       );
     }
 
-    // Re-throw so the worker can return 500 and trigger a retry.
     throw error;
   }
 }

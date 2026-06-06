@@ -36,11 +36,9 @@ export default function AccountClient({
 }: AccountClientProps) {
   const router = useRouter();
 
-  // ── Profile form state ──
   const [name, setName] = useState(userName);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ── Delete confirmation state ──
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -81,7 +79,11 @@ export default function AccountClient({
 
     setIsDeleting(true);
     try {
-      const res = await fetch("/api/account", { method: "DELETE" });
+      const res = await fetch("/api/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: deleteConfirmText }),
+      });
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -89,7 +91,6 @@ export default function AccountClient({
       }
 
       toast.success("Account deleted. Redirecting…");
-      // Small delay so the toast is visible
       setTimeout(() => {
         window.location.assign("/sign-in");
       }, 1200);
@@ -108,7 +109,6 @@ export default function AccountClient({
         description="Manage your profile and account preferences."
       />
 
-      {/* ── Profile Section ── */}
       <section className="mb-10 rounded-2xl border border-border bg-card p-6 md:p-8">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10">
@@ -124,7 +124,7 @@ export default function AccountClient({
 
         <form onSubmit={handleUpdateName} className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="account-email">Email</Label>
+            <Label>Email</Label>
             <div className="flex items-center gap-2 rounded-xl border border-border bg-surface-2/50 px-4 py-2.5 text-sm text-muted-foreground">
               <Mail className="size-4 shrink-0" />
               {userEmail}
@@ -168,7 +168,6 @@ export default function AccountClient({
         </form>
       </section>
 
-      {/* ── Danger Zone ── */}
       <section className="rounded-2xl border border-error/30 bg-error/[0.03] p-6 md:p-8">
         <div className="mb-6 flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl bg-error/10">

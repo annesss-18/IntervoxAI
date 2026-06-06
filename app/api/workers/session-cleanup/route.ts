@@ -1,109 +1,22 @@
-/**
- * POST /api/workers/session-cleanup
- *
- * QStash-signed worker invoked on a daily cron schedule.
- * Marks "setup" sessions older than 48 hours as "expired" so they stop
- * appearing on users' active dashboards.
- *
- * Schedule this with:
- *   curl -X POST https://qstash.upstash.io/v2/schedules \
- *     -H "Authorization: Bearer $QSTASH_TOKEN" \
- *     -H "Content-Type: application/json" \
- *     -d '{"destination":"https://your-domain.com/api/workers/session-cleanup","cron":"0 3 * * *"}'
- *
- * ── Idempotency guarantee ─────────────────────────────────────────────────
- *
- * QStash delivers jobs at-least-once. This worker is safe to replay:
- *
- *   • The Firestore query filters on status == "setup", so sessions that were
- *     already expired by a previous delivery return 0 results and the worker
- *     exits early with { cleaned: 0 }. The status field update itself is also
- *     idempotent (setting "expired" on an already-expired document is a no-op
- *     semantically, though it does write a new expiredAt timestamp).
- *
- *   • Stats decrements (activeCount) are best-effort and NOT idempotent.
- *     On a duplicate delivery, the query finds 0 sessions and exits before
- *     any stats writes, so double-decrement is not possible for clean retries.
- *     However, if the Node.js process crashes after the batch commit but
- *     before stats updates complete, some users' activeCount will be off by 1.
- *     These drifts are recoverable via POST /api/user/reconcile-stats.
- */
-
-import { Receiver } from "@upstash/qstash";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/firebase/admin";
 import { logger } from "@/lib/logger";
 import { UserRepository } from "@/lib/repositories/user.repository";
+import { verifyQstashRequest } from "@/lib/server/qstash";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// ── QStash signature verification (same lazy-init pattern as feedback worker) ──
-
-let receiver: Receiver | null = null;
-
-function getReceiver(): Receiver | null {
-  const currentKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
-  const nextKey = process.env.QSTASH_NEXT_SIGNING_KEY;
-  if (!currentKey || !nextKey) return null;
-  if (!receiver) {
-    receiver = new Receiver({
-      currentSigningKey: currentKey,
-      nextSigningKey: nextKey,
-    });
-  }
-  return receiver;
-}
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-/** Sessions in "setup" older than this are eligible for expiry. */
 const STALE_THRESHOLD_HOURS = 48;
-
-/**
- * Maximum sessions to expire per invocation.
- * Firestore batches cap at 500 writes; 200 keeps us well within limits and
- * gives the worker a comfortable safety margin against the 60-second timeout.
- */
 const BATCH_LIMIT = 200;
 
-// ── Handler ───────────────────────────────────────────────────────────────────
-
 export async function POST(req: NextRequest) {
-  // ── 1. Verify QStash signature ─────────────────────────────────────────────
-  const qstashReceiver = getReceiver();
-  if (!qstashReceiver) {
-    logger.error(
-      "Worker /api/workers/session-cleanup called but QStash signing keys are not configured",
-    );
-    return NextResponse.json(
-      { error: "Worker not configured" },
-      { status: 500 },
-    );
-  }
+  const verified = await verifyQstashRequest(
+    req,
+    "/api/workers/session-cleanup",
+  );
+  if (!verified.ok) return verified.response;
 
-  const body = await req.text();
-  const signature = req.headers.get("upstash-signature");
-
-  if (!signature) {
-    logger.warn(
-      "Worker /api/workers/session-cleanup: missing upstash-signature header",
-    );
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const isValid = await qstashReceiver
-    .verify({ body, signature })
-    .catch(() => false);
-
-  if (!isValid) {
-    logger.warn(
-      "Worker /api/workers/session-cleanup: invalid QStash signature",
-    );
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  // ── 2. Find stale setup sessions ───────────────────────────────────────────
   const cutoff = new Date(
     Date.now() - STALE_THRESHOLD_HOURS * 60 * 60 * 1000,
   ).toISOString();
@@ -114,13 +27,6 @@ export async function POST(req: NextRequest) {
 
   let snapshot: FirebaseFirestore.QuerySnapshot;
   try {
-    // Uses the (status ASC, startedAt ASC) composite index added in
-    // firestore.indexes.json for this query.
-    //
-    // Idempotency note: querying status == "setup" means that on a duplicate
-    // QStash delivery, sessions expired by the first run are not returned
-    // here, so the worker exits cleanly at snapshot.empty without applying
-    // any stats changes.
     snapshot = await db
       .collection("interview_sessions")
       .where("status", "==", "setup")
@@ -130,7 +36,6 @@ export async function POST(req: NextRequest) {
       .get();
   } catch (error) {
     logger.error("Session cleanup: Firestore query failed:", error);
-    // Return 500 so QStash retries the job.
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
 
@@ -141,9 +46,6 @@ export async function POST(req: NextRequest) {
 
   const now = new Date().toISOString();
 
-  // ── 3. Batch-expire sessions ───────────────────────────────────────────────
-  // Firestore Admin SDK batches support up to 500 operations.
-  // Our BATCH_LIMIT of 200 fits comfortably in a single batch.
   const batch = db.batch();
   const userActiveDelta = new Map<string, number>();
 
@@ -153,7 +55,6 @@ export async function POST(req: NextRequest) {
       expiredAt: now,
     });
 
-    // Accumulate stat decrements keyed by userId.
     const uid = doc.data().userId as string;
     if (uid) {
       userActiveDelta.set(uid, (userActiveDelta.get(uid) ?? 0) - 1);
@@ -167,16 +68,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Batch write failed" }, { status: 500 });
   }
 
-  logger.info(`Session cleanup: expired ${snapshot.docs.length} sessions`);
+  logger.audit("sessions.expired", {
+    cleaned: snapshot.docs.length,
+    cutoff,
+  });
 
-  // ── 4. Decrement activeCount per user (best-effort) ───────────────────────
-  // Stats updates happen AFTER the batch commit and are intentionally
-  // best-effort. If this process crashes here, some users' activeCount will
-  // be off by 1. These drifts can be corrected at any time via:
-  //   POST /api/user/reconcile-stats
-  //
-  // Failures here do NOT roll back session expiry — correctness of the
-  // session state takes priority over stat counter accuracy.
+  // Stats are best-effort after the session expiry batch commits.
   await Promise.allSettled(
     Array.from(userActiveDelta.entries()).map(([uid, delta]) =>
       UserRepository.updateStats(uid, { activeDelta: delta }).catch((err) =>

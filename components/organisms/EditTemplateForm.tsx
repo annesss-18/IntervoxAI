@@ -40,7 +40,6 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
-  // Editable field state — pre-filled from the template prop.
   const [role, setRole] = useState(template.role);
   const [companyName, setCompanyName] = useState(template.companyName);
   const [level, setLevel] = useState<(typeof LEVELS)[number]>(template.level);
@@ -119,7 +118,6 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Role + Company */}
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="role">Target role</Label>
@@ -142,7 +140,6 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
         </div>
       </div>
 
-      {/* Tech stack */}
       <div className="space-y-1.5">
         <Label>
           Tech stack &amp; skills{" "}
@@ -177,7 +174,6 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
         </div>
       </div>
 
-      {/* Level + Type + Visibility */}
       <div className="grid gap-5 md:grid-cols-3">
         <div className="space-y-1.5">
           <Label>Experience level</Label>
@@ -245,7 +241,6 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
         </div>
       </div>
 
-      {/* Job description */}
       <div className="space-y-1.5">
         <Label htmlFor="jd">Job description</Label>
         <Textarea
@@ -260,7 +255,6 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
         </p>
       </div>
 
-      {/* Actions */}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button
           type="button"

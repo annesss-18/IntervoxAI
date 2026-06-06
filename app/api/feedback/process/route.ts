@@ -1,16 +1,13 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/firebase/admin";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import {
   getStoredTranscriptTurnCount,
   InterviewRepository,
 } from "@/lib/repositories/interview.repository";
-import {
-  isQueueAvailable,
-  publishFeedbackJob,
-} from "@/lib/queue/feedback-queue";
+import { isQueueAvailable, publishFeedbackJob } from "@/lib/feedback-queue";
 import { firestoreIdSchema } from "@/lib/schemas";
 import { runFeedbackGeneration } from "@/lib/services/feedback-runner";
 import type { AuthClaims, FeedbackJobStatus } from "@/types";
@@ -25,6 +22,7 @@ type ClaimResult =
   | { type: "missing" }
   | { type: "unauthorized" }
   | { type: "no_transcript" }
+  | { type: "not_ready" }
   | { type: "already_processing" }
   | { type: "already_completed"; feedbackId: string | null }
   | { type: "claimed" };
@@ -66,6 +64,10 @@ async function claimSession(
 
     if (getStoredTranscriptTurnCount(session) <= 0) {
       return { type: "no_transcript" } as const;
+    }
+
+    if (session.status !== "completed") {
+      return { type: "not_ready" } as const;
     }
 
     const currentStatus = inferFeedbackStatus(session);
@@ -146,6 +148,17 @@ export const POST = withAuthClaims(
         );
       }
 
+      if (claim.type === "not_ready") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Interview must be completed before feedback processing can start.",
+          },
+          { status: 409 },
+        );
+      }
+
       if (claim.type === "already_processing") {
         return NextResponse.json(
           {
@@ -182,6 +195,8 @@ export const POST = withAuthClaims(
         );
       }
 
+      let queuedViaQStash = false;
+
       if (isQueueAvailable()) {
         try {
           const { messageId } = await publishFeedbackJob({
@@ -189,6 +204,7 @@ export const POST = withAuthClaims(
             userId: user.id,
             transcript,
           });
+          queuedViaQStash = true;
 
           logger.info(
             `Feedback job queued via QStash: ${messageId} for interview ${interviewId}`,
@@ -208,6 +224,12 @@ export const POST = withAuthClaims(
           await runFeedbackGeneration(interviewId, user.id, transcript);
         });
       }
+
+      logger.audit("feedback.processing_started", {
+        actorId: user.id,
+        sessionId: interviewId,
+        queuedViaQStash,
+      });
 
       return NextResponse.json(
         {

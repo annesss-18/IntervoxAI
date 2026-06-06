@@ -2,7 +2,6 @@
 @plugin "tailwindcss-animate";
 @custom-variant dark (&:is(.dark *));
 @theme {
-  /* Static fallback fonts; runtime font variables are bridged in @theme inline. */
   --font-sans:
     "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-serif: "Instrument Serif", Georgia, "Times New Roman", serif;
@@ -44,7 +43,7 @@
   --primary: #ad5068;
   --primary-foreground: #ffffff;
 
-  --secondary: #3a8fa0;
+  --secondary: #2d7080;
   --secondary-foreground: #ffffff;
 
   --accent: #634aaa;
@@ -53,13 +52,13 @@
   --muted: #eef0f9;
   --muted-foreground: #525880;
 
-  --success: #1a9e6a;
+  --success: #147a52;
   --success-foreground: #f0fff8;
-  --warning: #b87c20;
+  --warning: #8f6018;
   --warning-foreground: #ffffff;
   --error: #c03848;
   --error-foreground: #ffffff;
-  --info: #3878c8;
+  --info: #2d60a0;
   --info-foreground: #ffffff;
 
   --destructive: var(--error);
@@ -148,7 +147,6 @@
   );
 }
 @theme inline {
-  /* Bridge Next.js runtime font variables into Tailwind tokens. */
   --font-sans: var(
     --font-dm-sans,
     "DM Sans",
@@ -288,7 +286,6 @@
     padding-inline: clamp(1rem, 4vw, 2.5rem);
   }
 
-  /* Brand gradient helpers */
   .bg-brand-gradient {
     background: var(--gradient-brand);
   }
@@ -301,7 +298,6 @@
     color: transparent;
   }
 
-  /* Surface treatments */
   .surface-glass {
     border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
     background: color-mix(in srgb, var(--surface-1) 82%, transparent);
@@ -313,7 +309,6 @@
     background: color-mix(in srgb, var(--surface-1) 70%, transparent);
   }
 
-  /* Gradient border via mask technique */
   .gradient-border {
     position: relative;
     isolation: isolate;
@@ -338,7 +333,6 @@
     opacity: 0.65;
   }
 
-  /* Section label overline */
   .label-caps {
     font-size: 0.6875rem;
     font-weight: 600;
@@ -348,7 +342,6 @@
     font-family: var(--font-sans);
   }
 
-  /* App page header banner */
   .page-banner {
     position: relative;
     overflow: hidden;
@@ -387,7 +380,6 @@
     pointer-events: none;
   }
 
-  /* Ambient dot noise */
   .texture-noise {
     position: relative;
     isolation: isolate;
@@ -424,7 +416,6 @@
     opacity: 0.16;
   }
 
-  /* Custom scrollbar */
   .custom-scrollbar {
     scrollbar-width: thin;
     scrollbar-color: color-mix(

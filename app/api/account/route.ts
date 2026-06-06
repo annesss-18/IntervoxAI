@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuth } from "@/lib/server/api-middleware";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { logger } from "@/lib/logger";
 import type { User } from "@/types";
@@ -9,6 +9,12 @@ import type { User } from "@/types";
 const nameSchema = z.object({
   name: z.string().min(2).max(100),
 });
+
+const deleteAccountSchema = z
+  .object({
+    confirmation: z.literal("DELETE"),
+  })
+  .strict();
 
 // PATCH /api/account — update display name
 export const PATCH = withAuth(
@@ -28,6 +34,8 @@ export const PATCH = withAuth(
         name: validation.data.name,
       });
 
+      logger.audit("account.profile_updated", { actorId: user.id });
+
       return NextResponse.json({ success: true });
     } catch (error) {
       logger.error("API PATCH /api/account error:", error);
@@ -42,13 +50,32 @@ export const PATCH = withAuth(
 
 // DELETE /api/account — permanently delete account
 export const DELETE = withAuth(
-  async (_req: NextRequest, user: User) => {
+  async (req: NextRequest, user: User) => {
     try {
-      await UserRepository.deleteAccount(user.id);
+      const body = await req.json().catch(() => null);
+      const validation = deleteAccountSchema.safeParse(body);
 
-      // Clear session cookie
-      const cookieStore = await cookies();
-      cookieStore.delete("session");
+      if (!validation.success) {
+        logger.warn(
+          `Rejected account deletion without server confirmation for user ${user.id}`,
+        );
+        return NextResponse.json(
+          { error: "Account deletion confirmation is required" },
+          { status: 400 },
+        );
+      }
+
+      try {
+        await UserRepository.deleteAccount(user.id);
+      } finally {
+        // Always clear the session cookie, even on partial failure.
+        // If deleteAccount() threw after auth.deleteUser() succeeded,
+        // the cookie would remain valid for up to 5 days otherwise.
+        const cookieStore = await cookies();
+        cookieStore.delete("session");
+      }
+
+      logger.audit("account.deleted", { actorId: user.id });
 
       return NextResponse.json({ success: true });
     } catch (error) {

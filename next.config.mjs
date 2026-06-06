@@ -12,7 +12,6 @@ const nextConfig = {
   images: {
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-    // External image sources used for logos, avatars, and profile photos.
     remotePatterns: [
       {
         protocol: "https",
@@ -43,7 +42,6 @@ const nextConfig = {
 
   async headers() {
     return [
-      // Global security headers.
       {
         source: "/(.*)",
         headers: [
@@ -63,7 +61,6 @@ const nextConfig = {
             key: "X-Frame-Options",
             value: "DENY",
           },
-          // Disable the legacy XSS auditor and rely on CSP nonces instead.
           {
             key: "X-XSS-Protection",
             value: "0",
@@ -77,11 +74,8 @@ const nextConfig = {
             value:
               "camera=(), microphone=(self), geolocation=(), interest-cohort=()",
           },
-          // CSP stays in proxy.ts because nonce-based policies need a fresh
-          // per-request value that static next.config headers cannot provide.
         ],
       },
-      // Immutable cache headers for static assets.
       {
         source: "/:all*(svg|jpg|png|webp|gif|ico)",
         headers: [

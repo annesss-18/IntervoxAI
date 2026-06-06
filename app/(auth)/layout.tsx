@@ -45,8 +45,9 @@ export default function AuthLayout({
             <Link
               href="/"
               className="group inline-flex outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg"
+              aria-label="IntervoxAI home"
             >
-              <BrandLogo size="sm" />
+              <BrandLogo size="sm" decorative />
             </Link>
           </header>
 
@@ -70,7 +71,7 @@ export default function AuthLayout({
               {features.map(({ icon: Icon, label }, i) => (
                 <li
                   key={label}
-                  className={`animate-slide-left fill-both flex items-center gap-3 delay-${(i + 1) * 100}`}
+                  className={`animate-slide-left fill-both flex items-center gap-3 ${["delay-100", "delay-200", "delay-300"][i]}`}
                 >
                   <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/12 ring-1 ring-primary/20">
                     <Icon className="size-3.5 text-primary" />
@@ -114,8 +115,8 @@ export default function AuthLayout({
           </div>
 
           <div className="mb-10 lg:hidden">
-            <Link href="/">
-              <BrandLogo size="sm" />
+            <Link href="/" aria-label="IntervoxAI home">
+              <BrandLogo size="sm" decorative />
             </Link>
           </div>
 

@@ -1,4 +1,4 @@
-// Exercise the public SSRF guards without making real DNS calls.
+// Exercise the public URL reader SSRF guards without making real DNS calls.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dns from "node:dns/promises";
@@ -32,7 +32,7 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
 
   privateHosts.forEach((host) => {
     it(`rejects ${host}`, async () => {
-      const { extractTextFromUrl } = await import("../server-utils");
+      const { extractTextFromUrl } = await import("../server/url-reader");
       await expect(
         extractTextFromUrl(`http://${host}/jobs/123`),
       ).rejects.toThrow();
@@ -40,7 +40,7 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
   });
 
   it("rejects non-http protocols", async () => {
-    const { extractTextFromUrl } = await import("../server-utils");
+    const { extractTextFromUrl } = await import("../server/url-reader");
     await expect(extractTextFromUrl("file:///etc/passwd")).rejects.toThrow();
     await expect(
       extractTextFromUrl("ftp://example.com/file"),
@@ -48,21 +48,21 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
   });
 
   it("rejects URLs with credentials", async () => {
-    const { extractTextFromUrl } = await import("../server-utils");
+    const { extractTextFromUrl } = await import("../server/url-reader");
     await expect(
       extractTextFromUrl("http://user:pass@example.com/jobs"),
     ).rejects.toThrow();
   });
 
   it("rejects non-standard ports", async () => {
-    const { extractTextFromUrl } = await import("../server-utils");
+    const { extractTextFromUrl } = await import("../server/url-reader");
     await expect(
       extractTextFromUrl("http://example.com:8080/jobs"),
     ).rejects.toThrow();
   });
 
   it("rejects when DNS resolves to a private IP (DNS rebinding)", async () => {
-    const { extractTextFromUrl } = await import("../server-utils");
+    const { extractTextFromUrl } = await import("../server/url-reader");
 
     vi.mocked(dns.lookup).mockResolvedValue([
       { address: "192.168.1.100", family: 4 },

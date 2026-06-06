@@ -425,7 +425,7 @@ export function AudioTestCard({
       <div className="flex flex-col gap-2">
         <Button
           onClick={onContinue}
-          variant="gradient"
+          variant={bothPassed ? "gradient" : "outline"}
           size="xl"
           className="w-full"
         >

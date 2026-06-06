@@ -7,7 +7,7 @@ import { Container, PageHeader } from "@/components/layout/Container";
 import { CreateInterviewForm } from "@/components/organisms/CreateInterviewForm";
 
 export const metadata: Metadata = {
-  title: "Create Interview · IntervoxAI",
+  title: "Create Interview",
   description:
     "Create a new custom interview template tailored to your target role and company.",
 };
@@ -47,7 +47,6 @@ export default async function CreatePage({
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
-  // Support forking: /create?forkFrom=<templateId>
   const sp = await searchParams;
   const forkFromId = typeof sp.forkFrom === "string" ? sp.forkFrom : undefined;
   const forkTemplate = forkFromId

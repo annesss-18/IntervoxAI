@@ -155,16 +155,19 @@ lib/
   actions/                   Server actions
   services/                  Business orchestration
   repositories/              Firestore access
-  queue/                     Feedback job publishing helpers
+  feedback-queue.ts           Feedback job publishing helpers
   hooks/                     Audio and live interview hooks
+  server/                    API middleware, parsing, request, SSRF, and worker helpers
+  data/                      Company and technology lookup tables
+  errors.ts                  Domain-specific error helpers
+  utils/                     Cross-cutting utility modules
   services/email.service.ts  Optional Resend notifications
-  api-middleware.ts          Auth and rate-limit wrappers
   rate-limit.ts              Redis and in-memory rate limiting
-  server-utils.ts            Safe file and URL extraction
+  resume.ts                  Resume file validation constants
   resume-crypto.ts           Resume encryption helpers
   icon-utils.ts              Company and tech icon helpers
   logger.ts                  Structured logging
-  models.ts                  Centralized Gemini model IDs
+  auth-client.ts             Client-side sign-out helper
   schemas.ts                 Shared Zod schemas
   utils.ts                   Shared utilities
   __tests__/                 Vitest coverage
@@ -223,7 +226,7 @@ vitest.config.ts             Vitest config
 | `/api/dashboard/score-history`         | `GET`            | Yes               | Fetch completed-session score trend data         |
 | `/api/account`                         | `PATCH`,`DELETE` | Yes               | Update profile details or delete the account     |
 | `/api/user/reconcile-stats`            | `POST`           | Yes               | Rebuild aggregate user stats from source data    |
-| `/api/auth/signout`                    | `POST`           | No (rate-limited) | Clear the server session cookie                  |
+| `/api/auth/signout`                    | `DELETE`         | No (rate-limited) | Clear the server session cookie                  |
 
 ---
 
@@ -272,7 +275,7 @@ vitest.config.ts             Vitest config
 
 ### Prerequisites
 
-- Node.js `>= 20.9.0`
+- Node.js `^20.17.0 || >=22.9.0`
 - npm `11.10.1` (pinned via `packageManager` in `package.json`)
 - Firebase project with Auth and Firestore
 - Gemini API keys
@@ -326,6 +329,10 @@ Open `http://localhost:3000`.
 | `RESUME_ENCRYPTION_KEY`                    | Yes           | 32-byte base64 key for encrypted resume storage          |
 | `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering          |
 | `NEXT_PUBLIC_APP_URL`                      | Prod          | Canonical app URL for origin validation and metadata     |
+| `JOB_URL_READER_PROVIDER`                  | Optional      | `jina` or `direct` for job URL extraction privacy        |
+| `LOG_LEVEL`                                | Optional      | Logging level: `debug`, `info`, `warn`, or `error`       |
+| `TRUSTED_IP_HEADER`                        | Optional      | Header name for client IP (e.g. `cf-connecting-ip`)      |
+| `TRUST_PROXY`                              | Optional      | Set to `1` to trust rightmost `x-forwarded-for` entry    |
 | `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting          |
 | `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                 |
 | `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs           |

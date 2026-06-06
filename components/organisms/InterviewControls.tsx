@@ -29,10 +29,6 @@ interface InterviewControlsProps {
   isSubmitting: boolean;
   onToggleMute: () => void;
   onEndInterview: () => void;
-  /**
-   * Total session duration in seconds.
-   * Defaults to 900 (15 min) for backward compatibility.
-   */
   totalSeconds?: number;
 }
 
@@ -49,13 +45,9 @@ export function InterviewControls({
 
   const remainingSeconds = Math.max(0, totalSeconds - elapsedTime);
   const isTimeUp = elapsedTime >= totalSeconds;
-  // Show the warning section for the last 60 seconds of the session.
   const isWarning = elapsedTime >= totalSeconds - 60;
-  // Switch to a live per-second countdown in the last 60 seconds.
-  // Before that, show elapsed time.
   const isCountdownMode = isWarning && !isTimeUp;
 
-  /** Format seconds as MM:SS */
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
     return `${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -106,15 +98,6 @@ export function InterviewControls({
     onEndInterview();
   };
 
-  // ── Time display logic ─────────────────────────────────────────────────
-  //
-  // Before the warning threshold (last 60 s): show elapsed time as MM:SS.
-  // In the warning window (last 60 s to 0): show remaining time as MM:SS
-  //   with an escalating color and a "left" label.
-  // At time-up: show "0:00 left" in error color.
-  //
-  // This gives candidates clear, actionable time awareness in the final
-  // minute rather than just a static "1m remaining" badge.
   const timeDisplay =
     isCountdownMode || isTimeUp
       ? `${formatTime(remainingSeconds)} left`

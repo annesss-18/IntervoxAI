@@ -15,7 +15,7 @@ import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: "Pricing - IntervoxAI",
+  title: "Pricing",
   description: "IntervoxAI pricing and plan information.",
   robots: {
     index: false,
@@ -100,7 +100,7 @@ export default function PricingPage() {
               </div>
             </div>
 
-            <div className="animate-fade-up delay-100 fill-both relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/50 p-8 opacity-60">
+            <div className="animate-fade-up delay-100 fill-both relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/50 p-8">
               <div className="space-y-6">
                 <div>
                   <Badge variant="secondary" className="mb-4">

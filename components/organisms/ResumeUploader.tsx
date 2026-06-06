@@ -7,7 +7,7 @@ import {
   isAllowedResumeFile,
   MAX_RESUME_SIZE_BYTES,
   RESUME_FILE_ACCEPT,
-} from "@/lib/resume-types";
+} from "@/lib/resume";
 
 interface ResumeUploaderProps {
   onResumeUploaded: (text: string) => void;

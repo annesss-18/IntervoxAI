@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { BrandLogo } from "@/components/molecules/BrandLogo";
-import { MaintenanceBanner } from "@/components/molecules/MaintenanceBanner";
+import { BrandLockup } from "@/components/molecules/BrandLogo";
 import {
   ArrowRight,
   Mic,
@@ -115,9 +114,6 @@ const iconColorMap: Record<string, string> = {
 export default function LandingPage() {
   return (
     <div className="bg-background overflow-hidden">
-      {/* TODO: Remove MaintenanceBanner once env rotation is complete and full functionality is restored. */}
-      <MaintenanceBanner />
-
       <section className="relative flex min-h-[90vh] items-center border-b border-border/50 py-24 sm:py-32">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <div
@@ -142,6 +138,14 @@ export default function LandingPage() {
 
         <div className="container-app w-full">
           <div className="mx-auto max-w-3xl text-center">
+            <div className="animate-fade-up mb-7 flex justify-center">
+              <BrandLockup
+                width={176}
+                priority
+                className="h-auto w-36 sm:w-44"
+              />
+            </div>
+
             <div className="animate-fade-up mb-8 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold text-primary">
               <Sparkles className="size-3.5" />
               Powered by Gemini Live
@@ -215,7 +219,7 @@ export default function LandingPage() {
               return (
                 <div
                   key={feat.title}
-                  className={`animate-fade-up fill-both group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[var(--shadow-md)] delay-${[75, 150, 225][i % 3]}`}
+                  className={`animate-fade-up fill-both group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-[var(--shadow-md)] ${["delay-75", "delay-150", "delay-225"][i % 3]}`}
                 >
                   <div
                     className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-500 group-hover:opacity-100"
@@ -265,7 +269,7 @@ export default function LandingPage() {
               {steps.map((step, i) => (
                 <div
                   key={step.number}
-                  className={`animate-fade-up fill-both text-center delay-${(i + 1) * 100}`}
+                  className={`animate-fade-up fill-both text-center ${["delay-100", "delay-200", "delay-300"][i]}`}
                 >
                   <div className="relative mx-auto mb-6 flex size-20 items-center justify-center">
                     <div
@@ -304,7 +308,7 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <div
                 key={t.author}
-                className={`animate-fade-up fill-both rounded-2xl border border-border bg-card p-6 delay-${(i + 1) * 100}`}
+                className={`animate-fade-up fill-both rounded-2xl border border-border bg-card p-6 ${["delay-100", "delay-200", "delay-300"][i]}`}
               >
                 <div className="mb-4 font-sans text-4xl font-bold leading-none text-gradient-brand select-none">
                   &ldquo;
@@ -348,8 +352,8 @@ export default function LandingPage() {
                 />
               </div>
 
-              <div className="mx-auto mb-6">
-                <BrandLogo size="lg" />
+              <div className="mb-6 flex justify-center">
+                <BrandLockup width={164} className="h-auto w-36 sm:w-40" />
               </div>
 
               <h2 className="mb-4 font-serif italic font-normal text-3xl text-foreground sm:text-4xl">

@@ -72,14 +72,14 @@ export const checkpointBaseSchema = z
 
 export const signUpSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  idToken: z.string().min(1),
+  idToken: z.string().min(1).max(10_000),
 });
 
 export const signInSchema = z.object({
-  idToken: z.string().min(1),
+  idToken: z.string().min(1).max(10_000),
 });
 
 export const googleAuthSchema = z.object({
   name: z.string().min(2).max(100).optional(),
-  idToken: z.string().min(1),
+  idToken: z.string().min(1).max(10_000),
 });

@@ -1,15 +1,11 @@
 "use server";
 
 import { headers } from "next/headers";
-import { UserAlreadyExistsError } from "@/lib/errors/auth.errors";
+import { UserAlreadyExistsError } from "@/lib/errors";
 import { checkRateLimit, type RateLimitConfig } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/request";
 import { AuthService } from "@/lib/services/auth.service";
-import {
-  MAINTENANCE_BYPASS,
-  DEMO_USER,
-  DEMO_CLAIMS,
-} from "@/lib/maintenance-bypass";
-import { logger } from "../logger";
+import { logger } from "@/lib/logger";
 import {
   AuthClaims,
   GoogleAuthParams,
@@ -19,23 +15,6 @@ import {
 } from "@/types";
 
 const AUTH_ACTION_WINDOW_MS = 60_000;
-
-type HeaderReader = {
-  get(name: string): string | null;
-};
-
-function getClientIp(headerList: HeaderReader): string {
-  const realIp = headerList.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
-  const forwardedFor = headerList.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) return firstIp;
-  }
-
-  return "unknown";
-}
 
 async function isAuthActionAllowed(
   scope: string,
@@ -124,14 +103,10 @@ export async function signIn(params: SignInParams) {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  // TODO: Remove maintenance bypass after env rotation is complete.
-  if (MAINTENANCE_BYPASS) return DEMO_USER;
   return await AuthService.getCurrentUser();
 }
 
 export async function getCurrentUserClaims(): Promise<AuthClaims | null> {
-  // TODO: Remove maintenance bypass after env rotation is complete.
-  if (MAINTENANCE_BYPASS) return DEMO_CLAIMS;
   return await AuthService.getCurrentUserClaims();
 }
 

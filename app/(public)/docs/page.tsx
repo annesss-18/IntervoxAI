@@ -14,7 +14,7 @@ import { Container, PageHeader, Section } from "@/components/layout/Container";
 import { Button } from "@/components/atoms/button";
 
 export const metadata: Metadata = {
-  title: "Documentation - IntervoxAI",
+  title: "Documentation",
   description: "IntervoxAI product and usage documentation.",
   robots: {
     index: false,
@@ -118,7 +118,7 @@ export default function DocsPage() {
                 <Link
                   key={sec.title}
                   href={sec.href}
-                  className={`animate-fade-up fill-both group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] delay-${(i % 3) * 75 + 75}`}
+                  className={`animate-fade-up fill-both group relative overflow-hidden rounded-2xl border border-border bg-card p-6 transition-all duration-300 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] ${["delay-75", "delay-150", "delay-225"][i % 3]}`}
                 >
                   <div
                     className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"

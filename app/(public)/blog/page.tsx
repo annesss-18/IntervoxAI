@@ -6,7 +6,7 @@ import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 
 export const metadata: Metadata = {
-  title: "Blog - IntervoxAI",
+  title: "Blog",
   description:
     "Interview preparation and career growth articles from IntervoxAI.",
   robots: {
@@ -83,7 +83,7 @@ export default function BlogPage() {
               return (
                 <div
                   key={topic.title}
-                  className={`animate-fade-up fill-both group relative overflow-hidden rounded-2xl border border-border bg-card p-6 delay-${(i + 1) * 75}`}
+                  className={`animate-fade-up fill-both group relative overflow-hidden rounded-2xl border border-border bg-card p-6 ${["delay-75", "delay-150", "delay-225", "delay-300"][i]}`}
                 >
                   <div
                     className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"

@@ -1,7 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { db, auth } from "@/firebase/admin";
 import { logger } from "@/lib/logger";
-import { UserAlreadyExistsError } from "@/lib/errors/auth.errors";
+import { UserAlreadyExistsError } from "@/lib/errors";
 import { evictTemplateFromCache } from "@/lib/repositories/template.repository";
 import { revalidateTag } from "next/cache";
 import type { User } from "@/types";
@@ -21,11 +21,6 @@ export interface UserStatsSnapshot {
 }
 
 export const UserRepository = {
-  /**
-   * Fetch a user document by UID.
-   * Used by the auth service, feedback-runner email step, and status routes.
-   * Returns null when the document does not exist.
-   */
   async findById(uid: string): Promise<User | null> {
     try {
       const doc = await db.collection("users").doc(uid).get();
@@ -37,12 +32,6 @@ export const UserRepository = {
     }
   },
 
-  /**
-   * Transactionally create a user document.
-   * Throws an error whose message contains "already-exists" when the document
-   * already exists, so callers can distinguish first-time sign-up from
-   * Google re-authentication.
-   */
   async createTransactionally(
     uid: string,
     data: { name: string; email: string; photoURL?: string },
@@ -68,11 +57,6 @@ export const UserRepository = {
     });
   },
 
-  /**
-   * Atomically update the pre-aggregated stat counters on the user document.
-   * All deltas are applied with FieldValue.increment so concurrent updates
-   * from different workers do not clobber each other.
-   */
   async updateStats(uid: string, delta: UserStatsDelta): Promise<void> {
     const update: Record<string, FirebaseFirestore.FieldValue> = {};
 
@@ -101,49 +85,57 @@ export const UserRepository = {
     }
   },
 
-  /**
-   * Recompute aggregate stats from source-of-truth interview session data.
-   * This is used by the maintenance API and as a dashboard self-heal path
-   * whenever the stored counters look suspicious.
-   */
   async reconcileStats(uid: string): Promise<UserStatsSnapshot> {
-    const sessionsSnapshot = await db
-      .collection("interview_sessions")
-      .where("userId", "==", uid)
-      .select("status", "finalScore")
-      .get();
+    // Snapshot-query the current session counts and write them atomically.
+    // Note: the collection queries use snapshot reads, not transactional reads,
+    // so a session completing between the queries and the write could introduce
+    // minor drift — this is acceptable for a reconciliation that is re-runnable.
+    const stats = await db.runTransaction(async (transaction) => {
+      const userRef = db.collection("users").doc(uid);
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists) {
+        throw new Error(`User ${uid} not found during stats reconciliation`);
+      }
 
-    const stats: UserStatsSnapshot = {
-      activeCount: 0,
-      completedCount: 0,
-      scoreSum: 0,
-      scoreCount: 0,
-    };
+      const [activeCountSnap, completedSnap] = await Promise.all([
+        db
+          .collection("interview_sessions")
+          .where("userId", "==", uid)
+          .where("status", "in", ["setup", "active"])
+          .count()
+          .get(),
+        db
+          .collection("interview_sessions")
+          .where("userId", "==", uid)
+          .where("status", "==", "completed")
+          .select("finalScore")
+          .get(),
+      ]);
 
-    sessionsSnapshot.docs.forEach((doc) => {
-      const data = doc.data();
+      const result: UserStatsSnapshot = {
+        activeCount: activeCountSnap.data().count,
+        completedCount: 0,
+        scoreSum: 0,
+        scoreCount: 0,
+      };
 
-      if (data.status === "completed") {
-        stats.completedCount += 1;
-
+      completedSnap.docs.forEach((doc) => {
+        result.completedCount += 1;
+        const data = doc.data();
         if (typeof data.finalScore === "number") {
-          stats.scoreSum += data.finalScore;
-          stats.scoreCount += 1;
+          result.scoreSum += data.finalScore;
+          result.scoreCount += 1;
         }
+      });
 
-        return;
-      }
+      transaction.update(userRef, {
+        "stats.activeCount": result.activeCount,
+        "stats.completedCount": result.completedCount,
+        "stats.scoreSum": result.scoreSum,
+        "stats.scoreCount": result.scoreCount,
+      });
 
-      if (data.status === "setup" || data.status === "active") {
-        stats.activeCount += 1;
-      }
-    });
-
-    await db.collection("users").doc(uid).update({
-      "stats.activeCount": stats.activeCount,
-      "stats.completedCount": stats.completedCount,
-      "stats.scoreSum": stats.scoreSum,
-      "stats.scoreCount": stats.scoreCount,
+      return result;
     });
 
     logger.info(
@@ -153,11 +145,6 @@ export const UserRepository = {
     return stats;
   },
 
-  /**
-   * Update the user's avatar URL.
-   * Called on every sign-in so the stored photoURL stays current if the user
-   * updates their Google profile picture.
-   */
   async updatePhotoURL(uid: string, photoURL: string): Promise<void> {
     try {
       await db.collection("users").doc(uid).update({ photoURL });
@@ -170,10 +157,6 @@ export const UserRepository = {
     }
   },
 
-  /**
-   * Update the user's display name.
-   * Trims whitespace and caps at 100 characters.
-   */
   async updateProfile(uid: string, data: { name: string }): Promise<void> {
     try {
       await db
@@ -191,17 +174,6 @@ export const UserRepository = {
     }
   },
 
-  /**
-   * Permanently delete a user account and all associated data.
-   *
-   * 1. Collects all document refs to delete (user, sessions, feedback,
-   *    templates, and transcript_chunks subcollections).
-   * 2. Transcript chunk subcollections are fetched in parallel (not
-   *    sequentially) to avoid O(N) serial round-trips for active users.
-   * 3. Deletes everything in Firestore batches (≤500 ops each).
-   * 4. Removes the Firebase Auth user last so Firestore cleanup always
-   *    runs first.
-   */
   async deleteAccount(uid: string): Promise<void> {
     const [sessionsSnap, feedbackSnap, templatesSnap] = await Promise.all([
       db
@@ -217,19 +189,21 @@ export const UserRepository = {
         .get(),
     ]);
 
-    // FIX: Fetch transcript_chunks subcollections in parallel instead of
-    // sequentially. The previous implementation awaited each read inside a
-    // for-loop, producing O(N) serial Firestore round-trips (~40ms each).
-    // A user with 50 sessions would stall for ~2 seconds before deletion began.
-    const chunkSnapshots = await Promise.all(
-      sessionsSnap.docs.map((doc) =>
-        doc.ref.collection("transcript_chunks").select().get(),
-      ),
-    );
     const transcriptChunkRefs: FirebaseFirestore.DocumentReference[] = [];
-    for (const snap of chunkSnapshots) {
-      for (const chunkDoc of snap.docs) {
-        transcriptChunkRefs.push(chunkDoc.ref);
+    const MAX_PARALLEL_CHUNKS = 10;
+
+    for (let i = 0; i < sessionsSnap.docs.length; i += MAX_PARALLEL_CHUNKS) {
+      const batchDocs = sessionsSnap.docs.slice(i, i + MAX_PARALLEL_CHUNKS);
+      const chunkSnapshots = await Promise.all(
+        batchDocs.map((doc) =>
+          doc.ref.collection("transcript_chunks").select().get(),
+        ),
+      );
+
+      for (const snap of chunkSnapshots) {
+        for (const chunkDoc of snap.docs) {
+          transcriptChunkRefs.push(chunkDoc.ref);
+        }
       }
     }
 
@@ -248,15 +222,10 @@ export const UserRepository = {
       await batch.commit();
     }
 
-    // Revoke all refresh tokens first so any in-flight Firebase ID tokens
-    // (valid for up to 1 hour) are invalidated immediately. Revoking before
-    // deleteUser means that if deleteUser fails transiently the account is
-    // still locked out and cannot be used to obtain new tokens in the interim.
+    // Revoke refresh tokens before deleting the Auth user.
     await auth.revokeRefreshTokens(uid);
     await auth.deleteUser(uid);
 
-    // Invalidate caches for all deleted templates so stale pages are not
-    // served after the author has removed their account.
     if (templatesSnap.docs.length > 0) {
       revalidateTag("templates-public", "max");
       for (const doc of templatesSnap.docs) {

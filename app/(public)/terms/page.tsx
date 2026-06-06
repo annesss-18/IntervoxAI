@@ -10,7 +10,7 @@ import {
 import { Container, PageHeader, Section } from "@/components/layout/Container";
 
 export const metadata: Metadata = {
-  title: "Terms of Service · IntervoxAI",
+  title: "Terms of Service",
   description: "Terms for using IntervoxAI.",
 };
 
@@ -71,7 +71,7 @@ export default function TermsPage() {
               return (
                 <div
                   key={term.title}
-                  className={`animate-fade-up fill-both flex items-start gap-5 rounded-2xl border border-border bg-card p-6 delay-${(i + 1) * 75}`}
+                  className={`animate-fade-up fill-both flex items-start gap-5 rounded-2xl border border-border bg-card p-6 ${["delay-75", "delay-150", "delay-225", "delay-300"][i]}`}
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 ring-1 ring-accent/20">
                     <Icon className="size-4.5 text-accent" />

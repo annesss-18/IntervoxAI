@@ -21,7 +21,7 @@ export function QuestionsPreview({ questions }: QuestionsPreviewProps) {
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx(null), 1500);
     } catch {
-      // clipboard API not available — silent fail
+      return;
     }
   };
 
@@ -86,7 +86,7 @@ export function QuestionsPreview({ questions }: QuestionsPreviewProps) {
               type="button"
               onClick={() => handleCopy(q, i)}
               title="Copy question"
-              className="opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-3 transition-all"
+              className="opacity-50 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 mt-0.5 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-3 transition-all"
             >
               {copiedIdx === i ? (
                 <Check className="size-3.5 text-success" />

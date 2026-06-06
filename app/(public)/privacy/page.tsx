@@ -4,7 +4,7 @@ import { Shield, Lock, Database, Eye, Server, Mail } from "lucide-react";
 import { Container, PageHeader, Section } from "@/components/layout/Container";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy · IntervoxAI",
+  title: "Privacy Policy",
   description: "How IntervoxAI handles and protects user data.",
 };
 
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
               return (
                 <div
                   key={item.title}
-                  className={`animate-fade-up fill-both flex items-start gap-5 rounded-2xl border border-border bg-card p-6 delay-${(i + 1) * 75}`}
+                  className={`animate-fade-up fill-both flex items-start gap-5 rounded-2xl border border-border bg-card p-6 ${["delay-75", "delay-150", "delay-225", "delay-300", "delay-400"][i]}`}
                 >
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
                     <Icon className="size-4.5 text-primary" />

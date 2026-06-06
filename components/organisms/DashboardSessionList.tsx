@@ -37,7 +37,6 @@ export function DashboardSessionList({
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
 
-  // Filter state — only applied client-side over the already-loaded sessions.
   const [query, setQuery] = useState("");
   const [scoreMin, setScoreMin] = useState(0);
 
@@ -60,7 +59,6 @@ export function DashboardSessionList({
     }
   }, [cursor, loading, status]);
 
-  // Derived filtered list — runs synchronously on each render.
   const filteredSessions = sessions.filter((s) => {
     const q = query.toLowerCase().trim();
     const matchesText =
@@ -78,15 +76,12 @@ export function DashboardSessionList({
   const hasActiveFilter = query.trim().length > 0 || scoreMin > 0;
   const hasNoData = sessions.length === 0 && !cursor;
 
-  // If we have no data at all, skip the filter bar and show the contextual
-  // empty state provided by the parent.
   if (hasNoData) {
     return <>{emptyState}</>;
   }
 
   return (
     <>
-      {/* Filter bar */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1 sm:max-w-xs">
           <Input
@@ -146,7 +141,6 @@ export function DashboardSessionList({
         )}
       </div>
 
-      {/* Results */}
       {filteredSessions.length === 0 ? (
         <div className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/40 py-12 text-center">
           <div className="flex flex-col items-center gap-3 px-8">
@@ -176,8 +170,6 @@ export function DashboardSessionList({
         </div>
       )}
 
-      {/* Load more — only show when not filtering, since the filter operates
-          over loaded data and loading more would expand the pool being filtered */}
       {cursor && !hasActiveFilter && (
         <div className="mt-6 flex justify-center">
           <Button

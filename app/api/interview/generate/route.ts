@@ -4,7 +4,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuth } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import {
   ALLOWED_VOICE_NAMES,
@@ -21,14 +21,10 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-const TEMPLATE_GENERATION_MODEL =
-  process.env.TEMPLATE_GENERATION_MODEL || "gemini-2.5-pro";
+const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
 
-if (!process.env.TEMPLATE_GENERATION_MODEL) {
-  console.warn(
-    "[ENV] TEMPLATE_GENERATION_MODEL is not set — defaulting to 'gemini-2.5-pro'. " +
-      "Template generation will fail if TEMPLATE_GENERATION_API_KEY is also missing.",
-  );
+if (!TEMPLATE_GENERATION_MODEL) {
+  throw new Error("TEMPLATE_GENERATION_MODEL is required");
 }
 
 const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
@@ -212,7 +208,6 @@ export const POST = withAuth(
         validatedData.companyName || "a leading tech company";
       const levelCalibration = getLevelCalibration(validatedData.level);
 
-      // Build the template prompt from the validated role, company, and JD context.
       const constructedPrompt = `
 You are a Principal Interview Architect. Create a high-fidelity interview template that feels like a real engineer at ${companyLabel} is speaking with the candidate, not a generic HR script.
 
@@ -285,7 +280,6 @@ It must include:
 
       const generatedData = result.object;
 
-      // Merge user-provided and model-proposed stack terms into a bounded unique list.
       const templateData: Omit<InterviewTemplate, "id"> = {
         ...generatedData,
         role: validatedData.role,
@@ -313,8 +307,6 @@ It must include:
 
       const templateId = await TemplateRepository.create(templateData);
 
-      // Use the Next.js 16 "max" profile so cache invalidation stays
-      // stale-while-revalidate instead of blocking on eager recomputation.
       if (templateData.isPublic) {
         revalidateTag("templates-public", "max");
         revalidateTag(`template:${templateId}`, "max");

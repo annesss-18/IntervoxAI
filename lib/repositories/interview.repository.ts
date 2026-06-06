@@ -436,11 +436,12 @@ export const InterviewRepository = {
     limit: number = 50,
   ): Promise<InterviewSessionRecord[]> {
     try {
+      // Over-fetch to preserve the requested limit after filtering scoreless sessions.
       const snapshot = await db
         .collection("interview_sessions")
         .where("userId", "==", userId)
         .where("status", "==", "completed")
-        .orderBy("startedAt", "asc")
+        .orderBy("startedAt", "desc")
         .select(
           "templateId",
           "templateSnapshot",
@@ -449,10 +450,10 @@ export const InterviewRepository = {
           "startedAt",
           "finalScore",
         )
-        .limit(limit)
+        .limit(limit * 3)
         .get();
 
-      return snapshot.docs
+      const sessions = snapshot.docs
         .map((doc) => {
           const data = doc.data();
 
@@ -463,6 +464,8 @@ export const InterviewRepository = {
           } as InterviewSessionRecord;
         })
         .filter((session) => session.finalScore != null);
+
+      return sessions.slice(0, limit);
     } catch (error) {
       logger.error("Error fetching completed sessions with scores:", error);
       return [];

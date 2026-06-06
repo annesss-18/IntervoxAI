@@ -53,7 +53,6 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
                 key={i}
                 className={`flex gap-3 ${isAI ? "" : "flex-row-reverse"}`}
               >
-                {/* Avatar */}
                 <div
                   className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
                     isAI ? "bg-primary/12" : "bg-secondary/12"
@@ -66,7 +65,6 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
                   )}
                 </div>
 
-                {/* Bubble */}
                 <div
                   className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     isAI

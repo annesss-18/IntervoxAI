@@ -6,17 +6,31 @@ const { interviewSessionsGetMock, userUpdateMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("@/firebase/admin", () => {
-  const interviewSessionsCollection = {
+  const createQuery = () => ({
     where: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
+    count: vi.fn().mockReturnValue({
+      get: vi.fn().mockResolvedValue({
+        data: () => ({ count: 2 }),
+      }),
+    }),
     get: interviewSessionsGetMock,
-  };
+  });
 
   return {
     db: {
+      runTransaction: vi.fn(async (fn: (t: unknown) => Promise<unknown>) => {
+        const transaction = {
+          get: vi.fn().mockResolvedValue({ exists: true, data: () => ({}) }),
+          update: vi.fn((_ref: unknown, data: unknown) => {
+            userUpdateMock(data);
+          }),
+        };
+        return fn(transaction);
+      }),
       collection: vi.fn((name: string) => {
         if (name === "interview_sessions") {
-          return interviewSessionsCollection;
+          return createQuery();
         }
 
         if (name === "users") {
@@ -55,11 +69,8 @@ describe("UserRepository.reconcileStats", () => {
   it("recomputes aggregate counters from interview sessions and persists them", async () => {
     interviewSessionsGetMock.mockResolvedValue({
       docs: [
-        { data: () => ({ status: "setup" }) },
-        { data: () => ({ status: "active" }) },
         { data: () => ({ status: "completed", finalScore: 84 }) },
         { data: () => ({ status: "completed" }) },
-        { data: () => ({ status: "expired", finalScore: 99 }) },
       ],
     });
 

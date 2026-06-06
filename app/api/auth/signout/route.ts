@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { withRateLimit } from "@/lib/api-middleware";
+import { withRateLimit } from "@/lib/server/api-middleware";
 import { auth as adminAuth } from "@/firebase/admin";
 import { logger } from "@/lib/logger";
 

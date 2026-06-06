@@ -16,6 +16,7 @@ import {
 } from "@/lib/actions/interview.action";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { Container, PageHeader } from "@/components/layout/Container";
+import { EmptyState } from "@/components/molecules/EmptyState";
 import {
   Tabs,
   TabsContent,
@@ -28,7 +29,7 @@ import { TemplateCard } from "@/components/organisms/TemplateCard";
 import { ScoreTrendChart } from "@/components/organisms/ScoreTrendChart";
 
 export const metadata: Metadata = {
-  title: "Dashboard - IntervoxAI",
+  title: "Dashboard",
   description:
     "Manage your mock interviews, track progress, and create new interview templates.",
 };
@@ -77,14 +78,29 @@ function needsStatsReconciliation(args: {
     completedSessionsLoaded === 0 &&
     !completedCursor;
 
+  // Detect counter-below-loaded: a failed best-effort increment left the
+  // stored counter lower than the actual row count we just loaded.
+  // When there is no cursor (we loaded the full set), the counter should be
+  // >= loaded count.  A lower stored value means a write was lost.
+  const activeCountBelowLoaded =
+    typeof activeCount === "number" &&
+    !activeCursor &&
+    activeCount < activeSessionsLoaded;
+
+  const completedCountBelowLoaded =
+    typeof completedCount === "number" &&
+    !completedCursor &&
+    completedCount < completedSessionsLoaded;
+
   return (
     hasNegativeCounters ||
     hasImpossibleScoreState ||
     activeLooksDrifted ||
-    completedLooksDrifted
+    completedLooksDrifted ||
+    activeCountBelowLoaded ||
+    completedCountBelowLoaded
   );
 }
-
 export default async function DashboardPage() {
   const user = (await getCurrentUser())!;
   const [activeSessionsPage, completedSessionsPage, templates] =
@@ -112,8 +128,6 @@ export default async function DashboardPage() {
     ? await UserRepository.reconcileStats(user.id)
     : user.stats;
 
-  // Prefer pre-aggregated stats and fall back to session-derived values for
-  // legacy users.
   const activeCount = Math.max(
     0,
     resolvedStats?.activeCount ?? activeSessions.length,
@@ -155,7 +169,6 @@ export default async function DashboardPage() {
         </Link>
       </PageHeader>
 
-      {/* ── Metric cards ─────────────────────────────────────────────────── */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Active Sessions"
@@ -184,7 +197,6 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────── */}
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="mb-6 w-full sm:w-auto">
           <TabsTrigger value="active">
@@ -213,7 +225,6 @@ export default async function DashboardPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Practice tab */}
         <TabsContent value="active">
           <DashboardSessionList
             initialSessions={activeSessions}
@@ -237,8 +248,6 @@ export default async function DashboardPage() {
           />
         </TabsContent>
 
-        {/* History tab — ScoreTrendChart is mounted here so it only fetches
-            data when the user navigates to this tab. */}
         <TabsContent value="history">
           <ScoreTrendChart />
           <DashboardSessionList
@@ -255,7 +264,6 @@ export default async function DashboardPage() {
           />
         </TabsContent>
 
-        {/* Templates tab */}
         <TabsContent value="templates">
           {templates.length > 0 ? (
             <CardGrid>
@@ -285,9 +293,6 @@ export default async function DashboardPage() {
     </Container>
   );
 }
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
 function CardGrid({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">{children}</div>
@@ -356,39 +361,6 @@ function MetricCard({
         >
           {icon}
         </span>
-      </div>
-    </div>
-  );
-}
-
-function EmptyState({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/40 py-16 text-center">
-      <div
-        className="pointer-events-none absolute inset-0 -z-0 opacity-30"
-        style={{ background: "var(--gradient-brand-subtle)" }}
-      />
-      <div className="relative z-10 flex flex-col items-center gap-4 px-8">
-        <div className="flex size-16 items-center justify-center rounded-2xl border border-border bg-card shadow-[var(--shadow-sm)]">
-          {icon}
-        </div>
-        <div className="space-y-1.5">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground leading-relaxed">
-            {description}
-          </p>
-        </div>
-        {action && <div className="mt-1">{action}</div>}
       </div>
     </div>
   );

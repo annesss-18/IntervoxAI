@@ -1,7 +1,7 @@
 // Recompute the signed-in user's aggregate stats from source-of-truth session and feedback data.
 
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuth } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import type { User } from "@/types";

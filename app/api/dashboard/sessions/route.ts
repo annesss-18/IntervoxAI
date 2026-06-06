@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { InterviewService } from "@/lib/services/interview.service";
 import type { AuthClaims, SessionStatusFilter } from "@/types";

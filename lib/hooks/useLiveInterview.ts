@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   GoogleGenAI,
   LiveServerMessage,
@@ -54,10 +54,7 @@ const CHECKPOINT_INTERVAL_MS = 30_000;
 const CHECKPOINT_TURN_THRESHOLD = 10;
 const RECENT_MODEL_TEXT_LIMIT = 2000;
 
-// Minimum number of completed model turns before closing-phrase detection
-// activates. Guards against false positives from opening pleasantries:
-// e.g., "It was great connecting with you" during introductions would otherwise
-// trigger an auto-end 8 seconds into the first exchange.
+// Avoid closing detection during opening pleasantries.
 const MIN_MODEL_TURNS_FOR_CLOSE_DETECTION = 4;
 
 function estimateBase64Bytes(base64Data: string): number {
@@ -121,15 +118,18 @@ export function useLiveInterview(
     holdInitialPrompt = false,
   } = options;
 
-  const initialTranscriptRef = useRef(
-    normalizeInitialTranscript(initialTranscript),
+  const initialTranscriptValue = useMemo(
+    () => normalizeInitialTranscript(initialTranscript),
+    [initialTranscript],
   );
+
+  const checkpointTranscriptRef = useRef<(() => Promise<void>) | null>(null);
 
   const [isHeld, setIsHeld] = useState(holdInitialPrompt);
   const [status, setStatus] = useState<ConnectionStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>(
-    initialTranscriptRef.current,
+    () => initialTranscriptValue,
   );
   const [isAIResponding, setIsAIResponding] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -139,7 +139,7 @@ export function useLiveInterview(
   );
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
 
-  const transcriptRef = useRef<TranscriptEntry[]>(initialTranscriptRef.current);
+  const transcriptRef = useRef<TranscriptEntry[]>(initialTranscriptValue);
   const sessionIdRef = useRef(sessionId);
   const templateIdRef = useRef(templateId);
   const sessionRef = useRef<Session | null>(null);
@@ -157,11 +157,9 @@ export function useLiveInterview(
   const connectingPromiseRef = useRef<Promise<void> | null>(null);
   const checkpointTimerRef = useRef<NodeJS.Timeout | null>(null);
   const checkpointInFlightRef = useRef(false);
-  const lastCheckpointTurnCountRef = useRef(
-    initialTranscriptRef.current.length,
-  );
+  const lastCheckpointTurnCountRef = useRef(initialTranscriptValue.length);
+  const checkpointConflictRetryRef = useRef(0);
   const hasInitialPromptSentRef = useRef(false);
-  // Tracks completed model turns for the min-turn closing detection guard.
   const modelTurnCountRef = useRef(0);
 
   useEffect(() => {
@@ -199,6 +197,15 @@ export function useLiveInterview(
       }
 
       if (response.status === 409) {
+        checkpointConflictRetryRef.current += 1;
+        if (checkpointConflictRetryRef.current > 3) {
+          logger.warn(
+            `Transcript checkpoint conflict retry limit reached for session ${sessionIdRef.current}`,
+          );
+          checkpointConflictRetryRef.current = 0;
+          return;
+        }
+
         const expectedBase =
           payload &&
           typeof payload === "object" &&
@@ -208,8 +215,9 @@ export function useLiveInterview(
             : checkpointBase;
 
         lastCheckpointTurnCountRef.current = expectedBase;
-        // Immediately retry to flush any entries above expectedBase.
-        setTimeout(() => void checkpointTranscript(), 100);
+        setTimeout(() => {
+          void checkpointTranscriptRef.current?.();
+        }, 100);
         return;
       }
 
@@ -226,6 +234,7 @@ export function useLiveInterview(
           : checkpointBase + appendEntries.length;
 
       lastCheckpointTurnCountRef.current = nextCheckpointBase;
+      checkpointConflictRetryRef.current = 0;
     } catch (checkpointError) {
       logger.warn(
         `Transcript checkpoint failed for session ${sessionIdRef.current}`,
@@ -235,6 +244,14 @@ export function useLiveInterview(
       checkpointInFlightRef.current = false;
     }
   }, []);
+
+  useEffect(() => {
+    checkpointTranscriptRef.current = checkpointTranscript;
+
+    return () => {
+      checkpointTranscriptRef.current = null;
+    };
+  }, [checkpointTranscript]);
 
   const commitTranscriptEntry = useCallback(
     (entry: TranscriptEntry) => {
@@ -371,11 +388,6 @@ export function useLiveInterview(
         const modelText = message.serverContent.outputTranscription.text;
         if (modelText) {
           if (lastSpeakerRef.current !== "model") {
-            // FIX: When the model starts speaking, flush any pending user
-            // transcript immediately rather than waiting for the 1500 ms timeout.
-            // Previously, if the timeout fired after the model turn started, the
-            // stale partial user text was committed as a new transcript entry,
-            // producing duplicate or fragmented entries interleaved with model turns.
             if (userTranscriptTimeoutRef.current) {
               clearTimeout(userTranscriptTimeoutRef.current);
               userTranscriptTimeoutRef.current = null;
@@ -425,33 +437,14 @@ export function useLiveInterview(
         setIsAIResponding(false);
         modelTurnBufferRef.current = "";
 
-        // ── Closing phrase detection ────────────────────────────────────────
-        //
-        // Three improvements over the previous implementation:
-        //
-        // 1. MIN_MODEL_TURNS_FOR_CLOSE_DETECTION guard prevents false positives
-        //    from opening pleasantries. The interview must be substantively
-        //    underway before any closing phrase triggers auto-end.
-        //
-        // 2. Expanded phrase list covers the specific phrases the system prompt
-        //    instructs the AI to use, plus common natural variants the AI may
-        //    produce. The previous 13-phrase list missed many standard closings.
-        //
-        // 3. Delay increased from 5000 ms to 8000 ms. The AI typically delivers
-        //    2–4 sentence closings after the detection phrase. 5 seconds was
-        //    frequently too short for the audio to finish before the submission
-        //    flow began, causing the closing statement to be cut off.
-
         if (
           !closingDetectedRef.current &&
           modelTurnCountRef.current >= MIN_MODEL_TURNS_FOR_CLOSE_DETECTION
         ) {
           const closingPhrases = [
-            // Phrases the system prompt explicitly instructs the AI to use:
             "thank you so much for your time today",
             "it's been really great speaking with you",
             "best of luck — i genuinely hope to see you",
-            // Common natural closing variants:
             "thank you for your time",
             "thanks for your time",
             "thanks so much for your time",

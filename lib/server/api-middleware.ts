@@ -5,52 +5,89 @@ import {
 } from "@/lib/actions/auth.action";
 import { logger } from "@/lib/logger";
 import { checkRateLimit, RateLimitConfig } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/server/request";
 import type { AuthClaims, User } from "@/types";
+
+const PRE_AUTH_RATE_LIMIT_WINDOW_MS = 60_000;
+const PRE_AUTH_RATE_LIMIT_MIN = 30;
+const PRE_AUTH_RATE_LIMIT_MAX = 60;
 
 function getRequestScope(req: NextRequest): string {
   return `${req.method}:${req.nextUrl.pathname}`;
 }
 
-// Extract the client IP with best-effort accuracy.
-// Accurate results depend on a trusted proxy normalizing forwarded headers.
-function getClientIp(req: NextRequest): string {
-  // Prefer x-real-ip (set by trusted proxies) over x-forwarded-for.
-  const realIp = req.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
+function buildRateLimitResponse(args: {
+  config: RateLimitConfig;
+  remaining: number;
+  resetTime: number;
+  scope: string;
+}): NextResponse {
+  const retryAfter = Math.ceil((args.resetTime - Date.now()) / 1000);
 
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) return firstIp;
-  }
-
-  return "unknown";
+  return NextResponse.json(
+    {
+      error: "Too many requests. Please try again later.",
+      retryAfter,
+    },
+    {
+      status: 429,
+      headers: {
+        "Retry-After": retryAfter.toString(),
+        "X-RateLimit-Limit": args.config.maxRequests?.toString() || "10",
+        "X-RateLimit-Remaining": args.remaining.toString(),
+        "X-RateLimit-Reset": new Date(args.resetTime).toISOString(),
+        "X-RateLimit-Scope": args.scope,
+      },
+    },
+  );
 }
 
-/**
- * Validate the request origin for mutation methods (POST, PATCH, PUT, DELETE).
- *
- * The primary CSRF defence is SameSite=strict session cookies, which prevent
- * the browser from sending credentials on cross-origin requests. This check
- * adds a defence-in-depth layer by validating (or requiring) the Origin header.
- *
- * FIX: In production, requests that are missing the Origin header entirely are
- * now rejected with 403. All modern browsers include Origin for
- * POST/PATCH/PUT/DELETE fetch() calls. A missing Origin on these routes
- * indicates an unusual caller (non-browser script, misconfigured proxy) rather
- * than a legitimate user action, so failing closed is the safer choice.
- *
- * When Origin is present, it is compared against NEXT_PUBLIC_APP_URL or the
- * inferred host. x-forwarded-proto and host headers are only used as a fallback
- * when NEXT_PUBLIC_APP_URL is not set; set it in production to prevent origin
- * spoofing via those headers.
- */
+function getPreAuthRateLimitConfig(
+  routeConfig?: RateLimitConfig,
+): RateLimitConfig {
+  const routeMax = routeConfig?.maxRequests ?? PRE_AUTH_RATE_LIMIT_MIN;
+  return {
+    maxRequests: Math.min(
+      Math.max(routeMax, PRE_AUTH_RATE_LIMIT_MIN),
+      PRE_AUTH_RATE_LIMIT_MAX,
+    ),
+    windowMs: PRE_AUTH_RATE_LIMIT_WINDOW_MS,
+    failClosed: true,
+  };
+}
+
+async function validatePreAuthRateLimit(
+  req: NextRequest,
+  routeConfig?: RateLimitConfig,
+): Promise<NextResponse | null> {
+  const ip = getClientIp(req);
+  const scope = `pre-auth:${getRequestScope(req)}`;
+  const config = getPreAuthRateLimitConfig(routeConfig);
+  const rateLimit = await checkRateLimit(`${ip}:${scope}`, config);
+
+  if (rateLimit.allowed) return null;
+
+  logger.warn(`Pre-auth rate limit exceeded for IP ${ip}`);
+  return buildRateLimitResponse({
+    config,
+    remaining: 0,
+    resetTime: rateLimit.resetTime,
+    scope,
+  });
+}
+
 function validateCsrfOrigin(req: NextRequest): NextResponse | null {
   const mutationMethods = ["POST", "PATCH", "PUT", "DELETE"];
   if (!mutationMethods.includes(req.method)) return null;
 
-  // DELETE carries no body so Content-Type validation is skipped for it.
-  if (req.method !== "DELETE") {
+  const contentLength = req.headers.get("content-length");
+  const transferEncoding = req.headers.get("transfer-encoding");
+  const hasBody =
+    (contentLength !== null && contentLength !== "0") ||
+    Boolean(transferEncoding);
+
+  // Mutation bodies must use a structured type.
+  if (hasBody) {
     const contentType = req.headers.get("content-type") ?? "";
     const allowedTypes = ["application/json", "multipart/form-data"];
     const hasAllowedType = allowedTypes.some((type) =>
@@ -69,9 +106,6 @@ function validateCsrfOrigin(req: NextRequest): NextResponse | null {
 
   const origin = req.headers.get("origin");
 
-  // FIX: Require Origin header in production. Modern browsers always send it
-  // for non-GET/HEAD fetch() requests. Its absence signals a non-browser
-  // caller which should not hold a valid session cookie under SameSite=strict.
   if (!origin) {
     return NextResponse.json(
       { error: "Forbidden: missing request origin" },
@@ -79,9 +113,6 @@ function validateCsrfOrigin(req: NextRequest): NextResponse | null {
     );
   }
 
-  // Compare against the canonical app URL. Fall back to reconstructing from
-  // request headers only when NEXT_PUBLIC_APP_URL is not configured (which
-  // should not happen in production — set it to prevent header-spoofing risk).
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("host") ?? "";
@@ -109,6 +140,12 @@ function createAuthWrapper<
     const csrfError = validateCsrfOrigin(req);
     if (csrfError) return csrfError;
 
+    const preAuthRateLimitError = await validatePreAuthRateLimit(
+      req,
+      rateLimitConfig,
+    );
+    if (preAuthRateLimitError) return preAuthRateLimitError;
+
     const user = await resolveUser();
 
     if (!user) {
@@ -123,30 +160,19 @@ function createAuthWrapper<
       const rateLimit = await checkRateLimit(identifier, rateLimitConfig);
 
       if (!rateLimit.allowed) {
-        const retryAfter = Math.ceil((rateLimit.resetTime - Date.now()) / 1000);
-
         logger.warn(`Rate limit exceeded for user ${user.id}`);
 
-        return NextResponse.json(
-          {
-            error: "Too many requests. Please try again later.",
-            retryAfter,
-          },
-          {
-            status: 429,
-            headers: {
-              "Retry-After": retryAfter.toString(),
-              "X-RateLimit-Limit":
-                rateLimitConfig.maxRequests?.toString() || "10",
-              "X-RateLimit-Remaining": "0",
-              "X-RateLimit-Reset": new Date(rateLimit.resetTime).toISOString(),
-            },
-          },
-        );
+        return buildRateLimitResponse({
+          config: rateLimitConfig,
+          remaining: 0,
+          resetTime: rateLimit.resetTime,
+          scope: getRequestScope(req),
+        });
       }
 
       const response = await handler(req, user, ...args);
 
+      response.headers.set("Cache-Control", "no-store");
       response.headers.set(
         "X-RateLimit-Limit",
         rateLimitConfig.maxRequests?.toString() || "10",
@@ -164,7 +190,9 @@ function createAuthWrapper<
       return response;
     }
 
-    return handler(req, user, ...args);
+    const response = await handler(req, user, ...args);
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   };
 }
 
@@ -191,10 +219,6 @@ export function withRateLimit<TArgs extends unknown[]>(
   config: RateLimitConfig = {},
 ) {
   return async (req: NextRequest, ...args: TArgs): Promise<Response> => {
-    // Apply CSRF origin validation to mutation methods (POST, PATCH, PUT,
-    // DELETE). The SameSite=strict session cookie is the primary defence;
-    // this check adds defence-in-depth for unauthenticated endpoints such
-    // as /api/auth/signout that rely on withRateLimit instead of withAuth.
     const csrfError = validateCsrfOrigin(req);
     if (csrfError) return csrfError;
 
@@ -204,25 +228,14 @@ export function withRateLimit<TArgs extends unknown[]>(
     const rateLimit = await checkRateLimit(identifier, config);
 
     if (!rateLimit.allowed) {
-      const retryAfter = Math.ceil((rateLimit.resetTime - Date.now()) / 1000);
-
       logger.warn(`Rate limit exceeded for IP ${ip}`);
 
-      return NextResponse.json(
-        {
-          error: "Too many requests. Please try again later.",
-          retryAfter,
-        },
-        {
-          status: 429,
-          headers: {
-            "Retry-After": retryAfter.toString(),
-            "X-RateLimit-Limit": config.maxRequests?.toString() || "10",
-            "X-RateLimit-Remaining": "0",
-            "X-RateLimit-Reset": new Date(rateLimit.resetTime).toISOString(),
-          },
-        },
-      );
+      return buildRateLimitResponse({
+        config,
+        remaining: 0,
+        resetTime: rateLimit.resetTime,
+        scope: getRequestScope(req),
+      });
     }
 
     const response = await handler(req, ...args);

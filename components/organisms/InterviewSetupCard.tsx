@@ -36,7 +36,6 @@ interface InterviewSetupCardProps {
   onResumeUploaded: (text: string) => void;
   onResumeClear: () => void;
   onStart: () => void;
-  /** When provided, shows an "about your interviewer" section before start. */
   interviewerPersona?: InterviewerPersona;
 }
 
@@ -69,7 +68,6 @@ export function InterviewSetupCard({
         </p>
       </div>
 
-      {/* Interviewer persona card */}
       {interviewerPersona && (
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
@@ -99,7 +97,6 @@ export function InterviewSetupCard({
         </div>
       )}
 
-      {/* Resume context */}
       <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">

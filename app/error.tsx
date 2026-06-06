@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Button } from "@/components/atoms/button";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
+import { BrandIcon } from "@/components/molecules/BrandLogo";
 
 export default function Error({
   error,
@@ -21,10 +22,13 @@ export default function Error({
       />
 
       <div className="relative animate-fade-up max-w-md space-y-8">
-        <div className="relative mx-auto flex size-24 items-center justify-center">
-          <div className="absolute inset-0 rounded-2xl bg-error/20 blur-xl" />
-          <div className="relative flex size-24 items-center justify-center rounded-2xl border border-error/30 bg-error/10 shadow-[var(--shadow-lg)]">
-            <AlertTriangle className="size-10 text-error" />
+        <div className="flex flex-col items-center gap-5">
+          <BrandIcon size={36} className="opacity-80" />
+          <div className="relative mx-auto flex size-24 items-center justify-center">
+            <div className="absolute inset-0 rounded-2xl bg-error/20 blur-xl" />
+            <div className="relative flex size-24 items-center justify-center rounded-2xl border border-error/30 bg-error/10 shadow-[var(--shadow-lg)]">
+              <AlertTriangle className="size-10 text-error" />
+            </div>
           </div>
         </div>
 

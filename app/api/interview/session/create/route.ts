@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { db } from "@/firebase/admin";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { firestoreIdSchema } from "@/lib/schemas";
@@ -13,11 +13,6 @@ const ALLOWED_DURATIONS = [15, 30, 45, 60] as const;
 
 const createSessionSchema = z.object({
   templateId: firestoreIdSchema,
-  /**
-   * Desired interview duration in minutes.
-   * Client sends a number literal; defaults to 15 for backward compatibility
-   * with callers that predate this field.
-   */
   durationMinutes: z
     .number()
     .int()
@@ -101,7 +96,6 @@ export const POST = withAuthClaims(
 
       const templateSnapshot = buildTemplateSnapshot(templateData);
 
-      // Create the session and increment template usage atomically.
       const sessionId = await db.runTransaction(async (transaction) => {
         const newSessionRef = db.collection("interview_sessions").doc();
         const now = new Date().toISOString();
@@ -136,6 +130,13 @@ export const POST = withAuthClaims(
             err,
           ),
       );
+
+      logger.audit("session.created", {
+        actorId: user.id,
+        sessionId,
+        templateId,
+        durationMinutes,
+      });
 
       return NextResponse.json({ sessionId });
     } catch (error) {

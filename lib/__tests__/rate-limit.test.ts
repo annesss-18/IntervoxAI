@@ -7,12 +7,22 @@ vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
 vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
 
 vi.mock("@/lib/logger", () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+  logger: {
+    audit: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  },
 }));
 
 describe("checkRateLimit (in-memory fallback)", () => {
   beforeEach(() => {
     vi.resetModules();
+    vi.doUnmock("@upstash/redis");
+    vi.doUnmock("@upstash/ratelimit");
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
   });
 
   it("allows requests up to the limit", async () => {
@@ -64,5 +74,39 @@ describe("checkRateLimit (in-memory fallback)", () => {
 
     const allowed = await checkRateLimit("user-E:POST:/api/test", config);
     expect(allowed.allowed).toBe(true);
+  });
+
+  it("fails closed when the Redis limiter errors and failClosed is enabled", async () => {
+    vi.stubEnv("UPSTASH_REDIS_REST_URL", "https://redis.example.com");
+    vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "redis-token");
+
+    const limitMock = vi.fn(async () => {
+      throw new Error("redis unavailable");
+    });
+
+    vi.doMock("@upstash/redis", () => ({
+      Redis: vi.fn(),
+    }));
+    vi.doMock("@upstash/ratelimit", () => {
+      const Ratelimit = Object.assign(
+        vi.fn(function RatelimitMock() {
+          return { limit: limitMock };
+        }),
+        { slidingWindow: vi.fn(() => ({})) },
+      );
+
+      return { Ratelimit };
+    });
+
+    const { checkRateLimit } = await import("../rate-limit");
+    const result = await checkRateLimit("user-F:POST:/api/test", {
+      maxRequests: 1,
+      windowMs: 1000,
+      failClosed: true,
+    });
+
+    expect(limitMock).toHaveBeenCalledWith("user-F:POST:/api/test");
+    expect(result.allowed).toBe(false);
+    expect(result.remaining).toBe(0);
   });
 });

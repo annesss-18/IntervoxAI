@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import { Navbar } from "@/components/layout/Navbar";
 import { FooterCompact } from "@/components/layout/Footer";
@@ -12,9 +11,6 @@ export default async function RootLayout({
   const user = await getCurrentUser();
 
   if (!user) {
-    // Clear stale session cookies before redirecting to avoid auth redirect loops.
-    const cookieStore = await cookies();
-    cookieStore.delete("session");
     redirect("/sign-in");
   }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Compass } from "lucide-react";
 import { Button } from "@/components/atoms/button";
+import { BrandIcon } from "@/components/molecules/BrandLogo";
 
 export default function NotFound() {
   return (
@@ -19,10 +20,13 @@ export default function NotFound() {
       />
 
       <div className="relative animate-fade-up space-y-8 max-w-lg">
-        <div className="relative mx-auto flex size-24 items-center justify-center">
-          <div className="absolute inset-0 rounded-2xl bg-brand-gradient opacity-15 blur-xl" />
-          <div className="relative flex size-24 items-center justify-center rounded-2xl border border-border bg-card shadow-[var(--shadow-lg)]">
-            <Compass className="size-10 text-muted-foreground" />
+        <div className="flex flex-col items-center gap-5">
+          <BrandIcon size={36} className="opacity-80" />
+          <div className="relative mx-auto flex size-24 items-center justify-center">
+            <div className="absolute inset-0 rounded-2xl bg-brand-gradient opacity-15 blur-xl" />
+            <div className="relative flex size-24 items-center justify-center rounded-2xl border border-border bg-card shadow-[var(--shadow-lg)]">
+              <Compass className="size-10 text-muted-foreground" />
+            </div>
           </div>
         </div>
 

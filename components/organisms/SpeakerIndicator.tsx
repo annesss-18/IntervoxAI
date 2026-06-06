@@ -10,6 +10,7 @@ interface SpeakerIndicatorProps {
   isAIResponding: boolean;
   isUserSpeaking: boolean;
   isMuted: boolean;
+  variant?: "card" | "compact";
 }
 const BAR_HEIGHTS = [14, 28, 20, 36, 26, 32, 18, 30, 22];
 
@@ -19,6 +20,7 @@ export function SpeakerIndicator({
   isAIResponding,
   isUserSpeaking,
   isMuted,
+  variant = "card",
 }: SpeakerIndicatorProps) {
   const isInterviewer = role === "interviewer";
   const isConnecting = connectionStatus === "connecting";
@@ -65,6 +67,52 @@ export function SpeakerIndicator({
   const barGradient = isInterviewer
     ? "from-primary/50 to-primary"
     : "from-info/50 to-info";
+
+  if (variant === "compact") {
+    return (
+      <div
+        className={cn(
+          "flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors duration-300",
+          isActive
+            ? isInterviewer
+              ? "border-primary/25 bg-primary/8"
+              : "border-info/25 bg-info/8"
+            : isMutedCandidate
+              ? "border-error/20 bg-error/8"
+              : "border-border bg-surface-2/40",
+        )}
+      >
+        <div
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-full border-[1.5px] transition-all duration-300 [&>svg]:size-3.5",
+            iconRing,
+            isActive && "scale-105",
+          )}
+        >
+          {iconEl}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] font-medium text-foreground leading-tight truncate">
+            {isInterviewer ? "AI Interviewer" : "You"}
+          </p>
+          <p
+            className={cn(
+              "text-[10px] leading-tight truncate transition-colors duration-300",
+              isActive
+                ? isInterviewer
+                  ? "text-primary"
+                  : "text-info"
+                : isMutedCandidate
+                  ? "text-error"
+                  : "text-muted-foreground",
+            )}
+          >
+            {statusLabel}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

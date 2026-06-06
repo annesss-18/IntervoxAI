@@ -81,7 +81,6 @@ export default function ExploreClient({
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
-      // Search filter: match against role, company, or tech stack
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
         const matchesSearch =
@@ -91,12 +90,10 @@ export default function ExploreClient({
         if (!matchesSearch) return false;
       }
 
-      // Type filter: OR within the dimension
       if (activeTypes.size > 0 && !activeTypes.has(t.type)) {
         return false;
       }
 
-      // Level filter: OR within the dimension
       if (activeLevels.size > 0 && !activeLevels.has(t.level)) {
         return false;
       }
@@ -115,7 +112,6 @@ export default function ExploreClient({
       />
 
       <div className="mb-8 space-y-5 rounded-2xl border border-border bg-card p-5">
-        {/* ── Sort Toggle ── */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">
             Sort:
@@ -131,7 +127,7 @@ export default function ExploreClient({
                 className={cn(
                   "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-200",
                   isActive
-                    ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.15)]"
+                    ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_8px_color-mix(in_srgb,var(--primary)_15%,transparent)]"
                     : "border-border bg-transparent text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground",
                 )}
               >
@@ -144,7 +140,6 @@ export default function ExploreClient({
 
         <div className="h-px bg-border/60" />
 
-        {/* ── Search & Count ── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <div className="relative flex-1">
             <Input
@@ -175,7 +170,6 @@ export default function ExploreClient({
           </div>
         </div>
 
-        {/* ── Type & Level Filters ── */}
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground font-medium">
             Type:
@@ -190,7 +184,7 @@ export default function ExploreClient({
                 className={cn(
                   "rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
                   isActive
-                    ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_8px_rgba(var(--primary-rgb),0.15)]"
+                    ? "border-primary/40 bg-primary/10 text-primary shadow-[0_0_8px_color-mix(in_srgb,var(--primary)_15%,transparent)]"
                     : "border-border bg-transparent text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-foreground",
                 )}
               >
@@ -216,7 +210,7 @@ export default function ExploreClient({
                 className={cn(
                   "rounded-full border px-3 py-1 text-xs font-medium transition-all duration-200",
                   isActive
-                    ? "border-secondary/40 bg-secondary/10 text-secondary shadow-[0_0_8px_rgba(var(--secondary-rgb),0.15)]"
+                    ? "border-secondary/40 bg-secondary/10 text-secondary shadow-[0_0_8px_color-mix(in_srgb,var(--secondary)_15%,transparent)]"
                     : "border-border bg-transparent text-muted-foreground hover:border-secondary/30 hover:bg-secondary/5 hover:text-foreground",
                 )}
               >
@@ -226,7 +220,6 @@ export default function ExploreClient({
           })}
         </div>
 
-        {/* ── Active Filter Tags ── */}
         {activeFilterCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
             <span className="text-xs text-muted-foreground">Active:</span>
@@ -271,7 +264,7 @@ export default function ExploreClient({
           {filteredTemplates.map((template, i) => (
             <div
               key={template.id}
-              className={`animate-fade-up fill-both delay-${[50, 100, 150, 200, 250, 300][i % 6]}`}
+              className={`animate-fade-up fill-both ${["delay-50", "delay-100", "delay-150", "delay-200", "delay-250", "delay-300"][i % 6]}`}
             >
               <TemplateCard template={template} />
             </div>

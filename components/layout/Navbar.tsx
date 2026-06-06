@@ -29,7 +29,7 @@ import {
   SheetTrigger,
 } from "@/components/atoms/sheet";
 import { signOutAndRedirect } from "@/lib/auth-client";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 interface NavbarProps {
@@ -72,14 +72,6 @@ export function Navbar({ user: initialUser }: NavbarProps) {
     await signOutAndRedirect();
   };
 
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-
   return (
     <header
       className={cn(
@@ -96,11 +88,11 @@ export function Navbar({ user: initialUser }: NavbarProps) {
           aria-label="IntervoxAI home"
         >
           <span className="transition-transform duration-200 group-hover:scale-105">
-            <BrandIcon size={28} priority />
+            <BrandIcon size={28} priority decorative />
           </span>
 
           <span className="hidden transition-opacity duration-200 group-hover:opacity-70 sm:block">
-            <BrandWordmark height={20} />
+            <BrandWordmark height={20} priority decorative />
           </span>
         </Link>
 
@@ -158,7 +150,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                       <span className="sr-only">Open menu</span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="flex w-80 flex-col">
+                  <SheetContent side="right" className="flex w-80 flex-col">
                     <SheetHeader className="pb-4">
                       <SheetTitle className="text-left">
                         <BrandLogo size="sm" />
@@ -276,11 +268,11 @@ export function Navbar({ user: initialUser }: NavbarProps) {
               </div>
             </>
           ) : (
-            <>
+            <div className="flex items-center gap-2">
               <Link
                 href="/explore"
                 className={cn(
-                  "hidden sm:flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200",
+                  "flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200",
                   pathname === "/explore" || pathname.startsWith("/explore/")
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-2",
@@ -296,6 +288,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                 />
                 <span
                   className={cn(
+                    "hidden sm:inline",
                     (pathname === "/explore" ||
                       pathname.startsWith("/explore/")) &&
                       "text-gradient-brand font-semibold",
@@ -311,10 +304,11 @@ export function Navbar({ user: initialUser }: NavbarProps) {
               </Link>
               <Link href="/sign-up">
                 <Button size="sm" variant="gradient">
-                  Get Started
+                  <span className="hidden sm:inline">Get Started</span>
+                  <span className="sm:hidden">Sign In</span>
                 </Button>
               </Link>
-            </>
+            </div>
           )}
         </div>
       </div>

@@ -2,6 +2,7 @@ import { generateObject } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { withRetry } from "@/lib/retry";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
 import {
@@ -20,14 +21,10 @@ const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
 
-const FEEDBACK_MODEL =
-  process.env.FEEDBACK_MODEL || "gemini-2.5-pro";
+const FEEDBACK_MODEL = process.env.FEEDBACK_MODEL;
 
-if (!process.env.FEEDBACK_MODEL) {
-  console.warn(
-    "[ENV] FEEDBACK_MODEL is not set — defaulting to 'gemini-2.5-pro'. " +
-      "Feedback generation will fail if FEEDBACK_API_KEY is also missing.",
-  );
+if (!FEEDBACK_MODEL) {
+  throw new Error("FEEDBACK_MODEL is required");
 }
 
 const feedbackSchema = z.object({
@@ -159,79 +156,10 @@ interface CreateFeedbackOptions {
   abortSignal?: AbortSignal;
 }
 
-function isAbortError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    (error.name === "AbortError" ||
-      error.message.toLowerCase().includes("abort"))
-  );
-}
-
-// Retry transient model and network failures with exponential backoff.
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: {
-    maxRetries?: number;
-    baseDelayMs?: number;
-    operationName?: string;
-    abortSignal?: AbortSignal;
-  } = {},
-): Promise<T> {
-  const {
-    maxRetries = 3,
-    baseDelayMs = 1000,
-    operationName = "operation",
-    abortSignal,
-  } = options;
-  let lastError: Error | unknown;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    if (abortSignal?.aborted) {
-      const abortError = new Error("The operation was aborted");
-      abortError.name = "AbortError";
-      throw abortError;
-    }
-
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-      if (isAbortError(error) || abortSignal?.aborted) {
-        throw error;
-      }
-
-      if (attempt < maxRetries) {
-        const delay = baseDelayMs * Math.pow(2, attempt - 1);
-        logger.warn(
-          `${operationName} failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`,
-        );
-
-        // Make the backoff wait abort-aware so retries stop immediately on cancellation.
-        await new Promise<void>((resolve, reject) => {
-          const timer = setTimeout(resolve, delay);
-          abortSignal?.addEventListener(
-            "abort",
-            () => {
-              clearTimeout(timer);
-              const err = new Error("The operation was aborted");
-              err.name = "AbortError";
-              reject(err);
-            },
-            { once: true },
-          );
-        });
-      }
-    }
-  }
-
-  logger.error(`${operationName} failed after ${maxRetries} attempts`);
-  throw lastError;
-}
-
 const MAX_TRANSCRIPT_TURNS_FOR_FEEDBACK = 120;
 const MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK = 18000;
 
-// Compact long transcripts while preserving both early and recent context.
+// Compact long transcripts while preserving early, middle, and recent context.
 function compactTranscriptForFeedback(
   transcript: { role: string; content: string }[],
 ): { formattedTranscript: string; wasCompacted: boolean } {
@@ -247,9 +175,10 @@ function compactTranscriptForFeedback(
       ? normalized.slice(-MAX_TRANSCRIPT_TURNS_FOR_FEEDBACK)
       : normalized;
 
-  const baseTranscript = slicedByTurns
-    .map((sentence) => `-${sentence.role}: ${sentence.content}`)
-    .join("\n");
+  const formatTurn = (sentence: (typeof slicedByTurns)[number]) =>
+    `-${sentence.role}: ${sentence.content}`;
+
+  const baseTranscript = slicedByTurns.map(formatTurn).join("\n");
 
   if (baseTranscript.length <= MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK) {
     const wasCompacted =
@@ -258,13 +187,66 @@ function compactTranscriptForFeedback(
     return { formattedTranscript: baseTranscript, wasCompacted };
   }
 
-  const headSize = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.45);
-  const tailSize = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.45);
-  const head = baseTranscript.slice(0, headSize);
-  const tail = baseTranscript.slice(-tailSize);
-  const omitted = baseTranscript.length - head.length - tail.length;
+  // Budget: 35% head, 30% middle (sampled), 35% tail.
+  const headBudget = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.35);
+  const tailBudget = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.35);
+  const middleBudget =
+    MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK - headBudget - tailBudget;
 
-  const compacted = `${head}\n...[transcript compacted: ${omitted} characters omitted for token budget]...\n${tail}`;
+  // Build head by including complete turns up to the head budget.
+  const headTurns: string[] = [];
+  let headLen = 0;
+  for (const turn of slicedByTurns) {
+    const line = formatTurn(turn);
+    if (headLen + line.length + 1 > headBudget && headTurns.length > 0) break;
+    headTurns.push(line);
+    headLen += line.length + 1;
+  }
+
+  // Build tail by including complete turns from the end up to the tail budget.
+  const tailTurns: string[] = [];
+  let tailLen = 0;
+  for (let i = slicedByTurns.length - 1; i >= headTurns.length; i--) {
+    const line = formatTurn(slicedByTurns[i]!);
+    if (tailLen + line.length + 1 > tailBudget && tailTurns.length > 0) break;
+    tailTurns.unshift(line);
+    tailLen += line.length + 1;
+  }
+
+  // Sample alternating turns from the middle section to preserve diverse
+  // content rather than dropping it entirely.
+  const middleStart = headTurns.length;
+  const middleEnd = slicedByTurns.length - tailTurns.length;
+  const middleTurns: string[] = [];
+  let middleLen = 0;
+
+  if (middleEnd > middleStart) {
+    // Sample every Nth turn to fit the budget while covering the range.
+    const middleCount = middleEnd - middleStart;
+    const step = Math.max(1, Math.floor(middleCount / 8));
+
+    for (let i = middleStart; i < middleEnd; i += step) {
+      const line = formatTurn(slicedByTurns[i]!);
+      if (middleLen + line.length + 1 > middleBudget && middleTurns.length > 0)
+        break;
+      middleTurns.push(line);
+      middleLen += line.length + 1;
+    }
+  }
+
+  const omittedMiddleTurns = middleEnd - middleStart - middleTurns.length;
+  const middleNote =
+    omittedMiddleTurns > 0
+      ? `\n...[transcript compacted: ${omittedMiddleTurns} middle turns sampled down for token budget]...\n`
+      : "\n";
+
+  const compacted = [
+    headTurns.join("\n"),
+    middleNote,
+    middleTurns.join("\n"),
+    `\n...[resuming final ${tailTurns.length} turns]...\n`,
+    tailTurns.join("\n"),
+  ].join("");
 
   return { formattedTranscript: compacted, wasCompacted: true };
 }

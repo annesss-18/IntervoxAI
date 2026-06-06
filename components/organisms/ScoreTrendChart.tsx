@@ -6,8 +6,6 @@ import { Skeleton } from "@/components/atoms/skeleton";
 import { cn } from "@/lib/utils";
 import type { ScoreHistoryEntry } from "@/types";
 
-// ── Constants ──────────────────────────────────────────────────────────────
-
 const CHART_W = 580;
 const CHART_H = 160;
 const PAD_LEFT = 44;
@@ -30,10 +28,7 @@ const INTERVIEW_TYPES = [
 ] as const;
 type TypeFilter = (typeof INTERVIEW_TYPES)[number];
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-
 function scoreToY(score: number): number {
-  // score 100 → PAD_TOP, score 0 → PAD_TOP + CHART_H
   return PAD_TOP + ((100 - score) / 100) * CHART_H;
 }
 
@@ -69,8 +64,6 @@ function scoreColor(score: number): string {
   return "var(--error)";
 }
 
-// ── Chart component ─────────────────────────────────────────────────────────
-
 export function ScoreTrendChart() {
   const [data, setData] = useState<ScoreHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,9 +80,7 @@ export function ScoreTrendChart() {
           setData(json.data ?? []);
         }
       })
-      .catch(() => {
-        // silently fail — chart just won't render
-      })
+      .catch(() => undefined)
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -99,7 +90,6 @@ export function ScoreTrendChart() {
     };
   }, []);
 
-  // Filtered + derived data — recomputed only when dependencies change.
   const filtered = useMemo(
     () =>
       typeFilter === "All" ? data : data.filter((d) => d.type === typeFilter),
@@ -122,7 +112,6 @@ export function ScoreTrendChart() {
     return { latest, best, avg, trend };
   }, [scores]);
 
-  // Derive which type filters have data so we can grey out empty ones.
   const typeHasData = useMemo(() => {
     const counts: Record<string, number> = {};
     data.forEach((d) => {
@@ -131,7 +120,6 @@ export function ScoreTrendChart() {
     return counts;
   }, [data]);
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="mb-6 rounded-2xl border border-border bg-card p-5 space-y-4">
@@ -141,9 +129,8 @@ export function ScoreTrendChart() {
     );
   }
 
-  // ── Empty state ────────────────────────────────────────────────────────────
   if (data.length < 2) {
-    return null; // Not enough data to show a trend — render nothing
+    return null;
   }
 
   const n = filtered.length;
@@ -152,7 +139,6 @@ export function ScoreTrendChart() {
 
   return (
     <div className="mb-8 rounded-2xl border border-border bg-card p-5 space-y-4">
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="size-4 text-primary" />
@@ -162,7 +148,6 @@ export function ScoreTrendChart() {
           </span>
         </div>
 
-        {/* Stat summary */}
         {stats && (
           <div className="flex items-center gap-4 text-sm">
             <div className="text-center">
@@ -205,7 +190,6 @@ export function ScoreTrendChart() {
         )}
       </div>
 
-      {/* ── Type filter ────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-1.5">
         {INTERVIEW_TYPES.map((t) => {
           const count = t === "All" ? data.length : (typeHasData[t] ?? 0);
@@ -233,7 +217,6 @@ export function ScoreTrendChart() {
         })}
       </div>
 
-      {/* ── SVG chart ──────────────────────────────────────────────────────── */}
       {n === 0 ? (
         <div className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
           No scored sessions for this filter
@@ -245,7 +228,6 @@ export function ScoreTrendChart() {
             viewBox={`0 0 ${SVG_W} ${SVG_H}`}
             className="overflow-visible"
           >
-            {/* Y-axis grid lines + labels */}
             {GRID_SCORES.map((gs) => {
               const y = scoreToY(gs);
               return (
@@ -274,7 +256,6 @@ export function ScoreTrendChart() {
               );
             })}
 
-            {/* X-axis date labels — show every nth label to avoid clutter */}
             {filtered.map((d, i) => {
               const step = Math.max(1, Math.floor(n / 5));
               if (i % step !== 0 && i !== n - 1) return null;
@@ -292,7 +273,6 @@ export function ScoreTrendChart() {
               );
             })}
 
-            {/* Rolling average line (thicker, drawn first so raw line is on top) */}
             {n >= ROLLING_WINDOW && (
               <polyline
                 points={avgPoints}
@@ -305,7 +285,6 @@ export function ScoreTrendChart() {
               />
             )}
 
-            {/* Raw score line */}
             <polyline
               points={rawPoints}
               fill="none"
@@ -316,7 +295,6 @@ export function ScoreTrendChart() {
               strokeLinecap="round"
             />
 
-            {/* Score dots — coloured by range, interactive via title tooltip */}
             {filtered.map((d, i) => {
               const cx = indexToX(i, n);
               const cy = scoreToY(d.finalScore);
@@ -328,9 +306,7 @@ export function ScoreTrendChart() {
                   onMouseLeave={() => setHoveredIdx(null)}
                   style={{ cursor: "default" }}
                 >
-                  {/* Larger invisible hit target */}
                   <circle cx={cx} cy={cy} r="10" fill="transparent" />
-                  {/* Visible dot */}
                   <circle
                     cx={cx}
                     cy={cy}
@@ -340,7 +316,6 @@ export function ScoreTrendChart() {
                     strokeWidth="1.5"
                     style={{ transition: "r 120ms ease" }}
                   />
-                  {/* Tooltip — appears above the dot when hovered */}
                   {isHovered && (
                     <>
                       <rect
@@ -382,7 +357,6 @@ export function ScoreTrendChart() {
             })}
           </svg>
 
-          {/* Legend */}
           <div className="mt-2 flex items-center gap-4 text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span

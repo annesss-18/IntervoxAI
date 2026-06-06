@@ -1,15 +1,4 @@
-// Initialize Firebase Admin lazily.
-//
-// During the env-variable rotation window, Firebase credentials may be absent.
-// Eager initialization (at import time) would crash the build because cert()
-// requires a "project_id" string. Lazy initialization defers the crash to the
-// first actual Firebase call, which the maintenance-bypass code paths avoid.
-import {
-  initializeApp,
-  getApps,
-  cert,
-  type App,
-} from "firebase-admin/app";
+import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
@@ -38,7 +27,7 @@ function getApp(): App {
 let _auth: Auth | undefined;
 let _db: Firestore | undefined;
 
-/** Firebase Auth — initialized on first access. */
+// Auth is initialized on first access.
 export const auth: Auth = new Proxy({} as Auth, {
   get(_target, prop, receiver) {
     if (!_auth) _auth = getAuth(getApp());
@@ -46,11 +35,11 @@ export const auth: Auth = new Proxy({} as Auth, {
   },
 });
 
-/** Firestore — initialized on first access. */
+// Firestore is initialized on first access.
 export const db: Firestore = new Proxy({} as Firestore, {
   get(_target, prop, receiver) {
-    if (!_db) _db = getFirestore(getApp(), process.env.FIREBASE_DATABASE_ID || "prod");
+    if (!_db)
+      _db = getFirestore(getApp(), process.env.FIREBASE_DATABASE_ID || "prod");
     return Reflect.get(_db, prop, receiver);
   },
 });
-

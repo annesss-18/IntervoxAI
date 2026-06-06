@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuth } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
+import { extractTextFromFile } from "@/lib/server/file-parser";
 import {
   isAllowedResumeFile,
   MAX_RESUME_SIZE_BYTES,
   RESUME_MAX_STORED_CHARS,
-} from "@/lib/resume-types";
-import { extractTextFromFile } from "@/lib/server-utils";
+} from "@/lib/resume";
 import type { User } from "@/types";
 
 export const POST = withAuth(

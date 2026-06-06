@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { generateObject } from "ai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
-import { withAuth } from "@/lib/api-middleware";
-import { extractTextFromUrl, extractTextFromFile } from "@/lib/server-utils";
+import { withAuth } from "@/lib/server/api-middleware";
+import { extractTextFromFile } from "@/lib/server/file-parser";
+import { extractTextFromUrl } from "@/lib/server/url-reader";
 import { getCompanyLogoUrl } from "@/lib/icon-utils";
 import { logger } from "@/lib/logger";
 
@@ -16,14 +17,10 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-const TEMPLATE_GENERATION_MODEL =
-  process.env.TEMPLATE_GENERATION_MODEL || "gemini-2.5-pro";
+const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
 
-if (!process.env.TEMPLATE_GENERATION_MODEL) {
-  console.warn(
-    "[ENV] TEMPLATE_GENERATION_MODEL is not set — defaulting to 'gemini-2.5-pro'. " +
-      "JD analysis will fail if TEMPLATE_GENERATION_API_KEY is also missing.",
-  );
+if (!TEMPLATE_GENERATION_MODEL) {
+  throw new Error("TEMPLATE_GENERATION_MODEL is required");
 }
 
 const analysisSchema = z.object({
@@ -70,8 +67,15 @@ export const POST = withAuth(
         } catch (urlError) {
           const message =
             urlError instanceof Error ? urlError.message : "Unknown error";
+          const urlHost = (() => {
+            try {
+              return new URL(jdInput).hostname;
+            } catch {
+              return "invalid-url";
+            }
+          })();
           logger.error("URL extraction failed", {
-            url: jdInput,
+            urlHost,
             error: message,
           });
           return NextResponse.json(

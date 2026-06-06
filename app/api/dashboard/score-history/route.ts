@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
 import { TemplateRepository } from "@/lib/repositories/template.repository";

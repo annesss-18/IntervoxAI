@@ -1,5 +1,3 @@
-// Publish feedback jobs to QStash so retries and deduplication stay outside the request path.
-
 import { Client } from "@upstash/qstash";
 import { logger } from "@/lib/logger";
 
@@ -9,7 +7,6 @@ export interface FeedbackJobPayload {
   transcript: Array<{ role: string; content: string }>;
 }
 
-// Lazily create the QStash client only when the full worker handshake is configured.
 let qstashClient: Client | null = null;
 
 function hasQStashConfig(): boolean {
@@ -28,22 +25,10 @@ function getQStashClient(): Client | null {
   return qstashClient;
 }
 
-// Report whether QStash is configured for durable background work.
 export function isQueueAvailable(): boolean {
   return hasQStashConfig();
 }
 
-/**
- * Build the absolute worker URL for QStash to deliver jobs to.
- *
- * FIX: NEXT_PUBLIC_APP_URL is required in production. QStash needs a fully
- * qualified URL — a relative path or localhost will cause all queued feedback
- * jobs to silently fail. Throwing here surfaces the misconfiguration at the
- * moment the first job is published rather than after a silent delivery failure.
- *
- * In development, falls back to http://localhost:3000 so local testing works
- * without the variable set.
- */
 function getWorkerUrl(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
@@ -56,14 +41,12 @@ function getWorkerUrl(): string {
           "(e.g. https://your-domain.com).",
       );
     }
-    // Safe for local development — QStash is typically not used locally anyway.
     return "http://localhost:3000/api/workers/feedback";
   }
 
   return `${appUrl}/api/workers/feedback`;
 }
 
-// Publish a feedback job and let QStash retry failures on the worker endpoint.
 export async function publishFeedbackJob(
   payload: FeedbackJobPayload,
 ): Promise<{ messageId: string }> {

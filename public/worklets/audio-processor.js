@@ -1,26 +1,4 @@
-/**
- * AudioWorklet processor for real-time microphone capture.
- *
- * Responsibilities:
- *   1. Downsample hardware audio (typically 44.1 kHz or 48 kHz) to 16 kHz
- *      using linear interpolation — the sample rate Gemini Live expects.
- *   2. Apply a VAD (Voice Activity Detection) threshold to avoid sending pure
- *      silence, reducing bandwidth and preventing the server-side VAD from
- *      treating ambient noise as speech.
- *   3. Apply a VAD hold to prevent hard audio gaps. When a buffer falls below
- *      the RMS threshold, do NOT drop it immediately — continue sending for
- *      VAD_HOLD_FRAMES additional frames. This smooths the audio stream during
- *      brief pauses (breathing, emphasis, thinking) so the server-side Gemini
- *      VAD does not prematurely commit the user's turn.
- *
- * Why the VAD hold matters:
- *   Without a hold, a 128 ms buffer of silence between words is dropped
- *   entirely. Gemini's server-side VAD sees a hard gap in the audio stream and
- *   may interpret it as end-of-turn, even if silenceDurationMs is set to a
- *   higher value. With a hold of 5 frames (~640 ms), brief pauses within a
- *   response are transmitted as quiet audio rather than silence, and the server
- *   VAD correctly identifies them as mid-speech.
- */
+// Downsample microphone audio to 16 kHz PCM with a short VAD hold.
 class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -31,12 +9,8 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.bufferIndex = 0;
     this.VadThreshold = 0.005;
 
-    // VAD hold: number of consecutive below-threshold buffers to continue
-    // sending after the signal drops. Each buffer is ~128 ms, so 5 frames
-    // gives ~640 ms of hold — enough to smooth breathing and brief pauses
-    // without transmitting extended silence.
+    // Continue briefly after speech drops so pauses do not become hard gaps.
     this.VadHoldFrames = 5;
-    // Count of below-threshold frames remaining in the current hold window.
     this.vadHoldCount = 0;
 
     this.port.onmessage = (event) => {
@@ -90,19 +64,11 @@ class AudioProcessor extends AudioWorkletProcessor {
     rms = Math.sqrt(rms / Math.max(1, this.bufferIndex));
 
     if (rms >= this.VadThreshold) {
-      // Active speech — reset the hold counter and send.
       this.vadHoldCount = this.VadHoldFrames;
     } else {
-      // Below threshold.
       if (this.vadHoldCount > 0) {
-        // Still within the hold window — send this buffer as quiet audio
-        // so the server VAD sees a continuous (quiet) stream rather than
-        // a hard gap. Decrement the hold counter.
         this.vadHoldCount--;
       } else {
-        // Hold window exhausted — this is genuine sustained silence.
-        // Drop the buffer to avoid unnecessary bandwidth and to let the
-        // server VAD identify the silence naturally.
         this.bufferIndex = 0;
         return;
       }

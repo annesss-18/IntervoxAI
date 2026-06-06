@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 import { signOutAndRedirect } from "@/lib/auth-client";
+import { getInitials } from "@/lib/utils";
 
 interface UserMenuProps {
   user: { name: string; email: string; id: string };
@@ -27,14 +28,6 @@ export function UserMenu({ user, avatarUrl }: UserMenuProps) {
     setIsSigningOut(true);
     await signOutAndRedirect();
   };
-
-  const getInitials = (name: string) =>
-    name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
 
   return (
     <DropdownMenu>

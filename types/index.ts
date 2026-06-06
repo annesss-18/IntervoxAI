@@ -62,7 +62,6 @@ export interface InterviewTemplate {
   };
   usageCount: number;
   avgScore: number;
-  // R-11: Running totals for incremental average calculation.
   scoreSum?: number;
   scoreCount?: number;
   createdAt: string;
@@ -103,17 +102,10 @@ export interface InterviewSession {
   transcriptTurnCount?: number;
   transcriptChunkCount?: number;
   lastTranscriptCheckpointAt?: string | null;
-  /**
-   * "expired" is a terminal state set by the nightly session-cleanup worker
-   * for setup sessions older than 48 hours that were never started.
-   * It is otherwise identical to a soft-deleted state — expired sessions are
-   * excluded from all active/completed dashboard queries.
-   */
+  // Expired sessions are terminal setup sessions cleaned up after 48 hours.
   status: "setup" | "active" | "completed" | "expired";
-  /** Desired interview length in minutes (defaults to 15 for legacy sessions). */
   durationMinutes?: number;
   startedAt: string;
-  // R-9: Set when session transitions to "active" (session PATCH route).
   activatedAt?: string;
   completedAt?: string;
   expiredAt?: string;
@@ -161,24 +153,11 @@ export type SessionStatusFilter = "active" | "completed";
 export interface InterviewSessionDetail {
   id: string;
   userId: string;
-  /**
-   * Exposed so LiveInterviewAgent can send it as a hint in the
-   * /api/live/token request to parallelise Firestore reads.
-   */
   templateId: string;
   createdAt: string;
   status: "setup" | "active" | "completed" | "expired";
   resumeText?: string;
-  /**
-   * Full conversation transcript. Populated by getSessionById so the
-   * feedback page can render TranscriptViewer without an extra API call.
-   * Empty array for sessions without a stored transcript.
-   */
   transcript?: Array<{ role: string; content: string }>;
-  /**
-   * Desired session length in minutes.
-   * Defaults to 15 for sessions created before this field existed.
-   */
   durationMinutes: number;
   role: string;
   level: string;
@@ -213,7 +192,6 @@ export interface CreateFeedbackParams {
   interviewId: string;
   userId: string;
   transcript: { role: string; content: string }[];
-  feedbackId?: string;
 }
 
 export interface GetFeedbackByInterviewIdParams {
@@ -225,7 +203,6 @@ export interface User {
   name: string;
   email: string;
   id: string;
-  // R-12: Google avatar URL, stored on first sign-in / updated on re-login.
   photoURL?: string;
   stats?: {
     activeCount?: number;

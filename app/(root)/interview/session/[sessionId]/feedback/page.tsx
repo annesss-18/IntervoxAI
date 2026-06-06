@@ -2,8 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Feedback - IntervoxAI" };
-
 import {
   AlertCircle,
   Award,
@@ -23,6 +21,8 @@ import {
   RefreshCw,
   Zap,
 } from "lucide-react";
+
+export const metadata: Metadata = { title: "Feedback" };
 import type { RouteParams } from "@/types";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import {
@@ -37,10 +37,6 @@ import { Container } from "@/components/layout/Container";
 import { FeedbackGenerationStatus } from "@/components/organisms/FeedbackGenerationStatus";
 import { TranscriptViewer } from "@/components/organisms/TranscriptViewer";
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
 type BehaviouralVariant =
   | "success"
   | "warning"
@@ -48,33 +44,23 @@ type BehaviouralVariant =
   | "info"
   | "secondary";
 
-/**
- * Map each behavioural trait value to a Badge semantic variant.
- * Positive outcomes → success, neutral → secondary, developing → warning,
- * needs-work → error, variable/exploratory → info.
- */
 const BEHAVIOURAL_VARIANT: Record<string, BehaviouralVariant> = {
-  // confidenceLevel
   High: "success",
   Moderate: "secondary",
   Low: "warning",
   Variable: "info",
-  // clarityOfThought
   Excellent: "success",
   Good: "secondary",
   Developing: "warning",
   "Needs Improvement": "error",
-  // technicalDepth
   Expert: "success",
   Proficient: "secondary",
   Intermediate: "warning",
   Foundational: "error",
-  // problemApproach
   Systematic: "success",
   Intuitive: "secondary",
   Exploratory: "info",
   Uncertain: "warning",
-  // stressResponse
   Composed: "success",
   Adaptive: "secondary",
   Hesitant: "warning",
@@ -218,7 +204,6 @@ const Page = async ({ params }: RouteParams) => {
 
   return (
     <Container size="xl" className="animate-fade-up space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card px-6 py-5">
         <div
           className="pointer-events-none absolute -top-10 right-12 h-32 w-48 rounded-full opacity-12 blur-[60px]"
@@ -253,7 +238,6 @@ const Page = async ({ params }: RouteParams) => {
         </div>
       </div>
 
-      {/* ── Overall score + hiring recommendation ──────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-[auto_1fr]">
         <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-card p-8">
           <ScoreRing score={totalScore} size={180} strokeWidth={12} />
@@ -330,7 +314,6 @@ const Page = async ({ params }: RouteParams) => {
             ))}
           </div>
 
-          {/* Hiring signal legend — collapsible to avoid visual clutter */}
           <details className="border-t border-border/50 pt-4 group">
             <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <Info className="size-3.5 shrink-0" />
@@ -364,7 +347,6 @@ const Page = async ({ params }: RouteParams) => {
         </div>
       </div>
 
-      {/* ── Category breakdown ─────────────────────────────────────────── */}
       <section>
         <div className="mb-4 flex items-center gap-2">
           <BarChart3 className="size-5 text-primary" />
@@ -375,7 +357,7 @@ const Page = async ({ params }: RouteParams) => {
             feedback.categoryScores.map((cat: CategoryItem, i: number) => (
               <div
                 key={cat.name}
-                className={`animate-fade-up fill-both rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[var(--shadow-md)] delay-${(i + 1) * 75}`}
+                className={`animate-fade-up fill-both rounded-2xl border border-border bg-card p-5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[var(--shadow-md)] ${["delay-75", "delay-150", "delay-225", "delay-300"][i % 4]}`}
               >
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <h3 className="font-semibold leading-snug">{cat.name}</h3>
@@ -401,7 +383,6 @@ const Page = async ({ params }: RouteParams) => {
         </div>
       </section>
 
-      {/* ── Strengths + improvements ───────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-2">
         <div className="rounded-2xl border border-success/25 bg-success/5 p-6 space-y-4">
           <div className="flex items-center gap-3">
@@ -449,7 +430,6 @@ const Page = async ({ params }: RouteParams) => {
         </div>
       </div>
 
-      {/* ── Behavioural profile ────────────────────────────────────────── */}
       {behavioralInsights && (
         <section>
           <div className="mb-4 flex items-center gap-2">
@@ -457,7 +437,6 @@ const Page = async ({ params }: RouteParams) => {
             <h2 className="text-xl font-semibold">Behavioural profile</h2>
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
-            {/* Trait pills */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {behaviouralTraits.map(({ label, value }) => (
                 <div key={label} className="space-y-1.5">
@@ -474,7 +453,6 @@ const Page = async ({ params }: RouteParams) => {
               ))}
             </div>
 
-            {/* Observations */}
             {Array.isArray(behavioralInsights.observations) &&
               behavioralInsights.observations.length > 0 && (
                 <div className="border-t border-border/50 pt-4 space-y-2">
@@ -498,7 +476,6 @@ const Page = async ({ params }: RouteParams) => {
         </section>
       )}
 
-      {/* ── Career coaching ─────────────────────────────────────────────── */}
       {careerCoaching && (
         <section>
           <div className="mb-4 flex items-center gap-2">
@@ -507,9 +484,7 @@ const Page = async ({ params }: RouteParams) => {
           </div>
 
           <div className="space-y-4">
-            {/* Three coaching columns */}
             <div className="grid gap-4 md:grid-cols-3">
-              {/* Immediate actions */}
               {Array.isArray(careerCoaching.immediateActions) &&
                 careerCoaching.immediateActions.length > 0 && (
                   <div className="rounded-2xl border border-info/25 bg-info/5 p-5 space-y-3">
@@ -540,7 +515,6 @@ const Page = async ({ params }: RouteParams) => {
                   </div>
                 )}
 
-              {/* Learning path */}
               {Array.isArray(careerCoaching.learningPath) &&
                 careerCoaching.learningPath.length > 0 && (
                   <div className="rounded-2xl border border-accent/25 bg-accent/5 p-5 space-y-3">
@@ -571,7 +545,6 @@ const Page = async ({ params }: RouteParams) => {
                   </div>
                 )}
 
-              {/* Interview tips */}
               {Array.isArray(careerCoaching.interviewTips) &&
                 careerCoaching.interviewTips.length > 0 && (
                   <div className="rounded-2xl border border-warning/25 bg-warning/5 p-5 space-y-3">
@@ -603,7 +576,6 @@ const Page = async ({ params }: RouteParams) => {
                 )}
             </div>
 
-            {/* Role readiness — full width */}
             {careerCoaching.roleReadiness && (
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex items-start gap-4">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/20 mt-0.5">
@@ -621,7 +593,6 @@ const Page = async ({ params }: RouteParams) => {
         </section>
       )}
 
-      {/* ── Final assessment ────────────────────────────────────────────── */}
       <div className="gradient-border overflow-hidden rounded-2xl p-px">
         <div className="rounded-2xl bg-card p-6 space-y-4">
           <div className="flex items-start gap-4">
@@ -654,7 +625,6 @@ const Page = async ({ params }: RouteParams) => {
         </div>
       </div>
 
-      {/* ── Transcript viewer ─────────────────────────────────────────── */}
       {interview.transcript && interview.transcript.length > 0 && (
         <TranscriptViewer transcript={interview.transcript} />
       )}

@@ -48,10 +48,10 @@ export function Footer() {
               aria-label="IntervoxAI home"
             >
               <span className="transition-transform duration-200 group-hover:scale-105">
-                <BrandIcon size={28} />
+                <BrandIcon size={28} decorative />
               </span>
               <span className="transition-opacity duration-200 group-hover:opacity-70">
-                <BrandWordmark height={20} />
+                <BrandWordmark height={20} decorative />
               </span>
             </Link>
 
@@ -83,9 +83,9 @@ export function Footer() {
 
         <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-border/40 pt-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2.5">
-            <BrandIcon size={18} />
+            <BrandIcon size={18} decorative />
             <span className="text-sm text-muted-foreground">
-              Copyright {year} IntervoxAI. All rights reserved.
+              &copy; {year} IntervoxAI. All rights reserved.
             </span>
           </div>
           <p className="text-xs text-muted-foreground/60">
@@ -133,8 +133,8 @@ export function FooterCompact() {
     <footer className="border-t border-border/40 py-4">
       <div className="container-app flex flex-col items-center justify-between gap-3 text-xs text-muted-foreground sm:flex-row">
         <div className="flex items-center gap-2">
-          <BrandIcon size={16} />
-          <span>Copyright {year} IntervoxAI</span>
+          <BrandIcon size={16} decorative />
+          <span>&copy; {year} IntervoxAI</span>
         </div>
         <div className="flex gap-5">
           {[

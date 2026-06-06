@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { withAuth } from "@/lib/api-middleware";
+import { withAuth } from "@/lib/server/api-middleware";
 import { TemplateRepository } from "@/lib/repositories/template.repository";
 import { logger } from "@/lib/logger";
 import { firestoreIdSchema, trustedCompanyLogoUrlSchema } from "@/lib/schemas";
@@ -82,9 +82,11 @@ export const PATCH = withAuth(
 
       await TemplateRepository.update(templateId, data);
 
-      logger.info(
-        `Template ${templateId} updated by user ${user.id} (fields: ${Object.keys(data).join(", ")})`,
-      );
+      logger.audit("template.updated", {
+        actorId: user.id,
+        templateId,
+        fields: Object.keys(data),
+      });
 
       return NextResponse.json({ success: true });
     } catch (error) {

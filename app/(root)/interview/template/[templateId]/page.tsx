@@ -41,10 +41,10 @@ export async function generateMetadata({
   const template = await getTemplateById(templateId);
 
   if (!template) {
-    return { title: "Template Not Found · IntervoxAI" };
+    return { title: "Template Not Found" };
   }
 
-  const title = `${template.role} Interview · ${template.companyName || "IntervoxAI"}`;
+  const title = `${template.role} Interview — ${template.companyName || "Practice"}`;
   const description = `Practice a ${template.level} ${template.type} interview for ${template.role} at ${template.companyName || "any company"}.${template.techStack.length > 0 ? ` Tech: ${template.techStack.slice(0, 5).join(", ")}.` : ""}`;
 
   return {
@@ -115,7 +115,6 @@ const TemplatePage = async ({
 
   return (
     <Container size="xl" className="animate-fade-up pb-16">
-      {/* Back */}
       <Link
         href="/explore"
         className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors group"
@@ -124,7 +123,6 @@ const TemplatePage = async ({
         Back to Explore
       </Link>
 
-      {/* ── Hero card ──────────────────────────────────────────────────────── */}
       <div className="relative mb-5 overflow-hidden rounded-2xl border border-border bg-card gradient-border">
         <div
           className="pointer-events-none absolute -top-16 -right-16 h-40 w-56 rounded-full opacity-15 blur-[80px]"
@@ -136,7 +134,6 @@ const TemplatePage = async ({
         />
 
         <div className="relative flex flex-col lg:flex-row">
-          {/* Left — meta */}
           <div className="flex flex-1 flex-col gap-2.5 p-5 sm:p-6 lg:border-r lg:border-border">
             <div className="flex items-center gap-3">
               <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
@@ -199,7 +196,6 @@ const TemplatePage = async ({
             </div>
           </div>
 
-          {/* Right — stats + CTA */}
           <div className="flex flex-col justify-center gap-3.5 p-5 sm:p-6 lg:min-w-[250px] lg:max-w-[290px] overflow-hidden">
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-border/60 bg-surface-2/50 p-2.5">
@@ -237,9 +233,7 @@ const TemplatePage = async ({
               </p>
             </div>
 
-            {/* ── Edit + Fork actions ───────────────────────────────────── */}
             <div className="flex gap-2 pt-1 border-t border-border/50">
-              {/* Fork — visible to all logged-in users */}
               <Link href={`/create?forkFrom=${template.id}`} className="flex-1">
                 <Button
                   variant="outline"
@@ -251,7 +245,6 @@ const TemplatePage = async ({
                 </Button>
               </Link>
 
-              {/* Edit — creator only */}
               {isCreator && (
                 <Link
                   href={`/interview/template/${template.id}/edit`}
@@ -289,9 +282,7 @@ const TemplatePage = async ({
         </div>
       </div>
 
-      {/* ── Main content grid ──────────────────────────────────────────────── */}
       <div className="grid gap-5 lg:grid-cols-[3fr_2fr] items-start animate-fade-up delay-100 fill-both">
-        {/* Job description */}
         <article className="rounded-2xl border border-border bg-card p-6">
           <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-border/50">
             <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
@@ -322,9 +313,7 @@ const TemplatePage = async ({
           </div>
         </article>
 
-        {/* Sidebar */}
         <aside className="flex flex-col gap-5 lg:sticky lg:top-6">
-          {/* Interviewer persona */}
           {hasPersona && template.interviewerPersona && (
             <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
               <div className="flex items-center gap-2.5">
@@ -358,7 +347,6 @@ const TemplatePage = async ({
             </div>
           )}
 
-          {/* Company culture insights */}
           {hasCulture && template.companyCultureInsights && (
             <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
               <div className="flex items-center gap-2.5">
@@ -420,7 +408,6 @@ const TemplatePage = async ({
             </div>
           )}
 
-          {/* Preparation tips */}
           <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
             <div className="flex items-center gap-2.5">
               <span className="flex size-8 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-accent/20">
@@ -452,7 +439,6 @@ const TemplatePage = async ({
         </aside>
       </div>
 
-      {/* Questions preview */}
       {template.baseQuestions && template.baseQuestions.length > 0 && (
         <div className="mt-5 animate-fade-up delay-150 fill-both">
           <QuestionsPreview questions={template.baseQuestions} />

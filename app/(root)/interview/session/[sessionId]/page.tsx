@@ -2,8 +2,6 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Live Interview · IntervoxAI" };
-
 import {
   AlertCircle,
   Briefcase,
@@ -20,6 +18,8 @@ import { Container } from "@/components/layout/Container";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import type { RouteParams } from "@/types";
+
+export const metadata: Metadata = { title: "Live Interview" };
 
 const Page = async ({ params }: RouteParams) => {
   const user = await getCurrentUser();
@@ -43,8 +43,6 @@ const Page = async ({ params }: RouteParams) => {
     );
   }
 
-  // Completed or expired sessions must not be reopened — redirect to feedback
-  // or show an appropriate message to prevent transcript/state divergence.
   if (interview.status === "completed") {
     redirect(`/interview/session/${sessionId}/feedback`);
   }
@@ -74,6 +72,11 @@ const Page = async ({ params }: RouteParams) => {
       </Container>
     );
   }
+
+  // Keep server-only prompt fields out of the client payload.
+  const { systemInstruction, jobDescription, ...clientInterview } = interview;
+  void systemInstruction;
+  void jobDescription;
 
   return (
     <Container size="xl" className="animate-fade-up space-y-4">
@@ -136,7 +139,7 @@ const Page = async ({ params }: RouteParams) => {
           ].map((text, i) => (
             <div
               key={text}
-              className={`animate-slide-left fill-both flex items-center gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm delay-${(i + 1) * 100}`}
+              className={`animate-slide-left fill-both flex items-center gap-2.5 rounded-xl border border-border bg-surface-2/60 px-3 py-2.5 text-sm ${["delay-100", "delay-200", "delay-300"][i]}`}
             >
               <ShieldCheck className="size-4 shrink-0 text-success" />
               <span className="text-muted-foreground">{text}</span>
@@ -146,19 +149,7 @@ const Page = async ({ params }: RouteParams) => {
       </div>
 
       <section className="min-h-[560px] lg:h-[calc(100vh-18rem)]">
-        <LiveInterviewAgent
-          interview={
-            // Strip server-only fields before serialising into the RSC payload.
-            // systemInstruction (up to 20 KB of prompt engineering) and
-            // jobDescription (up to 50 KB of raw JD text) are read by the
-            // /api/live/token server route directly from Firestore. Including
-            // them here would expose proprietary prompt content in DevTools with
-            // no client-side benefit.
-            (({ systemInstruction: _si, jobDescription: _jd, ...rest }) =>
-              rest)(interview)
-          }
-          sessionId={sessionId}
-        />
+        <LiveInterviewAgent interview={clientInterview} sessionId={sessionId} />
       </section>
     </Container>
   );

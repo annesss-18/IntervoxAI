@@ -1,7 +1,7 @@
 "use server";
 
 import { GetFeedbackByInterviewIdParams } from "@/types";
-import { logger } from "../logger";
+import { logger } from "@/lib/logger";
 import { InterviewService } from "@/lib/services/interview.service";
 import type { SessionPageResult } from "@/lib/services/interview.service";
 import type { SessionStatusFilter } from "@/types";

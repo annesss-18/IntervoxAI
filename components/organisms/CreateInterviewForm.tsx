@@ -80,7 +80,6 @@ function StepIndicator({ step, done }: { step: 1 | 2; done: boolean }) {
 }
 
 interface CreateInterviewFormProps {
-  /** Pre-fill from an existing template when forking. */
   forkTemplate?: InterviewTemplate;
 }
 

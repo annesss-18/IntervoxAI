@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
-import { Analytics } from "@vercel/analytics/next";
+import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/atoms/sonner";
 import { AuthProvider } from "@/components/providers/AuthProvider";
@@ -87,8 +87,14 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", sizes: "512x512", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
+    apple: {
+      url: "/apple-touch-icon.png",
+      sizes: "180x180",
+      type: "image/png",
+    },
     shortcut: "/favicon.ico",
   },
   manifest: "/site.webmanifest",
@@ -96,8 +102,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f0d1a" },
+    { media: "(prefers-color-scheme: light)", color: "#f8f9fe" },
+    { media: "(prefers-color-scheme: dark)", color: "#090b1c" },
   ],
   width: "device-width",
   initialScale: 1,

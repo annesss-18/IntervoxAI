@@ -15,7 +15,7 @@ import { Container, PageHeader, Section } from "@/components/layout/Container";
 import { Button } from "@/components/atoms/button";
 
 export const metadata: Metadata = {
-  title: "Support · IntervoxAI",
+  title: "Support",
   description: "Get help using IntervoxAI.",
 };
 
@@ -89,7 +89,7 @@ export default function SupportPage() {
                 return (
                   <div
                     key={fix.title}
-                    className={`animate-fade-up fill-both flex items-start gap-4 rounded-2xl border border-border bg-card p-5 delay-${(i + 1) * 75}`}
+                    className={`animate-fade-up fill-both flex items-start gap-4 rounded-2xl border border-border bg-card p-5 ${["delay-75", "delay-150", "delay-225", "delay-300"][i]}`}
                   >
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
                       <Icon className="size-4 text-primary" />

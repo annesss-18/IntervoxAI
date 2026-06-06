@@ -20,7 +20,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
   const audioContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<AudioWorkletNode | null>(null);
-  // AudioWorklet replaced the deprecated ScriptProcessorNode capture path.
   const outputMonitorGainRef = useRef<GainNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   const callbackRef = useRef<((chunk: string) => void) | null>(null);
@@ -108,7 +107,6 @@ export function useAudioCapture(): UseAudioCaptureReturn {
           options?.vadSensitivity ?? 60,
         );
 
-        // AudioWorklet is the only supported capture path for the browsers we target.
         const moduleUrl = new URL(
           "/worklets/audio-processor.js",
           window.location.origin,
@@ -150,7 +148,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
 
         sourceRef.current.connect(processorRef.current);
 
-        // Connect to destination through a muted gain so the processing graph stays active.
+        // Keep the processing graph active without audible monitor output.
         outputMonitorGainRef.current = audioContextRef.current.createGain();
         outputMonitorGainRef.current.gain.value = 0;
         processorRef.current.connect(outputMonitorGainRef.current);
@@ -211,27 +209,12 @@ export function useAudioCapture(): UseAudioCaptureReturn {
   };
 }
 
-/**
- * Convert a Uint8Array to a base64 string.
- *
- * Previous implementation: a character-by-character loop that created one
- * intermediate string object per byte (~8 192 allocations for a typical 4 096-
- * sample PCM frame).
- *
- * This implementation uses String.fromCharCode.apply in fixed-size chunks
- * (32 768 bytes each), which is both safe against stack overflows and
- * dramatically reduces the number of intermediate string allocations — crucial
- * since this function runs at ~4 Hz during every live interview.
- */
 function uint8ArrayToBase64(bytes: Uint8Array): string {
-  // 32 768 is below the typical call-stack argument limit and processes
-  // a full 4 096-sample Int16 frame in a single chunk.
   const CHUNK = 0x8000;
   let binary = "";
   for (let i = 0; i < bytes.length; i += CHUNK) {
     binary += String.fromCharCode.apply(
       null,
-      // subarray returns a view — no copy — which apply reads as an array-like.
       bytes.subarray(i, i + CHUNK) as unknown as number[],
     );
   }

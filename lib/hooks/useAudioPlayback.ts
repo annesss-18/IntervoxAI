@@ -11,31 +11,7 @@ interface UseAudioPlaybackReturn {
   stop: () => void;
 }
 
-/**
- * Module-level resampling buffer.
- *
- * resampleAudio is called once per audio chunk (~every 120 ms during playback).
- * Allocating a new Float32Array on every call generates steady GC pressure during
- * live interviews.  We instead keep a single lazily-grown buffer at module scope
- * and return a subarray view into it.
- *
- * Safety: the caller immediately copies the view into a Web Audio AudioBuffer via
- * Float32Array.prototype.set(), which completes synchronously before the next
- * queueAudio invocation, so there is no risk of aliasing between calls.
- */
-// Module-level singleton resampling buffer.
-//
-// INTENTIONAL DESIGN: this buffer is shared across all hook instances
-// mounted in the same JS module scope.  In this application only one
-// LiveInterviewAgent (and therefore one useAudioPlayback) is ever mounted
-// at a time, so there is no aliasing risk.  If this hook is ever used in
-// parallel (e.g. in tests or a multi-agent future feature), each caller
-// must get its own buffer — move this declaration inside useAudioPlayback
-// or accept it as a parameter.
-//
-// The caller (queueAudio) copies the view into a Web Audio AudioBuffer via
-// Float32Array.set() synchronously before the next call, so the buffer
-// is safe to reuse without a lock.
+// Shared resampling buffer; queueAudio copies each view before reuse.
 let _resampleBuffer: Float32Array | null = null;
 
 export function useAudioPlayback(): UseAudioPlaybackReturn {
@@ -129,7 +105,6 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
           finalSamples.length,
           systemSampleRate,
         );
-        // .set() copies data synchronously — safe to use the reusable buffer view.
         audioBuffer.getChannelData(0).set(finalSamples);
 
         audioQueueRef.current.push(audioBuffer);
@@ -196,14 +171,6 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
   };
 }
 
-/**
- * Linearly resample `input` from `inRate` to `outRate`.
- *
- * Instead of allocating a new Float32Array on every call, we lazily grow a
- * module-level buffer and return a subarray view.  The caller copies data into
- * a Web Audio AudioBuffer synchronously via .set() before the next call, so
- * the view is never aliased between invocations.
- */
 function resampleAudio(
   input: Float32Array,
   inRate: number,
@@ -214,9 +181,7 @@ function resampleAudio(
   const ratio = inRate / outRate;
   const outputLength = Math.ceil(input.length / ratio);
 
-  // Grow the module-level buffer only when the current chunk is larger than
-  // anything seen before.  Over-provision by 50 % to avoid frequent reallocations
-  // during the first few chunks when output sizes are still settling.
+  // Over-provision to avoid frequent reallocations during early chunks.
   if (!_resampleBuffer || _resampleBuffer.length < outputLength) {
     _resampleBuffer = new Float32Array(Math.ceil(outputLength * 1.5));
   }

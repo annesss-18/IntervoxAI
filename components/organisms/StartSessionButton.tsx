@@ -58,16 +58,21 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
 
   return (
     <div className="space-y-2.5">
-      {/* Duration selector */}
       <div className="space-y-1.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
           Duration
         </p>
-        <div className="flex gap-1.5">
+        <div
+          className="flex gap-1.5"
+          role="radiogroup"
+          aria-label="Interview duration"
+        >
           {DURATION_OPTIONS.map(({ value, label }) => (
             <button
               key={value}
               type="button"
+              role="radio"
+              aria-checked={duration === value}
               disabled={loading}
               onClick={() => setDuration(value)}
               className={cn(
@@ -84,7 +89,6 @@ const StartSessionButton = ({ templateId }: StartSessionButtonProps) => {
         </div>
       </div>
 
-      {/* Start button */}
       <Button
         onClick={handleStart}
         disabled={loading}

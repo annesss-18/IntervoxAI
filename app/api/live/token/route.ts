@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { db } from "@/firebase/admin";
-import { withAuthClaims } from "@/lib/api-middleware";
+import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { decryptResumeText } from "@/lib/resume-crypto";
-import { RESUME_MAX_STORED_CHARS } from "@/lib/resume-types";
+import { RESUME_MAX_STORED_CHARS } from "@/lib/resume";
 import { ALLOWED_VOICE_NAMES, firestoreIdSchema } from "@/lib/schemas";
 import type { AuthClaims } from "@/types";
 
@@ -12,15 +13,106 @@ const client = new GoogleGenAI({
   apiKey: process.env.LIVE_INTERVIEW_API_KEY,
 });
 
-const LIVE_INTERVIEW_MODEL =
-  process.env.LIVE_INTERVIEW_MODEL ||
-  "models/gemini-2.5-flash-native-audio-preview-12-2025";
+const LIVE_INTERVIEW_MODEL = process.env.LIVE_INTERVIEW_MODEL;
 
-if (!process.env.LIVE_INTERVIEW_MODEL) {
-  console.warn(
-    "[ENV] LIVE_INTERVIEW_MODEL is not set — using default model. " +
-      "Live interviews will fail if LIVE_INTERVIEW_API_KEY is also missing.",
-  );
+if (!LIVE_INTERVIEW_MODEL) {
+  throw new Error("LIVE_INTERVIEW_MODEL is required");
+}
+
+const LIVE_TOKEN_ISSUE_COOLDOWN_MS = 15_000;
+const MAX_LIVE_TOKEN_ISSUES = 20;
+
+type LiveTokenClaim =
+  | { ok: true; sessionData: Record<string, unknown> }
+  | { ok: false; response: NextResponse };
+
+async function claimLiveTokenIssue(
+  sessionId: string,
+  userId: string,
+): Promise<LiveTokenClaim> {
+  return db.runTransaction(async (transaction) => {
+    const sessionRef = db.collection("interview_sessions").doc(sessionId);
+    const sessionDoc = await transaction.get(sessionRef);
+
+    if (!sessionDoc.exists) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Session not found" },
+          { status: 404 },
+        ),
+      };
+    }
+
+    const sessionData = sessionDoc.data() ?? {};
+    if (sessionData.userId !== userId) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Unauthorized access to session" },
+          { status: 403 },
+        ),
+      };
+    }
+
+    const sessionStatus = sessionData.status;
+    if (sessionStatus === "completed" || sessionStatus === "expired") {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "This session has already ended and cannot be reopened" },
+          { status: 409 },
+        ),
+      };
+    }
+
+    if ((sessionData.liveTokenIssueCount ?? 0) >= MAX_LIVE_TOKEN_ISSUES) {
+      return {
+        ok: false,
+        response: NextResponse.json(
+          { error: "Token limit reached for this session" },
+          { status: 429 },
+        ),
+      };
+    }
+
+    const lastIssuedAt =
+      typeof sessionData.liveTokenIssuedAt === "string"
+        ? Date.parse(sessionData.liveTokenIssuedAt)
+        : Number.NaN;
+    const nowMs = Date.now();
+
+    if (
+      Number.isFinite(lastIssuedAt) &&
+      nowMs - lastIssuedAt < LIVE_TOKEN_ISSUE_COOLDOWN_MS
+    ) {
+      const retryAfter = Math.ceil(
+        (LIVE_TOKEN_ISSUE_COOLDOWN_MS - (nowMs - lastIssuedAt)) / 1000,
+      );
+
+      return {
+        ok: false,
+        response: NextResponse.json(
+          {
+            error:
+              "A live interview token was just issued. Please retry shortly.",
+            retryAfter,
+          },
+          {
+            status: 429,
+            headers: { "Retry-After": retryAfter.toString() },
+          },
+        ),
+      };
+    }
+
+    transaction.update(sessionRef, {
+      liveTokenIssuedAt: new Date(nowMs).toISOString(),
+      liveTokenIssueCount: FieldValue.increment(1),
+    });
+
+    return { ok: true, sessionData };
+  });
 }
 
 export const POST = withAuthClaims(
@@ -37,48 +129,10 @@ export const POST = withAuthClaims(
 
       const sessionId = idResult.data;
 
-      const hintTemplateId =
-        typeof body?.templateId === "string" && body.templateId.length > 0
-          ? firestoreIdSchema.safeParse(body.templateId).data
-          : undefined;
+      const claim = await claimLiveTokenIssue(sessionId, user.id);
+      if (!claim.ok) return claim.response;
 
-      let sessionDoc: FirebaseFirestore.DocumentSnapshot;
-      let templateDoc: FirebaseFirestore.DocumentSnapshot | null = null;
-
-      if (hintTemplateId) {
-        [sessionDoc, templateDoc] = await Promise.all([
-          db.collection("interview_sessions").doc(sessionId).get(),
-          db.collection("interview_templates").doc(hintTemplateId).get(),
-        ]);
-      } else {
-        sessionDoc = await db
-          .collection("interview_sessions")
-          .doc(sessionId)
-          .get();
-      }
-
-      if (!sessionDoc.exists) {
-        return NextResponse.json(
-          { error: "Session not found" },
-          { status: 404 },
-        );
-      }
-
-      const sessionData = sessionDoc.data();
-      if (sessionData?.userId !== user.id) {
-        return NextResponse.json(
-          { error: "Unauthorized access to session" },
-          { status: 403 },
-        );
-      }
-
-      const sessionStatus = sessionData?.status;
-      if (sessionStatus === "completed" || sessionStatus === "expired") {
-        return NextResponse.json(
-          { error: "This session has already ended and cannot be reopened" },
-          { status: 409 },
-        );
-      }
+      const sessionData = claim.sessionData;
 
       logger.info(
         `Generating ephemeral token for user ${user.id}, session ${sessionId}`,
@@ -96,20 +150,10 @@ export const POST = withAuthClaims(
         );
       }
 
-      if (!templateDoc) {
-        templateDoc = await db
-          .collection("interview_templates")
-          .doc(templateId)
-          .get();
-      } else if (templateDoc.id !== templateId) {
-        logger.warn(
-          `templateId hint mismatch for session ${sessionId}: hint=${templateDoc.id}, actual=${templateId}`,
-        );
-        templateDoc = await db
-          .collection("interview_templates")
-          .doc(templateId)
-          .get();
-      }
+      const templateDoc = await db
+        .collection("interview_templates")
+        .doc(templateId)
+        .get();
 
       if (!templateDoc.exists) {
         logger.error(
@@ -138,8 +182,7 @@ export const POST = withAuthClaims(
             model: LIVE_INTERVIEW_MODEL,
             config: {
               systemInstruction,
-              // Lower temperature for consistent, professional interviewer behavior.
-              // 0.85 caused noticeable personality swings between turns.
+              // Keep interviewer behavior consistent across turns.
               temperature: 0.7,
               responseModalities: [Modality.AUDIO],
               speechConfig: {
@@ -154,18 +197,9 @@ export const POST = withAuthClaims(
               realtimeInputConfig: {
                 automaticActivityDetection: {
                   disabled: false,
-                  // FIX: Increased from 200 ms to 400 ms.
-                  // 200 ms was clipping the first syllable of responses when
-                  // candidates had a brief pre-speech pause. 400 ms includes
-                  // enough lead-in audio for clean transcription onset.
+                  // Preserve short lead-ins before speech.
                   prefixPaddingMs: 400,
-                  // FIX: Increased from 800 ms to 1500 ms.
-                  // 800 ms was below the Gemini Live default (2000 ms) and far
-                  // too short for interview use. Candidates regularly pause
-                  // 1–3 s mid-thought while formulating technical answers.
-                  // At 800 ms the AI fired before they finished speaking on
-                  // almost every complex question. 1500 ms still feels
-                  // responsive but stops the AI from interrupting.
+                  // Let candidates pause briefly mid-answer without interruption.
                   silenceDurationMs: 1500,
                 },
               },
@@ -178,6 +212,12 @@ export const POST = withAuthClaims(
       } as Parameters<typeof client.authTokens.create>[0]);
 
       logger.info(`Ephemeral token created for session ${sessionId}`);
+      logger.audit("live_token.issued", {
+        actorId: user.id,
+        sessionId,
+        expiresAt: expireTime,
+        voice: voiceName,
+      });
 
       return NextResponse.json({
         success: true,
@@ -196,12 +236,10 @@ export const POST = withAuthClaims(
     }
   },
   {
-    maxRequests: 100,
+    maxRequests: 12,
     windowMs: 60 * 1000,
   },
 );
-
-// ── Prompt helpers ──────────────────────────────────────────────────────────
 
 interface InterviewContext {
   role: string;
@@ -284,11 +322,6 @@ function buildInterviewContext(
   const rawResumeText =
     typeof sessionData?.resumeText === "string" ? sessionData.resumeText : null;
 
-  // Resume text is capped at RESUME_MAX_STORED_CHARS (shared with the parse
-  // and session-update routes) so all three paths enforce the same limit.
-  // 5 000 chars reliably covers contact info, summary, 2–3 full job
-  // descriptions, skills, and education — enough for genuine resume-aware
-  // follow-ups without bloating the Gemini Live token budget.
   const resumeText = rawResumeText
     ? decryptResumeText(rawResumeText)?.slice(0, RESUME_MAX_STORED_CHARS)
     : undefined;
@@ -311,7 +344,6 @@ function buildInterviewContext(
       templateData?.systemInstruction,
       20000,
     ),
-    // Pass session duration so prompts can reference pacing expectations.
     durationMinutes:
       typeof sessionData?.durationMinutes === "number"
         ? sessionData.durationMinutes
@@ -322,19 +354,6 @@ function buildInterviewContext(
   };
 }
 
-/**
- * Extract the candidate's first name from the top of their resume text.
- *
- * FIX: The previous implementation rejected all-caps lines via
- * `!/^[A-Z\s]+$/.test(cleaned)`. This correctly filtered one-word section
- * headers (EXPERIENCE, SKILLS) but also silently rejected names formatted in
- * all-caps (JOHN DOE) — a common resume convention.
- *
- * The fix: remove the all-caps filter and instead normalize the returned name
- * to title case, so "JOHN" → "John", "john" → "John", "John" → "John".
- * Section headers are still filtered by the single-word check (length ≥ 2
- * space-separated words) and other heuristics.
- */
 function extractCandidateName(resumeText?: string): string | null {
   if (!resumeText) return null;
 
@@ -350,13 +369,10 @@ function extractCandidateName(resumeText?: string): string | null {
       !cleaned.includes("http") &&
       !cleaned.includes("|") &&
       !/\d{3,}/.test(cleaned)
-      // Removed: !/^[A-Z\s]+$/.test(cleaned) — this rejected ALL_CAPS names.
-      // We normalize to title case below instead.
     ) {
       const parts = cleaned.split(" ");
       const rawFirst = parts[0];
       if (!rawFirst) return null;
-      // Normalize to title case so "JOHN" and "john" both produce "John".
       return rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
     }
   }
@@ -364,17 +380,6 @@ function extractCandidateName(resumeText?: string): string | null {
   return null;
 }
 
-/**
- * Build the complete system instruction for the live AI interviewer.
- *
- * Two paths:
- *  1. Template path — the template was generated with a full `systemInstruction`.
- *     We wrap it with lightweight voice-specific overlays without overriding the
- *     core persona and question plan.
- *  2. Fallback path — no generated instruction exists. We build a comprehensive
- *     behavioral spec from scratch. This path previously produced a 6-line stub
- *     that made the AI robotic and unresponsive to the candidate's actual answers.
- */
 function buildInterviewerPrompt(context?: InterviewContext): string {
   const candidateName = extractCandidateName(context?.resumeText) || null;
   const candidateGreeting = candidateName ?? "there";
@@ -383,12 +388,10 @@ function buildInterviewerPrompt(context?: InterviewContext): string {
     context?.interviewerPersona?.title || "Senior Engineer";
   const companyName = context?.companyName || "our company";
 
-  // Duration context for pacing awareness.
   const durationNote = context?.durationMinutes
     ? `This session is scheduled for ${context.durationMinutes} minutes. Pace yourself to cover the key questions within that window.`
     : "";
 
-  // Resume block — shared across both paths.
   const resumeBlock = context?.resumeText
     ? `
 CANDIDATE BACKGROUND
@@ -407,7 +410,6 @@ How to use the resume:
 `
     : "";
 
-  // ── Path 1: Template-generated system instruction ────────────────────────
   if (context?.systemInstruction) {
     return `
 You are conducting a live interview over real-time voice.
@@ -449,7 +451,6 @@ After delivering the closing phrase, do not speak again.
 `.trim();
   }
 
-  // ── Path 2: Fallback — build a full prompt from available context ─────────
   const interviewType = context?.type || "technical";
   const techList = context?.techStack?.length
     ? `The role centres on: ${context.techStack.slice(0, 8).join(", ")}.`

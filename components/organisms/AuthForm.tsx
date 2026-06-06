@@ -23,13 +23,13 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 const signInSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 const signUpSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 type SignInData = z.infer<typeof signInSchema>;
@@ -65,13 +65,6 @@ interface AuthFormProps {
   type: "sign-in" | "sign-up";
 }
 
-/**
- * Return a safe post-auth redirect destination.
- *
- * Only allows relative paths that start with "/" and do not start with "//"
- * (protocol-relative URLs). Anything else — including absolute URLs — falls
- * back to /dashboard to prevent open-redirect attacks.
- */
 function getSafeCallbackUrl(raw: string | null): string {
   if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
   return "/dashboard";
@@ -128,8 +121,7 @@ export function AuthForm({ type }: AuthFormProps) {
         router.push(postAuthUrl);
       }
     } catch (error: unknown) {
-      // Roll back client-side Firebase auth so it doesn't diverge from the
-      // server state (which failed to issue a session cookie).
+      // Keep client auth aligned when the server session fails.
       await auth.signOut().catch(() => {});
       const err = error as { message?: string };
       toast.error(
@@ -149,8 +141,6 @@ export function AuthForm({ type }: AuthFormProps) {
       const email = cred.user.email || "";
       if (!email) throw new Error("No email on this Google account.");
 
-      // Always use googleAuthenticate — it's idempotent:
-      // creates the user on first sign-in, continues if already exists.
       const result = await googleAuthenticate({
         name: cred.user.displayName || "User",
         idToken,
@@ -163,8 +153,7 @@ export function AuthForm({ type }: AuthFormProps) {
       );
       router.push(postAuthUrl);
     } catch (error: unknown) {
-      // Roll back client-side Firebase auth so it doesn't diverge from the
-      // server state (which failed to issue a session cookie).
+      // Keep client auth aligned when the server session fails.
       await auth.signOut().catch(() => {});
       const err = error as { message?: string };
       toast.error(err?.message || "Google authentication failed");
@@ -297,7 +286,7 @@ export function AuthForm({ type }: AuthFormProps) {
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
                 <EyeOff className="size-4" />

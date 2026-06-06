@@ -36,6 +36,9 @@ export function FeedbackGenerationStatus({
   const inFlightRef = useRef(false);
   const completionToastShownRef = useRef(false);
   const statusRef = useRef<FeedbackJobStatus>("pending");
+  const scheduleNextPollRef = useRef<
+    (nextStatus: FeedbackJobStatus | null) => void
+  >(() => {});
 
   useEffect(() => {
     statusRef.current = status;
@@ -128,12 +131,16 @@ export function FeedbackGenerationStatus({
       clearPolling();
       pollTimerRef.current = setTimeout(() => {
         void checkStatus().then((latestStatus) => {
-          scheduleNextPoll(latestStatus);
+          scheduleNextPollRef.current(latestStatus);
         });
       }, pollIntervalRef.current);
     },
     [checkStatus, clearPolling],
   );
+
+  useEffect(() => {
+    scheduleNextPollRef.current = scheduleNextPoll;
+  }, [scheduleNextPoll]);
 
   useEffect(() => {
     let isMounted = true;
