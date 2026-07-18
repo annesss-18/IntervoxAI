@@ -57,10 +57,10 @@ export default function TermsPage() {
               <FileText className="size-4 text-info" />
             </span>
             <div>
-              <p className="font-semibold text-sm">Early-access terms</p>
+              <p className="font-semibold text-sm">Please read before using IntervoxAI</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Full legal terms for the commercial launch are in preparation.
-                These points summarise your rights and responsibilities today.
+                These terms describe the current practice product and the
+                responsibilities that apply to every account.
               </p>
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function TermsPage() {
           </div>
 
           <p className="mt-10 text-center text-xs text-muted-foreground">
-            Last updated: March 2026.{" "}
+            Last updated: July 2026.{" "}
             <Link
               href="/privacy"
               className="text-primary hover:underline underline-offset-4"

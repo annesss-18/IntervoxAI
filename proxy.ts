@@ -45,6 +45,10 @@ export function proxy(request: NextRequest) {
 
   const cspHeader = [
     `default-src 'self'`,
+    `base-uri 'self'`,
+    `object-src 'none'`,
+    `form-action 'self'`,
+    `frame-ancestors 'none'`,
     `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""} https://apis.google.com https://*.firebaseapp.com https://va.vercel-scripts.com`,
     `style-src 'self' https://fonts.googleapis.com`,
     `style-src-elem 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-inline'" : ""} https://fonts.googleapis.com`,

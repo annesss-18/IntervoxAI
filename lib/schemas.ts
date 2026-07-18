@@ -45,7 +45,21 @@ export const transcriptEntrySchema = z.object({
 
 export const transcriptArraySchema = z
   .array(transcriptEntrySchema)
-  .max(1000, "transcript too long - maximum 1,000 turns");
+  .max(1000, "transcript too long - maximum 1,000 turns")
+  .superRefine((entries, ctx) => {
+    const totalChars = entries.reduce(
+      (sum, entry) => sum + entry.content.length,
+      0,
+    );
+
+    if (totalChars > 20_000) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "transcript too large - maximum 20,000 total characters per request",
+      });
+    }
+  });
 
 export const transcriptAppendSchema = z
   .array(transcriptEntrySchema)

@@ -75,6 +75,10 @@ const _getCachedCurrentUserClaims = cache(
           typeof decodedClaims.email === "string"
             ? decodedClaims.email.trim().toLowerCase()
             : undefined,
+        authTime:
+          typeof decodedClaims.auth_time === "number"
+            ? decodedClaims.auth_time * 1000
+            : undefined,
       };
     } catch (error) {
       logger.error("Error verifying session cookie:", error);

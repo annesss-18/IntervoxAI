@@ -81,7 +81,7 @@ export default function AuthLayout({
               ))}
             </ul>
 
-            <div className="flex gap-8 border-t border-border/50 pt-8">
+            <div className="hidden flex gap-8 border-t border-border/50 pt-8">
               {stats.map((stat) => (
                 <div key={stat.label} className="space-y-0.5">
                   <p className="font-mono text-2xl font-bold tabular-nums text-foreground">
@@ -93,7 +93,7 @@ export default function AuthLayout({
             </div>
           </div>
 
-          <blockquote className="max-w-xs space-y-3">
+          <blockquote className="hidden max-w-xs space-y-3">
             <p className="text-sm text-muted-foreground italic leading-relaxed">
               &ldquo;The voice-first format makes it feel like a real interview.
               I got the job after just two weeks of practice.&rdquo;

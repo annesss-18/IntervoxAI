@@ -23,10 +23,9 @@ async function sendResendEmail(
   });
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(
-      `Resend email request failed (${response.status})${body ? `: ${body}` : ""}`,
-    );
+    // Providers can echo recipient addresses and request details in errors.
+    // Keep production logs free of those values.
+    throw new Error(`Resend email request failed (${response.status})`);
   }
 }
 
@@ -62,8 +61,9 @@ export const EmailService = {
       return;
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://intervoxai.com";
-    const feedbackUrl = `${appUrl}/interview/session/${sessionId}/feedback`;
+    const appUrl =
+      process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://intervoxai.com";
+    const feedbackUrl = `${appUrl.replace(/\/$/, "")}/interview/session/${sessionId}/feedback`;
 
     const rawFirstName = toName.split(" ")[0] || toName;
 
@@ -150,7 +150,7 @@ export const EmailService = {
       html,
     });
 
-    logger.info(`Feedback email sent to ${toEmail} for session ${sessionId}`);
+    logger.info(`Feedback email sent for session ${sessionId}`);
   },
 };
 

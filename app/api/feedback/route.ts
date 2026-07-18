@@ -179,30 +179,45 @@ async function appendFullTranscriptTail(
     return currentBase;
   }
 
-  let appendResult = await InterviewRepository.appendTranscriptEntries(
-    sessionId,
-    normalizedTranscript.slice(currentBase),
-    currentBase,
-  );
-
-  if (!appendResult.success && appendResult.reason === "stale") {
-    currentBase = appendResult.expectedBase ?? currentBase;
-    if (normalizedTranscript.length <= currentBase) {
-      return currentBase;
+  // Keep every Firestore chunk well below document-size limits.  The incoming
+  // full transcript may be valid as an API payload but is never stored as a
+  // single document.
+  while (normalizedTranscript.length > currentBase) {
+    const entries: TranscriptSentence[] = [];
+    let characters = 0;
+    for (const entry of normalizedTranscript.slice(currentBase)) {
+      if (
+        entries.length >= 100 ||
+        (entries.length > 0 && characters + entry.content.length > 20_000)
+      ) {
+        break;
+      }
+      entries.push(entry);
+      characters += entry.content.length;
     }
 
-    appendResult = await InterviewRepository.appendTranscriptEntries(
+    if (entries.length === 0) {
+      throw new Error("Transcript entry exceeds storage limits");
+    }
+
+    const appendResult = await InterviewRepository.appendTranscriptEntries(
       sessionId,
-      normalizedTranscript.slice(currentBase),
+      entries,
       currentBase,
     );
+
+    if (!appendResult.success) {
+      if (appendResult.reason === "stale") {
+        currentBase = appendResult.expectedBase ?? currentBase;
+        continue;
+      }
+      throw new Error("Failed to persist transcript");
+    }
+
+    currentBase = appendResult.nextBase;
   }
 
-  if (!appendResult.success) {
-    throw new Error("Failed to persist transcript");
-  }
-
-  return appendResult.nextBase;
+  return currentBase;
 }
 
 async function appendExplicitTranscriptTail(
@@ -247,6 +262,18 @@ export const POST = withAuthClaims(
 
       const { interviewId, transcript, transcriptAppend, checkpointBase } =
         validation.data;
+
+      // A serverless background callback is not a durable production queue.
+      // Refuse to accept work that cannot be delivered reliably.
+      if (process.env.NODE_ENV === "production" && !isQueueAvailable()) {
+        return NextResponse.json(
+          {
+            error:
+              "Feedback processing is temporarily unavailable. Please try again shortly.",
+          },
+          { status: 503 },
+        );
+      }
 
       const sessionRef = db.collection("interview_sessions").doc(interviewId);
       const sessionDoc = await sessionRef.get();
@@ -403,38 +430,35 @@ export const POST = withAuthClaims(
         transcriptTurns: storedTranscriptCount,
       });
 
-      // Trigger feedback generation inline to prevent stuck "pending" state
-      // if the user closes their browser before calling /api/feedback/process.
-      const fullTranscript =
-        await InterviewRepository.findTranscriptById(interviewId);
-      if (fullTranscript.length > 0) {
+      // Trigger durable feedback processing immediately.  The worker rehydrates
+      // the transcript from Firestore rather than receiving it in the queue.
+      if (storedTranscriptCount > 0) {
         await InterviewRepository.update(interviewId, {
           feedbackStatus: "processing",
           feedbackProcessingAt: now,
         });
 
-        let queuedViaQStash = false;
-
         if (isQueueAvailable()) {
           try {
-            await publishFeedbackJob({
-              interviewId,
-              userId: user.id,
-              transcript: fullTranscript,
-            });
-            queuedViaQStash = true;
+            await publishFeedbackJob({ interviewId, userId: user.id });
           } catch (queueError) {
             logger.error(
-              `QStash publish failed for interview ${interviewId}, falling back to after():`,
+              `QStash publish failed for interview ${interviewId}; leaving job pending for retry:`,
               queueError,
             );
-            after(async () => {
-              await runFeedbackGeneration(interviewId, user.id, fullTranscript);
+            await InterviewRepository.update(interviewId, {
+              feedbackStatus: "pending",
+              feedbackError: "Feedback delivery could not be queued. Please retry.",
             });
+            return NextResponse.json(
+              { error: "Feedback could not be queued. Please retry." },
+              { status: 503 },
+            );
           }
         } else {
+          // Development-only convenience path.  Production is rejected above.
           after(async () => {
-            await runFeedbackGeneration(interviewId, user.id, fullTranscript);
+            await runFeedbackGeneration(interviewId, user.id);
           });
         }
 
@@ -443,7 +467,7 @@ export const POST = withAuthClaims(
             success: true,
             queued: true,
             status: "processing",
-            queuedViaQStash,
+            queuedViaQStash: isQueueAvailable(),
           },
           { status: 202 },
         );

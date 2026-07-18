@@ -75,6 +75,12 @@ export interface SessionTemplateSnapshot {
   level: InterviewTemplate["level"];
   type: InterviewTemplate["type"];
   techStack: string[];
+  /** Immutable prompt inputs captured when a session is created. */
+  baseQuestions?: string[];
+  focusArea?: string[];
+  jobDescription?: string;
+  systemInstruction?: string;
+  interviewerPersona?: InterviewTemplate["interviewerPersona"];
 }
 
 export type FeedbackJobStatus =
@@ -215,6 +221,8 @@ export interface User {
 export interface AuthClaims {
   id: string;
   email?: string;
+  /** Firebase authentication time in milliseconds since epoch. */
+  authTime?: number;
 }
 
 export interface SignInParams {

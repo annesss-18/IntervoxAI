@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { firestoreIdSchema, transcriptArraySchema } from "@/lib/schemas";
+import { firestoreIdSchema } from "@/lib/schemas";
 import { verifyQstashRequest } from "@/lib/server/qstash";
 import { runFeedbackGeneration } from "@/lib/services/feedback-runner";
 
@@ -12,7 +12,6 @@ export const maxDuration = 300;
 const payloadSchema = z.object({
   interviewId: firestoreIdSchema,
   userId: z.string().min(1).max(128),
-  transcript: transcriptArraySchema,
 });
 
 export async function POST(req: NextRequest) {
@@ -39,14 +38,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 200 });
     }
 
-    const { interviewId, userId, transcript } = validation.data;
+    const { interviewId, userId } = validation.data;
 
     logger.info(
       `Worker processing feedback for interview ${interviewId}, user ${userId}`,
     );
 
     // Run the shared feedback pipeline.
-    await runFeedbackGeneration(interviewId, userId, transcript);
+    // Sensitive transcripts stay in Firestore; queue messages contain only
+    // opaque identifiers and are rehydrated after signature verification.
+    await runFeedbackGeneration(interviewId, userId);
 
     logger.audit("feedback.worker_completed", {
       userId,

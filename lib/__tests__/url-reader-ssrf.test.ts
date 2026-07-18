@@ -25,6 +25,8 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
     "172.31.255.255",
     "169.254.169.254",
     "::1",
+    "::ffff:127.0.0.1",
+    "::ffff:7f00:1",
     "metadata.google.internal",
     "anything.localhost",
     "internal.service.local",
@@ -71,5 +73,21 @@ describe("SSRF: extractTextFromUrl blocks private addresses", () => {
     await expect(
       extractTextFromUrl("http://evil-rebind.com/jobs"),
     ).rejects.toThrow(/private network/i);
+  });
+
+  it("rejects when DNS answers change between validations", async () => {
+    const { extractTextFromUrl } = await import("../server/url-reader");
+
+    vi.mocked(dns.lookup)
+      .mockResolvedValueOnce([
+        { address: "93.184.216.34", family: 4 },
+      ] as unknown as Awaited<ReturnType<typeof dns.lookup>>)
+      .mockResolvedValueOnce([
+        { address: "93.184.216.35", family: 4 },
+      ] as unknown as Awaited<ReturnType<typeof dns.lookup>>);
+
+    await expect(
+      extractTextFromUrl("http://unstable.example/jobs"),
+    ).rejects.toThrow(/resolution changed/i);
   });
 });

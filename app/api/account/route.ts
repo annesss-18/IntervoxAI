@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { withAuth } from "@/lib/server/api-middleware";
+import { withAuth, withAuthClaims } from "@/lib/server/api-middleware";
 import { UserRepository } from "@/lib/repositories/user.repository";
 import { logger } from "@/lib/logger";
-import type { User } from "@/types";
+import type { AuthClaims, User } from "@/types";
 
 const nameSchema = z.object({
   name: z.string().min(2).max(100),
@@ -49,8 +49,8 @@ export const PATCH = withAuth(
 );
 
 // DELETE /api/account — permanently delete account
-export const DELETE = withAuth(
-  async (req: NextRequest, user: User) => {
+export const DELETE = withAuthClaims(
+  async (req: NextRequest, user: AuthClaims) => {
     try {
       const body = await req.json().catch(() => null);
       const validation = deleteAccountSchema.safeParse(body);
@@ -65,15 +65,23 @@ export const DELETE = withAuth(
         );
       }
 
-      try {
-        await UserRepository.deleteAccount(user.id);
-      } finally {
-        // Always clear the session cookie, even on partial failure.
-        // If deleteAccount() threw after auth.deleteUser() succeeded,
-        // the cookie would remain valid for up to 5 days otherwise.
-        const cookieStore = await cookies();
-        cookieStore.delete("session");
+      const recentAuthenticationWindowMs = 5 * 60 * 1000;
+      if (
+        !user.authTime ||
+        Date.now() - user.authTime > recentAuthenticationWindowMs
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Please sign in again before permanently deleting your account.",
+          },
+          { status: 401 },
+        );
       }
+
+      await UserRepository.deleteAccount(user.id);
+      const cookieStore = await cookies();
+      cookieStore.delete("session");
 
       logger.audit("account.deleted", { actorId: user.id });
 

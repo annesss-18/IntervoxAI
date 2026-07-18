@@ -138,37 +138,50 @@ export const POST = withAuthClaims(
         `Generating ephemeral token for user ${user.id}, session ${sessionId}`,
       );
 
-      const templateId =
-        typeof sessionData?.templateId === "string"
-          ? sessionData.templateId
-          : null;
-      if (!templateId) {
-        logger.error(`Session ${sessionId} is missing templateId`);
-        return NextResponse.json(
-          { error: "Interview session is missing its template context" },
-          { status: 422 },
-        );
+      // New sessions contain an immutable, sanitized template snapshot.  Do
+      // not load the mutable source template for those sessions: changing or
+      // deleting a template must not change an interview already in progress.
+      let templateContext: Record<string, unknown> | undefined;
+      const storedSnapshot = sessionData.templateSnapshot;
+      if (
+        storedSnapshot &&
+        typeof storedSnapshot === "object" &&
+        typeof (storedSnapshot as Record<string, unknown>).role === "string"
+      ) {
+        templateContext = storedSnapshot as Record<string, unknown>;
+      } else {
+        // Backward-compatible fallback for sessions created before immutable
+        // snapshots were introduced.
+        const templateId =
+          typeof sessionData.templateId === "string"
+            ? sessionData.templateId
+            : null;
+        if (!templateId) {
+          logger.error(`Session ${sessionId} is missing template context`);
+          return NextResponse.json(
+            { error: "Interview session is missing its template context" },
+            { status: 422 },
+          );
+        }
+
+        const templateDoc = await db
+          .collection("interview_templates")
+          .doc(templateId)
+          .get();
+
+        if (!templateDoc.exists) {
+          logger.error(
+            `Template ${templateId} was not found for legacy session ${sessionId}`,
+          );
+          return NextResponse.json(
+            { error: "Interview template not found" },
+            { status: 404 },
+          );
+        }
+        templateContext = templateDoc.data();
       }
 
-      const templateDoc = await db
-        .collection("interview_templates")
-        .doc(templateId)
-        .get();
-
-      if (!templateDoc.exists) {
-        logger.error(
-          `Template ${templateId} was not found for session ${sessionId}`,
-        );
-        return NextResponse.json(
-          { error: "Interview template not found" },
-          { status: 404 },
-        );
-      }
-
-      const interviewContext = buildInterviewContext(
-        sessionData,
-        templateDoc.data(),
-      );
+      const interviewContext = buildInterviewContext(sessionData, templateContext);
 
       const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
       const systemInstruction = buildInterviewerPrompt(interviewContext);

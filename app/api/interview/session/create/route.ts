@@ -28,6 +28,19 @@ const createSessionSchema = z.object({
 function buildTemplateSnapshot(
   templateData: FirebaseFirestore.DocumentData | undefined,
 ): SessionTemplateSnapshot {
+  const stringArray = (
+    value: unknown,
+    maxItems: number,
+    maxItemLength: number,
+  ) =>
+    Array.isArray(value)
+      ? value
+          .filter((item: unknown): item is string => typeof item === "string")
+          .map((item) => item.trim().slice(0, maxItemLength))
+          .filter(Boolean)
+          .slice(0, maxItems)
+      : [];
+
   const techStack = Array.isArray(templateData?.techStack)
     ? templateData.techStack
         .filter((item: unknown): item is string => typeof item === "string")
@@ -56,6 +69,34 @@ function buildTemplateSnapshot(
         ? (templateData.type as SessionTemplateSnapshot["type"])
         : "Technical",
     techStack,
+    baseQuestions: stringArray(templateData?.baseQuestions, 20, 500),
+    focusArea: stringArray(templateData?.focusArea, 10, 100),
+    jobDescription:
+      typeof templateData?.jobDescription === "string"
+        ? templateData.jobDescription.trim().slice(0, 25_000)
+        : undefined,
+    systemInstruction:
+      typeof templateData?.systemInstruction === "string"
+        ? templateData.systemInstruction.trim().slice(0, 20_000)
+        : undefined,
+    interviewerPersona:
+      templateData?.interviewerPersona &&
+      typeof templateData.interviewerPersona === "object" &&
+      typeof templateData.interviewerPersona.name === "string" &&
+      typeof templateData.interviewerPersona.title === "string" &&
+      typeof templateData.interviewerPersona.personality === "string"
+        ? {
+            name: templateData.interviewerPersona.name.trim().slice(0, 80),
+            title: templateData.interviewerPersona.title.trim().slice(0, 120),
+            personality: templateData.interviewerPersona.personality
+              .trim()
+              .slice(0, 500),
+            voice:
+              typeof templateData.interviewerPersona.voice === "string"
+                ? templateData.interviewerPersona.voice.trim().slice(0, 50)
+                : undefined,
+          }
+        : undefined,
   };
 }
 

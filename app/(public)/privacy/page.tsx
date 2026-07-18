@@ -17,12 +17,12 @@ const items = [
   {
     icon: Lock,
     title: "Interview & resume content",
-    body: "Session transcripts and scores are stored per-user in Firestore, accessible only to you. Resume text is always encrypted at rest using AES-256-GCM before storage. You may delete individual sessions at any time from your dashboard.",
+    body: "Session transcripts, scores, and encrypted resume text are stored in Firebase Firestore for your account. Resume text is encrypted with AES-256-GCM before storage. You can delete individual sessions or your account from the product; deletion is also propagated to the associated application records.",
   },
   {
     icon: Eye,
-    title: "Data visibility",
-    body: "Your data is never sold to or shared with third parties. AI inference is performed server-side via the Google Gemini API; your interview audio is not retained beyond a session. Session transcripts are stored for the lifetime of your account.",
+    title: "AI and service providers",
+    body: "We do not sell personal data. To operate the service, account and interview data may be processed by Firebase/Google, including Gemini for template generation, live audio interviews, and feedback. We also use Upstash QStash for background-job delivery, Resend for optional feedback emails, Vercel Analytics for aggregate usage analytics, and—only when enabled—Jina Reader to retrieve a job-posting URL. These providers process data under their own service terms and privacy notices.",
   },
   {
     icon: Server,
@@ -87,7 +87,7 @@ export default function PrivacyPage() {
           </div>
 
           <p className="mt-10 text-center text-xs text-muted-foreground">
-            Last updated: March 2026.{" "}
+            Last updated: July 2026.{" "}
             <Link
               href="/terms"
               className="text-primary hover:underline underline-offset-4"

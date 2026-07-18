@@ -14,7 +14,7 @@ const FEEDBACK_AI_TIMEOUT_MS = 2 * 60 * 1000;
 export async function runFeedbackGeneration(
   interviewId: string,
   userId: string,
-  transcript: TranscriptSentence[],
+  transcript?: TranscriptSentence[],
 ) {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => {
@@ -22,11 +22,17 @@ export async function runFeedbackGeneration(
   }, FEEDBACK_AI_TIMEOUT_MS);
 
   try {
+    const feedbackTranscript =
+      transcript ?? (await InterviewRepository.findTranscriptById(interviewId));
+    if (feedbackTranscript.length === 0) {
+      throw new Error("Transcript could not be reconstructed for feedback.");
+    }
+
     const result = await InterviewService.createFeedback(
       {
         interviewId,
         userId,
-        transcript,
+        transcript: feedbackTranscript,
       },
       { abortSignal: controller.signal },
     );

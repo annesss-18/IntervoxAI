@@ -512,22 +512,26 @@ export const InterviewService = {
       companyName: session.templateSnapshot?.companyName || "the company",
     };
 
-    try {
-      const template = await TemplateRepository.findById(session.templateId);
-      if (template) {
-        interviewContext = {
-          role: template.role || interviewContext.role,
-          level: template.level || interviewContext.level,
-          type: template.type || interviewContext.type,
-          techStack: template.techStack || [],
-          companyName: template.companyName || interviewContext.companyName,
-        };
+    // Keep feedback calibrated to the exact template that started the session.
+    // Legacy sessions without a snapshot retain the old template lookup.
+    if (!session.templateSnapshot) {
+      try {
+        const template = await TemplateRepository.findById(session.templateId);
+        if (template) {
+          interviewContext = {
+            role: template.role || interviewContext.role,
+            level: template.level || interviewContext.level,
+            type: template.type || interviewContext.type,
+            techStack: template.techStack || [],
+            companyName: template.companyName || interviewContext.companyName,
+          };
+        }
+      } catch (e) {
+        logger.warn(
+          `Could not fetch template for legacy session ${interviewId}, proceeding with defaults`,
+          e,
+        );
       }
-    } catch (e) {
-      logger.warn(
-        `Could not fetch template for feedback context (session ${interviewId}), proceeding with defaults`,
-        e,
-      );
     }
 
     const techStackLabel = interviewContext.techStack.join(", ") || "General";

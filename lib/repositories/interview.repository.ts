@@ -114,6 +114,54 @@ function normalizeSnapshot(
           (item): item is string => typeof item === "string",
         )
       : [],
+    baseQuestions: Array.isArray(data.baseQuestions)
+      ? data.baseQuestions
+          .filter((item): item is string => typeof item === "string")
+          .slice(0, 20)
+      : [],
+    focusArea: Array.isArray(data.focusArea)
+      ? data.focusArea
+          .filter((item): item is string => typeof item === "string")
+          .slice(0, 10)
+      : [],
+    jobDescription:
+      typeof data.jobDescription === "string"
+        ? data.jobDescription.slice(0, 25_000)
+        : undefined,
+    systemInstruction:
+      typeof data.systemInstruction === "string"
+        ? data.systemInstruction.slice(0, 20_000)
+        : undefined,
+    interviewerPersona:
+      data.interviewerPersona &&
+      typeof data.interviewerPersona === "object" &&
+      typeof (data.interviewerPersona as Record<string, unknown>).name ===
+        "string" &&
+      typeof (data.interviewerPersona as Record<string, unknown>).title ===
+        "string" &&
+      typeof (data.interviewerPersona as Record<string, unknown>).personality ===
+        "string"
+        ? {
+            name: (data.interviewerPersona as Record<string, string>).name.slice(
+              0,
+              80,
+            ),
+            title: (data.interviewerPersona as Record<string, string>).title.slice(
+              0,
+              120,
+            ),
+            personality: (
+              data.interviewerPersona as Record<string, string>
+            ).personality.slice(0, 500),
+            voice:
+              typeof (data.interviewerPersona as Record<string, unknown>)
+                .voice === "string"
+                ? (
+                    data.interviewerPersona as Record<string, string>
+                  ).voice.slice(0, 50)
+                : undefined,
+          }
+        : undefined,
   };
 }
 

@@ -7,6 +7,10 @@ class AudioProcessor extends AudioWorkletProcessor {
     this.BufferSize = 2048;
     this.buffer = new Float32Array(this.BufferSize);
     this.bufferIndex = 0;
+    // Fractional source position carries across AudioWorklet render quanta.
+    // Resetting it for each 128-frame block drifts from 16 kHz on 44.1 kHz
+    // devices and produces discontinuities in the PCM stream.
+    this.sourcePosition = 0;
     this.VadThreshold = 0.005;
 
     // Continue briefly after speech drops so pauses do not become hard gaps.
@@ -33,10 +37,9 @@ class AudioProcessor extends AudioWorkletProcessor {
 
     // Downsample from the hardware rate to 16 kHz using linear interpolation.
     const ratio = sampleRate / this.TargetSampleRate;
-    const newSamples = Math.floor(inputChannel.length / ratio);
 
-    for (let i = 0; i < newSamples; i++) {
-      const srcIndex = i * ratio;
+    while (this.sourcePosition < inputChannel.length) {
+      const srcIndex = this.sourcePosition;
       const srcIndexFloor = Math.floor(srcIndex);
       const fraction = srcIndex - srcIndexFloor;
 
@@ -49,7 +52,12 @@ class AudioProcessor extends AudioWorkletProcessor {
       if (this.bufferIndex >= this.BufferSize) {
         this.flush();
       }
+
+      this.sourcePosition += ratio;
     }
+
+    // Rebase to the next input block while retaining the fractional phase.
+    this.sourcePosition -= inputChannel.length;
 
     return true;
   }

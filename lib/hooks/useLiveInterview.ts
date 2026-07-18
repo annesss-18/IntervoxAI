@@ -149,6 +149,7 @@ export function useLiveInterview(
   const modelTurnBufferRef = useRef("");
   const userTranscriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectionAttemptsRef = useRef(0);
+  const reconnectNotBeforeRef = useRef(0);
   const isIntentionalDisconnectRef = useRef(false);
   const isConnectedRef = useRef(false);
   const lastSpeakerRef = useRef<"user" | "model" | null>(null);
@@ -528,9 +529,24 @@ export function useLiveInterview(
         });
 
         if (!tokenResponse.ok) {
-          const errorData = await tokenResponse.json();
+          const errorData = await tokenResponse.json().catch(() => ({}));
+          const retryAfterSeconds = Number(
+            tokenResponse.headers.get("Retry-After") ||
+              (typeof errorData?.retryAfter === "number"
+                ? errorData.retryAfter
+                : 0),
+          );
+
+          if (tokenResponse.status === 429 && retryAfterSeconds > 0) {
+            reconnectNotBeforeRef.current =
+              Date.now() + retryAfterSeconds * 1000;
+            setError("Reconnecting shortly…");
+            setStatus("disconnected");
+            return;
+          }
+
           throw new Error(
-            errorData.error || "Failed to get authentication token",
+            errorData?.error || "Failed to get authentication token",
           );
         }
 
@@ -568,7 +584,7 @@ export function useLiveInterview(
               logger.error("Live API error:", event);
               isConnectedRef.current = false;
               setError(event.message || "Unknown WebSocket error");
-              setStatus("error");
+              setStatus("disconnected");
             },
             onclose: (event: CloseEvent) => {
               logger.info("Live API connection closed:", event.reason);
@@ -585,7 +601,8 @@ export function useLiveInterview(
             ? connectError.message
             : "Connection failed";
         setError(errorMessage);
-        setStatus("error");
+        // Let the reconnect effect retry transient network and token failures.
+        setStatus("disconnected");
         throw connectError;
       } finally {
         connectingPromiseRef.current = null;
@@ -610,7 +627,10 @@ export function useLiveInterview(
       return;
     }
 
-    const delay = baseDelay * Math.pow(2, reconnectionAttemptsRef.current);
+    const exponentialDelay =
+      baseDelay * Math.pow(2, reconnectionAttemptsRef.current);
+    const cooldownDelay = Math.max(0, reconnectNotBeforeRef.current - Date.now());
+    const delay = Math.max(exponentialDelay, cooldownDelay);
     reconnectionAttemptsRef.current += 1;
 
     const timeoutId = setTimeout(() => {

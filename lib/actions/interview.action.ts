@@ -1,5 +1,3 @@
-"use server";
-
 import { GetFeedbackByInterviewIdParams } from "@/types";
 import { logger } from "@/lib/logger";
 import { InterviewService } from "@/lib/services/interview.service";
@@ -7,7 +5,13 @@ import type { SessionPageResult } from "@/lib/services/interview.service";
 import type { SessionStatusFilter } from "@/types";
 import type { PublicTemplateSort } from "@/lib/repositories/template.repository";
 
-export async function getInterviewById(id: string, userId?: string) {
+/**
+ * Server-component read helpers.  This module intentionally is not a Server
+ * Action: these functions accept identifiers from trusted server components,
+ * not arbitrary browser action payloads.  Mutations remain behind authenticated
+ * route handlers.
+ */
+export async function getInterviewById(id: string, userId: string) {
   try {
     return await InterviewService.getSessionById(id, userId);
   } catch (error) {

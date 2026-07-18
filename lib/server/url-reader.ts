@@ -62,33 +62,9 @@ async function extractTextWithCheerio(url: string): Promise<string> {
     );
   }
 
-  const maxBodyBytes = 500_000;
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error("Response body is not readable.");
-  }
-
-  const chunks: Uint8Array[] = [];
-  let totalBytes = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      totalBytes += value.byteLength;
-      if (totalBytes > maxBodyBytes) {
-        reader.cancel();
-        throw new Error("Page is too large to process (max 500KB).");
-      }
-
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  const html = new TextDecoder().decode(Buffer.concat(chunks));
+  // fetchWithSafeRedirects enforces the byte limit while pinning the TCP
+  // connection to a validated public address.
+  const html = new TextDecoder().decode(response.body);
 
   const $ = cheerio.load(html);
 

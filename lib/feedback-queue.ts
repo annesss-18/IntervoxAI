@@ -4,7 +4,6 @@ import { logger } from "@/lib/logger";
 export interface FeedbackJobPayload {
   interviewId: string;
   userId: string;
-  transcript: Array<{ role: string; content: string }>;
 }
 
 let qstashClient: Client | null = null;
@@ -30,21 +29,21 @@ export function isQueueAvailable(): boolean {
 }
 
 function getWorkerUrl(): string {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
 
   if (!appUrl) {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "NEXT_PUBLIC_APP_URL is required in production. " +
+        "APP_URL is required in production. " +
           "QStash needs an absolute callback URL to deliver feedback jobs. " +
-          "Set NEXT_PUBLIC_APP_URL to the canonical URL of your deployment " +
+          "Set APP_URL to the canonical URL of your deployment " +
           "(e.g. https://your-domain.com).",
       );
     }
     return "http://localhost:3000/api/workers/feedback";
   }
 
-  return `${appUrl}/api/workers/feedback`;
+  return `${appUrl.replace(/\/$/, "")}/api/workers/feedback`;
 }
 
 export async function publishFeedbackJob(

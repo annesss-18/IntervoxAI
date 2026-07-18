@@ -113,10 +113,22 @@ function validateCsrfOrigin(req: NextRequest): NextResponse | null {
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl && process.env.NODE_ENV === "production") {
+    logger.error("APP_URL is required for production CSRF validation");
+    return NextResponse.json(
+      { error: "Server configuration error" },
+      { status: 500 },
+    );
+  }
+
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
   const host = req.headers.get("host") ?? "";
-  const expectedOrigin = appUrl ?? (host ? `${proto}://${host}` : null);
+  const expectedOrigin = appUrl
+    ? appUrl.replace(/\/$/, "")
+    : host
+      ? `${proto}://${host}`
+      : null;
 
   if (expectedOrigin && origin !== expectedOrigin) {
     return NextResponse.json(

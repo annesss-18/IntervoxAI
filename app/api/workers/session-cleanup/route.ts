@@ -7,7 +7,8 @@ import { verifyQstashRequest } from "@/lib/server/qstash";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const STALE_THRESHOLD_HOURS = 48;
+const SETUP_STALE_THRESHOLD_HOURS = 48;
+const ACTIVE_STALE_THRESHOLD_HOURS = 12;
 const BATCH_LIMIT = 200;
 
 export async function POST(req: NextRequest) {
@@ -17,29 +18,43 @@ export async function POST(req: NextRequest) {
   );
   if (!verified.ok) return verified.response;
 
-  const cutoff = new Date(
-    Date.now() - STALE_THRESHOLD_HOURS * 60 * 60 * 1000,
+  const setupCutoff = new Date(
+    Date.now() - SETUP_STALE_THRESHOLD_HOURS * 60 * 60 * 1000,
+  ).toISOString();
+  const activeCutoff = new Date(
+    Date.now() - ACTIVE_STALE_THRESHOLD_HOURS * 60 * 60 * 1000,
   ).toISOString();
 
   logger.info(
-    `Session cleanup: expiring setup sessions created before ${cutoff}`,
+    `Session cleanup: expiring setup sessions before ${setupCutoff} and active sessions before ${activeCutoff}`,
   );
 
-  let snapshot: FirebaseFirestore.QuerySnapshot;
+  let setupSnapshot: FirebaseFirestore.QuerySnapshot;
+  let activeSnapshot: FirebaseFirestore.QuerySnapshot;
   try {
-    snapshot = await db
-      .collection("interview_sessions")
-      .where("status", "==", "setup")
-      .where("startedAt", "<", cutoff)
-      .limit(BATCH_LIMIT)
-      .select("userId", "startedAt")
-      .get();
+    [setupSnapshot, activeSnapshot] = await Promise.all([
+      db
+        .collection("interview_sessions")
+        .where("status", "==", "setup")
+        .where("startedAt", "<", setupCutoff)
+        .limit(BATCH_LIMIT)
+        .select("userId", "startedAt")
+        .get(),
+      db
+        .collection("interview_sessions")
+        .where("status", "==", "active")
+        .where("activatedAt", "<", activeCutoff)
+        .limit(BATCH_LIMIT)
+        .select("userId", "activatedAt")
+        .get(),
+    ]);
   } catch (error) {
     logger.error("Session cleanup: Firestore query failed:", error);
     return NextResponse.json({ error: "Query failed" }, { status: 500 });
   }
 
-  if (snapshot.empty) {
+  const staleDocs = [...setupSnapshot.docs, ...activeSnapshot.docs];
+  if (staleDocs.length === 0) {
     logger.info("Session cleanup: no stale sessions found");
     return NextResponse.json({ success: true, cleaned: 0 });
   }
@@ -49,7 +64,7 @@ export async function POST(req: NextRequest) {
   const batch = db.batch();
   const userActiveDelta = new Map<string, number>();
 
-  for (const doc of snapshot.docs) {
+  for (const doc of staleDocs) {
     batch.update(doc.ref, {
       status: "expired",
       expiredAt: now,
@@ -69,8 +84,11 @@ export async function POST(req: NextRequest) {
   }
 
   logger.audit("sessions.expired", {
-    cleaned: snapshot.docs.length,
-    cutoff,
+    cleaned: staleDocs.length,
+    setupCleaned: setupSnapshot.docs.length,
+    activeCleaned: activeSnapshot.docs.length,
+    setupCutoff,
+    activeCutoff,
   });
 
   // Stats are best-effort after the session expiry batch commits.
@@ -85,5 +103,10 @@ export async function POST(req: NextRequest) {
     ),
   );
 
-  return NextResponse.json({ success: true, cleaned: snapshot.docs.length });
+  return NextResponse.json({
+    success: true,
+    cleaned: staleDocs.length,
+    setupCleaned: setupSnapshot.docs.length,
+    activeCleaned: activeSnapshot.docs.length,
+  });
 }

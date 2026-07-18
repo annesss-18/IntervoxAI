@@ -121,6 +121,18 @@ export const POST = withAuthClaims(
       }
 
       const { interviewId } = validation.data;
+
+      if (process.env.NODE_ENV === "production" && !isQueueAvailable()) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Feedback processing is temporarily unavailable. Please try again shortly.",
+          },
+          { status: 503 },
+        );
+      }
+
       const claim = await claimSession(interviewId, user.id);
 
       if (claim.type === "missing") {
@@ -178,51 +190,41 @@ export const POST = withAuthClaims(
         });
       }
 
-      const transcript =
-        await InterviewRepository.findTranscriptById(interviewId);
-      if (transcript.length === 0) {
-        await InterviewRepository.update(interviewId, {
-          feedbackStatus: "failed",
-          feedbackError: "Transcript could not be reconstructed for feedback.",
-        });
-
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Transcript could not be reconstructed for feedback.",
-          },
-          { status: 500 },
-        );
-      }
-
       let queuedViaQStash = false;
 
       if (isQueueAvailable()) {
         try {
-          const { messageId } = await publishFeedbackJob({
-            interviewId,
-            userId: user.id,
-            transcript,
-          });
+            const { messageId } = await publishFeedbackJob({
+              interviewId,
+              userId: user.id,
+            });
           queuedViaQStash = true;
 
           logger.info(
             `Feedback job queued via QStash: ${messageId} for interview ${interviewId}`,
           );
         } catch (queueError) {
-          logger.error(
-            `QStash publish failed for interview ${interviewId}, falling back to after():`,
-            queueError,
-          );
-
+            logger.error(
+              `QStash publish failed for interview ${interviewId}; leaving job pending for retry:`,
+              queueError,
+            );
+            await InterviewRepository.update(interviewId, {
+              feedbackStatus: "pending",
+              feedbackError: "Feedback delivery could not be queued. Please retry.",
+            });
+            return NextResponse.json(
+              {
+                success: false,
+                error: "Feedback could not be queued. Please retry.",
+              },
+              { status: 503 },
+            );
+          }
+        } else {
+          // Development-only convenience path. Production is rejected above.
           after(async () => {
-            await runFeedbackGeneration(interviewId, user.id, transcript);
+            await runFeedbackGeneration(interviewId, user.id);
           });
-        }
-      } else {
-        after(async () => {
-          await runFeedbackGeneration(interviewId, user.id, transcript);
-        });
       }
 
       logger.audit("feedback.processing_started", {
