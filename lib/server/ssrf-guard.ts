@@ -61,7 +61,10 @@ function isPrivateOrSpecialIPv6(ip: string): boolean {
 
     // IPv4-mapped IPv6 can also be expressed as ::ffff:7f00:1.
     const parts = mappedIpv4.split(":");
-    if (parts.length === 2 && parts.every((part) => /^[0-9a-f]{1,4}$/.test(part))) {
+    if (
+      parts.length === 2 &&
+      parts.every((part) => /^[0-9a-f]{1,4}$/.test(part))
+    ) {
       const high = Number.parseInt(parts[0]!, 16);
       const low = Number.parseInt(parts[1]!, 16);
       return isPrivateOrSpecialIPv4(
@@ -250,7 +253,9 @@ async function fetchPinned(
 
     request.setTimeout(timeoutMs, () => {
       request.destroy(
-        new Error("URL request timed out (max 10 seconds). The page may be slow or unreachable."),
+        new Error(
+          "URL request timed out (max 10 seconds). The page may be slow or unreachable.",
+        ),
       );
     });
     request.on("error", reject);

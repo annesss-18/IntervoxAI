@@ -24,12 +24,7 @@ interface LiveInterviewAgentProps {
 }
 
 type InterviewPhase =
-  | "setup"
-  | "audio_test"
-  | "active"
-  | "ending"
-  | "completed"
-  | "submit_failed";
+  "setup" | "audio_test" | "active" | "ending" | "completed" | "submit_failed";
 
 export function LiveInterviewAgent({
   interview,

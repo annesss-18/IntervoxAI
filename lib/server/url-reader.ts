@@ -56,7 +56,7 @@ async function extractTextWithCheerio(url: string): Promise<string> {
 
   const response = await fetchWithSafeRedirects(parsedUrl);
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(
       `Failed to fetch URL: ${response.status} ${response.statusText}`,
     );

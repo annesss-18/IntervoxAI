@@ -4,12 +4,7 @@ export interface Feedback {
   userId: string;
   totalScore: number;
   hiringRecommendation:
-    | "Strong Yes"
-    | "Yes"
-    | "Lean Yes"
-    | "Lean No"
-    | "No"
-    | "Strong No";
+    "Strong Yes" | "Yes" | "Lean Yes" | "Lean No" | "No" | "Strong No";
   categoryScores: Array<{
     name: string;
     score: number;
@@ -84,11 +79,7 @@ export interface SessionTemplateSnapshot {
 }
 
 export type FeedbackJobStatus =
-  | "idle"
-  | "pending"
-  | "processing"
-  | "completed"
-  | "failed";
+  "idle" | "pending" | "processing" | "completed" | "failed";
 
 export interface FeedbackStatusResponse {
   success: boolean;

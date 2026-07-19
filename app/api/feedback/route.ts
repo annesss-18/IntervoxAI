@@ -448,7 +448,8 @@ export const POST = withAuthClaims(
             );
             await InterviewRepository.update(interviewId, {
               feedbackStatus: "pending",
-              feedbackError: "Feedback delivery could not be queued. Please retry.",
+              feedbackError:
+                "Feedback delivery could not be queued. Please retry.",
             });
             return NextResponse.json(
               { error: "Feedback could not be queued. Please retry." },

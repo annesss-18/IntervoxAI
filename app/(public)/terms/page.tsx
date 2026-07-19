@@ -57,7 +57,9 @@ export default function TermsPage() {
               <FileText className="size-4 text-info" />
             </span>
             <div>
-              <p className="font-semibold text-sm">Please read before using IntervoxAI</p>
+              <p className="font-semibold text-sm">
+                Please read before using IntervoxAI
+              </p>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 These terms describe the current practice product and the
                 responsibilities that apply to every account.

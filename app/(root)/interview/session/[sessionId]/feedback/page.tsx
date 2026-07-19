@@ -38,11 +38,7 @@ import { FeedbackGenerationStatus } from "@/components/organisms/FeedbackGenerat
 import { TranscriptViewer } from "@/components/organisms/TranscriptViewer";
 
 type BehaviouralVariant =
-  | "success"
-  | "warning"
-  | "error"
-  | "info"
-  | "secondary";
+  "success" | "warning" | "error" | "info" | "secondary";
 
 const BEHAVIOURAL_VARIANT: Record<string, BehaviouralVariant> = {
   High: "success",
@@ -178,13 +174,9 @@ const Page = async ({ params }: RouteParams) => {
 
   // Defensively access fields that may be absent in legacy feedback documents.
   const behavioralInsights = feedback.behavioralInsights as
-    | typeof feedback.behavioralInsights
-    | undefined
-    | null;
+    typeof feedback.behavioralInsights | undefined | null;
   const careerCoaching = feedback.careerCoaching as
-    | typeof feedback.careerCoaching
-    | undefined
-    | null;
+    typeof feedback.careerCoaching | undefined | null;
 
   const behaviouralTraits = behavioralInsights
     ? [

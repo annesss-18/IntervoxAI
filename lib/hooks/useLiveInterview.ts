@@ -16,11 +16,7 @@ export interface TranscriptEntry {
 }
 
 export type ConnectionStatus =
-  | "idle"
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "error";
+  "idle" | "connecting" | "connected" | "disconnected" | "error";
 
 interface UseLiveInterviewReturn {
   status: ConnectionStatus;
@@ -629,7 +625,10 @@ export function useLiveInterview(
 
     const exponentialDelay =
       baseDelay * Math.pow(2, reconnectionAttemptsRef.current);
-    const cooldownDelay = Math.max(0, reconnectNotBeforeRef.current - Date.now());
+    const cooldownDelay = Math.max(
+      0,
+      reconnectNotBeforeRef.current - Date.now(),
+    );
     const delay = Math.max(exponentialDelay, cooldownDelay);
     reconnectionAttemptsRef.current += 1;
 

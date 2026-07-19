@@ -194,37 +194,38 @@ export const POST = withAuthClaims(
 
       if (isQueueAvailable()) {
         try {
-            const { messageId } = await publishFeedbackJob({
-              interviewId,
-              userId: user.id,
-            });
+          const { messageId } = await publishFeedbackJob({
+            interviewId,
+            userId: user.id,
+          });
           queuedViaQStash = true;
 
           logger.info(
             `Feedback job queued via QStash: ${messageId} for interview ${interviewId}`,
           );
         } catch (queueError) {
-            logger.error(
-              `QStash publish failed for interview ${interviewId}; leaving job pending for retry:`,
-              queueError,
-            );
-            await InterviewRepository.update(interviewId, {
-              feedbackStatus: "pending",
-              feedbackError: "Feedback delivery could not be queued. Please retry.",
-            });
-            return NextResponse.json(
-              {
-                success: false,
-                error: "Feedback could not be queued. Please retry.",
-              },
-              { status: 503 },
-            );
-          }
-        } else {
-          // Development-only convenience path. Production is rejected above.
-          after(async () => {
-            await runFeedbackGeneration(interviewId, user.id);
+          logger.error(
+            `QStash publish failed for interview ${interviewId}; leaving job pending for retry:`,
+            queueError,
+          );
+          await InterviewRepository.update(interviewId, {
+            feedbackStatus: "pending",
+            feedbackError:
+              "Feedback delivery could not be queued. Please retry.",
           });
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Feedback could not be queued. Please retry.",
+            },
+            { status: 503 },
+          );
+        }
+      } else {
+        // Development-only convenience path. Production is rejected above.
+        after(async () => {
+          await runFeedbackGeneration(interviewId, user.id);
+        });
       }
 
       logger.audit("feedback.processing_started", {

@@ -21,8 +21,7 @@ function getQstashReceiver(): Receiver | null {
 }
 
 export type QstashVerificationResult =
-  | { ok: true; body: string }
-  | { ok: false; response: NextResponse };
+  { ok: true; body: string } | { ok: false; response: NextResponse };
 
 export async function verifyQstashRequest(
   req: NextRequest,

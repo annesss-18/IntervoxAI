@@ -21,10 +21,13 @@ const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
 
-const FEEDBACK_MODEL = process.env.FEEDBACK_MODEL;
-
-if (!FEEDBACK_MODEL) {
-  throw new Error("FEEDBACK_MODEL is required");
+// Deferred to runtime so `next build` can evaluate this module without env vars.
+function getFeedbackModel(): string {
+  const model = process.env.FEEDBACK_MODEL;
+  if (!model) {
+    throw new Error("FEEDBACK_MODEL is required");
+  }
+  return model;
 }
 
 const feedbackSchema = z.object({
@@ -539,7 +542,7 @@ export const InterviewService = {
     const genResult = await withRetry(
       () =>
         generateObject({
-          model: feedbackGoogle(FEEDBACK_MODEL),
+          model: feedbackGoogle(getFeedbackModel()),
           abortSignal,
           schema: feedbackSchema,
           prompt: `

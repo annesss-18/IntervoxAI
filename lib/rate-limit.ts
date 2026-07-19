@@ -7,12 +7,8 @@ const isRedisConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-if (!isRedisConfigured && process.env.NODE_ENV === "production") {
-  throw new Error(
-    "UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are required in production for rate limiting. " +
-      "In-memory rate limiting is per-instance and provides no protection in serverless environments.",
-  );
-}
+// Production check is deferred to runtime (see checkRateLimit) so that
+// `next build` can evaluate this module without the env vars being set.
 
 const redis = isRedisConfigured
   ? new Redis({

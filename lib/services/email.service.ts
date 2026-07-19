@@ -62,7 +62,9 @@ export const EmailService = {
     }
 
     const appUrl =
-      process.env.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://intervoxai.com";
+      process.env.APP_URL ??
+      process.env.NEXT_PUBLIC_APP_URL ??
+      "https://intervoxai.com";
     const feedbackUrl = `${appUrl.replace(/\/$/, "")}/interview/session/${sessionId}/feedback`;
 
     const rawFirstName = toName.split(" ")[0] || toName;

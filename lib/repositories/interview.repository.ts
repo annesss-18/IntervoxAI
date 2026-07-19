@@ -139,28 +139,25 @@ function normalizeSnapshot(
         "string" &&
       typeof (data.interviewerPersona as Record<string, unknown>).title ===
         "string" &&
-      typeof (data.interviewerPersona as Record<string, unknown>).personality ===
-        "string"
-        ? {
-            name: (data.interviewerPersona as Record<string, string>).name.slice(
-              0,
-              80,
-            ),
-            title: (data.interviewerPersona as Record<string, string>).title.slice(
-              0,
-              120,
-            ),
-            personality: (
-              data.interviewerPersona as Record<string, string>
-            ).personality.slice(0, 500),
-            voice:
-              typeof (data.interviewerPersona as Record<string, unknown>)
-                .voice === "string"
-                ? (
-                    data.interviewerPersona as Record<string, string>
-                  ).voice.slice(0, 50)
-                : undefined,
-          }
+      typeof (data.interviewerPersona as Record<string, unknown>)
+        .personality === "string"
+        ? (() => {
+            const p = data.interviewerPersona as {
+              name: string;
+              title: string;
+              personality: string;
+              voice?: string;
+            };
+            return {
+              name: p.name.slice(0, 80),
+              title: p.title.slice(0, 120),
+              personality: p.personality.slice(0, 500),
+              voice:
+                typeof p.voice === "string"
+                  ? p.voice.slice(0, 50)
+                  : undefined,
+            };
+          })()
         : undefined,
   };
 }

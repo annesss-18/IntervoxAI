@@ -21,10 +21,12 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-const TEMPLATE_GENERATION_MODEL = process.env.TEMPLATE_GENERATION_MODEL;
-
-if (!TEMPLATE_GENERATION_MODEL) {
-  throw new Error("TEMPLATE_GENERATION_MODEL is required");
+function getTemplateGenerationModel(): string {
+  const model = process.env.TEMPLATE_GENERATION_MODEL;
+  if (!model) {
+    throw new Error("TEMPLATE_GENERATION_MODEL is required");
+  }
+  return model;
 }
 
 const techStackItemSchema = z.string().trim().min(1).max(MAX_TECH_ITEM_LENGTH);
@@ -273,7 +275,7 @@ It must include:
 `.trim();
 
       const result = await generateObject({
-        model: templateGenGoogle(TEMPLATE_GENERATION_MODEL),
+        model: templateGenGoogle(getTemplateGenerationModel()),
         schema: templateSchema,
         prompt: constructedPrompt,
       });

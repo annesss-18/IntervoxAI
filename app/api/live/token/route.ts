@@ -13,10 +13,12 @@ const client = new GoogleGenAI({
   apiKey: process.env.LIVE_INTERVIEW_API_KEY,
 });
 
-const LIVE_INTERVIEW_MODEL = process.env.LIVE_INTERVIEW_MODEL;
-
-if (!LIVE_INTERVIEW_MODEL) {
-  throw new Error("LIVE_INTERVIEW_MODEL is required");
+function getLiveInterviewModel(): string {
+  const model = process.env.LIVE_INTERVIEW_MODEL;
+  if (!model) {
+    throw new Error("LIVE_INTERVIEW_MODEL is required");
+  }
+  return model;
 }
 
 const LIVE_TOKEN_ISSUE_COOLDOWN_MS = 15_000;
@@ -181,7 +183,10 @@ export const POST = withAuthClaims(
         templateContext = templateDoc.data();
       }
 
-      const interviewContext = buildInterviewContext(sessionData, templateContext);
+      const interviewContext = buildInterviewContext(
+        sessionData,
+        templateContext,
+      );
 
       const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
       const systemInstruction = buildInterviewerPrompt(interviewContext);
@@ -192,7 +197,7 @@ export const POST = withAuthClaims(
           uses: 1,
           expireTime,
           liveConnectConstraints: {
-            model: LIVE_INTERVIEW_MODEL,
+            model: getLiveInterviewModel(),
             config: {
               systemInstruction,
               // Keep interviewer behavior consistent across turns.
@@ -236,7 +241,7 @@ export const POST = withAuthClaims(
         success: true,
         token: token.name,
         expiresAt: expireTime,
-        model: LIVE_INTERVIEW_MODEL,
+        model: getLiveInterviewModel(),
         voice: voiceName,
       });
     } catch (error) {
