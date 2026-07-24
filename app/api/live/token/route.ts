@@ -5,6 +5,7 @@ import { db } from "@/firebase/admin";
 import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { decryptResumeText } from "@/lib/resume-crypto";
+import { extractCandidateName } from "@/lib/resume-name-heuristic";
 import { RESUME_MAX_STORED_CHARS } from "@/lib/resume";
 import { ALLOWED_VOICE_NAMES, firestoreIdSchema } from "@/lib/schemas";
 import type { AuthClaims } from "@/types";
@@ -372,31 +373,9 @@ function buildInterviewContext(
   };
 }
 
-function extractCandidateName(resumeText?: string): string | null {
-  if (!resumeText) return null;
-
-  const lines = resumeText.split("\n").slice(0, 8);
-  for (const line of lines) {
-    const cleaned = line.trim();
-    if (
-      cleaned.length > 2 &&
-      cleaned.length < 50 &&
-      cleaned.split(" ").length >= 2 &&
-      cleaned.split(" ").length <= 4 &&
-      !cleaned.includes("@") &&
-      !cleaned.includes("http") &&
-      !cleaned.includes("|") &&
-      !/\d{3,}/.test(cleaned)
-    ) {
-      const parts = cleaned.split(" ");
-      const rawFirst = parts[0];
-      if (!rawFirst) return null;
-      return rawFirst.charAt(0).toUpperCase() + rawFirst.slice(1).toLowerCase();
-    }
-  }
-
-  return null;
-}
+// See lib/resume-name-heuristic.ts for extractCandidateName() and its
+// rationale/limitations — kept as its own module so it's unit-testable
+// without importing this route's module-scope Google GenAI/Firestore setup.
 
 function buildInterviewerPrompt(context?: InterviewContext): string {
   const candidateName = extractCandidateName(context?.resumeText) || null;

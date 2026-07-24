@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
-import { extractTextFromFile } from "@/lib/server/file-parser";
+import {
+  extractTextFromFile,
+  isFileParseTimeoutError,
+} from "@/lib/server/file-parser";
 import {
   isAllowedResumeFile,
   MAX_RESUME_SIZE_BYTES,
@@ -77,10 +80,15 @@ export const POST = withAuth(
       logger.error("Error parsing resume:", error);
 
       if (error instanceof Error) {
+        const message = error.message;
+
+        if (isFileParseTimeoutError(error)) {
+          return NextResponse.json({ error: message }, { status: 504 });
+        }
         if (
-          error.message.includes("Invalid PDF") ||
-          error.message.includes("Failed to parse") ||
-          error.message.includes("not a valid")
+          message.includes("Invalid PDF") ||
+          message.includes("Failed to parse") ||
+          message.includes("not a valid")
         ) {
           return NextResponse.json(
             {

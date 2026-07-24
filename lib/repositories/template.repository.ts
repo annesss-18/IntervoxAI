@@ -116,7 +116,10 @@ const _publicCaches: Record<
   ),
 };
 
-// AI-generated template fields are regenerated rather than hand-edited.
+// Raw, user-editable fields. Changing any of these except companyLogoUrl/
+// isPublic invalidates the AI-derived fields below — see
+// needsTemplateRegeneration() in lib/services/template-generation.service.ts,
+// which the PATCH /api/interview/template/:id route consults before writing.
 export type TemplateUpdatePayload = Partial<
   Pick<
     InterviewTemplate,
@@ -128,6 +131,13 @@ export type TemplateUpdatePayload = Partial<
     | "techStack"
     | "jobDescription"
     | "isPublic"
+    // AI-derived fields: only ever written alongside a regeneration, never
+    // hand-edited directly by a caller.
+    | "baseQuestions"
+    | "focusArea"
+    | "companyCultureInsights"
+    | "interviewerPersona"
+    | "systemInstruction"
   >
 >;
 

@@ -1,4 +1,7 @@
 import { type NextRequest } from "next/server";
+import { logger } from "@/lib/logger";
+
+let hasWarnedAboutUnresolvedClientIp = false;
 
 /**
  * Extract the client IP from trusted proxy headers.
@@ -57,6 +60,27 @@ export function getClientIp(
       const trustedIp = ips[ips.length - 1];
       if (trustedIp) return trustedIp;
     }
+  }
+
+  // No trusted per-client signal is configured. Rate limiting still fails
+  // safe (a global "unknown" bucket, not a spoofable header) but that
+  // degradation is otherwise silent — surface it once per process so a
+  // misconfigured production deployment shows up in logs instead of just
+  // quietly sharing one rate-limit budget across every unauthenticated
+  // caller.
+  if (
+    process.env.NODE_ENV === "production" &&
+    !hasWarnedAboutUnresolvedClientIp
+  ) {
+    hasWarnedAboutUnresolvedClientIp = true;
+    logger.warn(
+      "getClientIp(): no trusted client-IP source configured in production " +
+        "(VERCEL, TRUSTED_IP_HEADER, TRUST_PROXY are all unset). Pre-auth " +
+        "rate limiting will fall back to one shared bucket for every " +
+        "unauthenticated request on this instance. Set TRUSTED_IP_HEADER " +
+        "to your edge/proxy's client-IP header (e.g. cf-connecting-ip) or " +
+        "TRUST_PROXY=1 if your proxy is known to control x-forwarded-for.",
+    );
   }
 
   return "unknown";

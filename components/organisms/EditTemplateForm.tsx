@@ -11,6 +11,7 @@ import {
   Globe,
   Lock,
   Building2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -73,6 +74,27 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
   const removeTech = (t: string) =>
     setTechStack(techStack.filter((s) => s !== t));
 
+  // Mirrors needsTemplateRegeneration() in
+  // lib/services/template-generation.service.ts, but only for cosmetic use
+  // (choosing the loading-button label below). The server independently
+  // makes the real decision, so drift here can't cause incorrect behavior.
+  const sameTechStackClient = (a: string[], b: string[]) => {
+    const normalize = (stack: string[]) =>
+      [...stack].map((s) => s.trim().toLowerCase()).sort();
+    const na = normalize(a);
+    const nb = normalize(b);
+    return na.length === nb.length && na.every((v, i) => v === nb[i]);
+  };
+
+  const willRegenerate =
+    role.trim() !== template.role ||
+    companyName.trim() !== template.companyName ||
+    level !== template.level ||
+    type !== template.type ||
+    (jobDescription.trim().length >= 50 &&
+      jobDescription.trim() !== (template.jobDescription ?? "")) ||
+    !sameTechStackClient(techStack, template.techStack ?? []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!role.trim()) return toast.error("Role is required");
@@ -104,7 +126,11 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
         throw new Error(detail || data.error || "Failed to save");
       }
 
-      toast.success("Template updated");
+      toast.success(
+        data.regenerated
+          ? "Template updated — interview questions and interviewer regenerated"
+          : "Template updated",
+      );
       router.push(`/interview/template/${template.id}`);
       router.refresh();
     } catch (error) {
@@ -118,6 +144,16 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="flex items-start gap-2.5 rounded-xl border border-border bg-surface-2/50 p-3 text-xs text-muted-foreground">
+        <Sparkles className="mt-0.5 size-3.5 shrink-0 text-primary" />
+        <p>
+          Changing role, company, level, type, tech stack, or the job
+          description regenerates this template&apos;s interview questions and
+          AI interviewer to match. Updating visibility or the logo alone does
+          not.
+        </p>
+      </div>
+
       <div className="grid gap-5 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="role">Target role</Label>
@@ -268,7 +304,7 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
           {saving ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              Saving…
+              {willRegenerate ? "Regenerating interview…" : "Saving…"}
             </>
           ) : (
             <>

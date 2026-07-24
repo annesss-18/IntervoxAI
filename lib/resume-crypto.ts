@@ -10,7 +10,7 @@ const ALGORITHM = "aes-256-gcm";
 // Rotate RESUME_ENCRYPTION_KEY only with a migration for existing ciphertexts.
 let cachedKey: Buffer | undefined;
 
-function parseEncryptionKey(rawKey: string): Buffer {
+export function parseEncryptionKey(rawKey: string): Buffer {
   const trimmed = rawKey.trim();
 
   try {

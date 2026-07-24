@@ -16,6 +16,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/firebase/client";
 import { googleAuthenticate, signIn, signUp } from "@/lib/actions/auth.action";
+import { getFirebaseAuthErrorMessage } from "@/lib/firebase-auth-errors";
 import { toast } from "sonner";
 import { Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/atoms/button";
@@ -123,10 +124,11 @@ export function AuthForm({ type }: AuthFormProps) {
     } catch (error: unknown) {
       // Keep client auth aligned when the server session fails.
       await auth.signOut().catch(() => {});
-      const err = error as { message?: string };
       toast.error(
-        err?.message ||
-          (isSignIn ? "Failed to sign in" : "Failed to create account"),
+        getFirebaseAuthErrorMessage(
+          error,
+          isSignIn ? "Failed to sign in" : "Failed to create account",
+        ),
       );
     } finally {
       setIsLoading(false);
@@ -155,8 +157,9 @@ export function AuthForm({ type }: AuthFormProps) {
     } catch (error: unknown) {
       // Keep client auth aligned when the server session fails.
       await auth.signOut().catch(() => {});
-      const err = error as { message?: string };
-      toast.error(err?.message || "Google authentication failed");
+      toast.error(
+        getFirebaseAuthErrorMessage(error, "Google authentication failed"),
+      );
     } finally {
       setIsGoogleLoading(false);
     }
@@ -174,12 +177,12 @@ export function AuthForm({ type }: AuthFormProps) {
       await sendPasswordResetEmail(auth, email);
       toast.success("Password reset email sent. Check your inbox.");
     } catch (error: unknown) {
-      const err = error as { code?: string };
-      if (err?.code === "auth/user-not-found") {
-        toast.error("No account found with this email.");
-      } else {
-        toast.error("Failed to send reset email. Please try again.");
-      }
+      toast.error(
+        getFirebaseAuthErrorMessage(
+          error,
+          "Failed to send reset email. Please try again.",
+        ),
+      );
     } finally {
       setIsResettingPassword(false);
     }

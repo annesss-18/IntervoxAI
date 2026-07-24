@@ -6,9 +6,59 @@ import { PDF_MIME, DOCX_MIME } from "@/lib/resume";
 const MAX_RESUME_SIZE_MB = 5;
 const MAX_TEXT_LENGTH = 50000;
 
+// Unlike lib/server/url-reader.ts's network fetch, unpdf/mammoth don't take
+// an AbortSignal — they're synchronous, CPU-bound work wrapped in a
+// Promise, so there's no cooperative way to cancel a parse already in
+// progress short of a worker thread (a much larger change for what's a
+// low-probability edge case). Promise.race against a timer can't reclaim
+// that CPU time, but it does what actually matters here: it guarantees the
+// HTTP request returns an error instead of hanging for the full duration
+// of a pathological file, bounded by FILE_PARSE_TIMEOUT_MS instead of
+// whatever the deployment platform's own function timeout happens to be.
+export const FILE_PARSE_TIMEOUT_MS = 20_000;
+
+export class FileParseTimeoutError extends Error {
+  constructor(kind: string) {
+    super(
+      `Parsing this ${kind} took too long (over ${FILE_PARSE_TIMEOUT_MS / 1000}s) and was abandoned. ` +
+        "The file may be unusually complex — try a simpler export or a different format.",
+    );
+    this.name = "FileParseTimeoutError";
+  }
+}
+
+export function isFileParseTimeoutError(
+  error: unknown,
+): error is FileParseTimeoutError {
+  return error instanceof FileParseTimeoutError;
+}
+
+async function withParseTimeout<T>(
+  promise: Promise<T>,
+  kind: string,
+): Promise<T> {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(
+      () => reject(new FileParseTimeoutError(kind)),
+      FILE_PARSE_TIMEOUT_MS,
+    );
+  });
+
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
   try {
-    const result = await extractText(buffer, { mergePages: true });
+    const result = await withParseTimeout(
+      extractText(buffer, { mergePages: true }),
+      "PDF",
+    );
 
     let extractedText = result.text;
 
@@ -27,6 +77,9 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
     return extractedText;
   } catch (error) {
+    if (isFileParseTimeoutError(error)) {
+      throw error;
+    }
     if (error instanceof Error && error.message.includes("extractable")) {
       throw error;
     }
@@ -39,7 +92,10 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string> {
 
 async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
   try {
-    const { value } = await mammoth.extractRawText({ buffer });
+    const { value } = await withParseTimeout(
+      mammoth.extractRawText({ buffer }),
+      "DOCX",
+    );
     const extractedText = value
       .replace(/\r\n/g, "\n")
       .replace(/\r/g, "\n")
@@ -55,6 +111,9 @@ async function extractTextFromDOCX(buffer: Buffer): Promise<string> {
 
     return extractedText;
   } catch (error) {
+    if (isFileParseTimeoutError(error)) {
+      throw error;
+    }
     logger.error("DOCX extraction failed:", error);
     throw new Error(
       "Failed to extract text from DOCX. Please save the file as PDF or plain text instead.",

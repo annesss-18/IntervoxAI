@@ -82,38 +82,32 @@ export const PATCH = withAuthClaims(
       }
 
       if (status !== undefined) {
-        if (!["active", "completed"].includes(status)) {
+        // "completed" is deliberately rejected here. The only supported way
+        // to complete a session is POST /api/feedback, which atomically
+        // claims the session AND enqueues feedback generation in the same
+        // step. If PATCH accepted status: "completed" directly, a session
+        // could end up marked completed with no feedback job ever queued.
+        if (status !== "active") {
           return NextResponse.json(
-            { error: "Invalid status transition" },
+            {
+              error:
+                status === "completed"
+                  ? "Sessions are completed via POST /api/feedback, not PATCH"
+                  : "Invalid status transition",
+            },
             { status: 400 },
           );
         }
 
-        const currentStatus = sessionData.status;
-        if (status === "active" && currentStatus !== "setup") {
+        if (sessionData.status !== "setup") {
           return NextResponse.json(
             { error: "Only setup sessions can be activated" },
             { status: 400 },
           );
         }
 
-        if (
-          status === "completed" &&
-          !["setup", "active"].includes(currentStatus)
-        ) {
-          return NextResponse.json(
-            { error: "Session is already completed" },
-            { status: 400 },
-          );
-        }
-
-        updateData.status = status;
-        if (status === "active") {
-          updateData.activatedAt = new Date().toISOString();
-        }
-        if (status === "completed" && !sessionData.completedAt) {
-          updateData.completedAt = new Date().toISOString();
-        }
+        updateData.status = "active";
+        updateData.activatedAt = new Date().toISOString();
       }
 
       let nextCheckpointBase: number | null = null;

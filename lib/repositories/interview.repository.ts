@@ -153,9 +153,7 @@ function normalizeSnapshot(
               title: p.title.slice(0, 120),
               personality: p.personality.slice(0, 500),
               voice:
-                typeof p.voice === "string"
-                  ? p.voice.slice(0, 50)
-                  : undefined,
+                typeof p.voice === "string" ? p.voice.slice(0, 50) : undefined,
             };
           })()
         : undefined,
@@ -476,41 +474,77 @@ export const InterviewRepository = {
     }
   },
 
+  // findCompletedWithScores can't filter finalScore != null server-side
+  // while still sorting primarily by startedAt: Firestore requires an
+  // inequality filter's field to be the first orderBy() when one is
+  // present, and finalScore isn't the field we want to sort by. Google's
+  // own guidance for this exact shape (inequality filter, unrelated sort
+  // field, small expected result set) is to over-fetch and filter/reorder
+  // in application code — see
+  // https://firebase.google.com/docs/firestore/query-data/multiple-range-fields
+  //
+  // The one thing worth fixing about the old fixed `limit * 3` guess: it's
+  // a flat cost paid on every call regardless of how many completed
+  // sessions actually lack a score, AND it can silently return fewer than
+  // `limit` results for a user whose scoreless rate happens to exceed 2/3
+  // (e.g. several recent sessions still mid-feedback-generation, or with
+  // failed feedback jobs) even when enough older scored sessions exist.
+  // Paginating adaptively fixes both: it stops as soon as it has enough,
+  // and keeps fetching (up to a bounded cap) when it doesn't.
   async findCompletedWithScores(
     userId: string,
     limit: number = 50,
   ): Promise<InterviewSessionRecord[]> {
+    const BATCH_SIZE = limit * 2;
+    const MAX_BATCHES = 3; // bounds worst case to 6x limit documents scanned.
+
+    const results: InterviewSessionRecord[] = [];
+
     try {
-      // Over-fetch to preserve the requested limit after filtering scoreless sessions.
-      const snapshot = await db
-        .collection("interview_sessions")
-        .where("userId", "==", userId)
-        .where("status", "==", "completed")
-        .orderBy("startedAt", "desc")
-        .select(
-          "templateId",
-          "templateSnapshot",
-          "userId",
-          "status",
-          "startedAt",
-          "finalScore",
-        )
-        .limit(limit * 3)
-        .get();
+      let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
 
-      const sessions = snapshot.docs
-        .map((doc) => {
+      for (let batch = 0; batch < MAX_BATCHES; batch++) {
+        let query = db
+          .collection("interview_sessions")
+          .where("userId", "==", userId)
+          .where("status", "==", "completed")
+          .orderBy("startedAt", "desc")
+          .select(
+            "templateId",
+            "templateSnapshot",
+            "userId",
+            "status",
+            "startedAt",
+            "finalScore",
+          )
+          .limit(BATCH_SIZE);
+
+        if (cursor) {
+          query = query.startAfter(cursor);
+        }
+
+        const snapshot = await query.get();
+        if (snapshot.empty) break;
+
+        for (const doc of snapshot.docs) {
           const data = doc.data();
+          if (data.finalScore != null) {
+            results.push({
+              id: doc.id,
+              ...data,
+              templateSnapshot: normalizeSnapshot(data.templateSnapshot),
+            } as InterviewSessionRecord);
+          }
+        }
 
-          return {
-            id: doc.id,
-            ...data,
-            templateSnapshot: normalizeSnapshot(data.templateSnapshot),
-          } as InterviewSessionRecord;
-        })
-        .filter((session) => session.finalScore != null);
+        cursor = snapshot.docs[snapshot.docs.length - 1];
 
-      return sessions.slice(0, limit);
+        // A short page means there's nothing left to paginate into.
+        if (snapshot.docs.length < BATCH_SIZE) break;
+        if (results.length >= limit) break;
+      }
+
+      return results.slice(0, limit);
     } catch (error) {
       logger.error("Error fetching completed sessions with scores:", error);
       return [];
