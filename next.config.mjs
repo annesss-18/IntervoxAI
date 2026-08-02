@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["localhost", "127.0.0.1"],
   poweredByHeader: false,
-  serverExternalPackages: ["unpdf"],
+  serverExternalPackages: ["unpdf", "firebase-admin"],
 
   experimental: {
     optimizePackageImports: ["lucide-react"],
