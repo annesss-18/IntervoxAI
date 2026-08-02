@@ -141,48 +141,20 @@ export const POST = withAuthClaims(
         `Generating ephemeral token for user ${user.id}, session ${sessionId}`,
       );
 
-      // New sessions contain an immutable, sanitized template snapshot.  Do
-      // not load the mutable source template for those sessions: changing or
-      // deleting a template must not change an interview already in progress.
-      let templateContext: Record<string, unknown> | undefined;
+      // Use the immutable session snapshot so template edits cannot affect active interviews.
       const storedSnapshot = sessionData.templateSnapshot;
       if (
-        storedSnapshot &&
-        typeof storedSnapshot === "object" &&
-        typeof (storedSnapshot as Record<string, unknown>).role === "string"
+        !storedSnapshot ||
+        typeof storedSnapshot !== "object" ||
+        typeof (storedSnapshot as Record<string, unknown>).role !== "string"
       ) {
-        templateContext = storedSnapshot as Record<string, unknown>;
-      } else {
-        // Backward-compatible fallback for sessions created before immutable
-        // snapshots were introduced.
-        const templateId =
-          typeof sessionData.templateId === "string"
-            ? sessionData.templateId
-            : null;
-        if (!templateId) {
-          logger.error(`Session ${sessionId} is missing template context`);
-          return NextResponse.json(
-            { error: "Interview session is missing its template context" },
-            { status: 422 },
-          );
-        }
-
-        const templateDoc = await db
-          .collection("interview_templates")
-          .doc(templateId)
-          .get();
-
-        if (!templateDoc.exists) {
-          logger.error(
-            `Template ${templateId} was not found for legacy session ${sessionId}`,
-          );
-          return NextResponse.json(
-            { error: "Interview template not found" },
-            { status: 404 },
-          );
-        }
-        templateContext = templateDoc.data();
+        logger.error(`Session ${sessionId} is missing its template snapshot`);
+        return NextResponse.json(
+          { error: "Interview session is missing its template context" },
+          { status: 422 },
+        );
       }
+      const templateContext = storedSnapshot as Record<string, unknown>;
 
       const interviewContext = buildInterviewContext(
         sessionData,
@@ -201,7 +173,6 @@ export const POST = withAuthClaims(
             model: getLiveInterviewModel(),
             config: {
               systemInstruction,
-              // Keep interviewer behavior consistent across turns.
               temperature: 0.7,
               responseModalities: [Modality.AUDIO],
               speechConfig: {
@@ -216,9 +187,8 @@ export const POST = withAuthClaims(
               realtimeInputConfig: {
                 automaticActivityDetection: {
                   disabled: false,
-                  // Preserve short lead-ins before speech.
+                  // Preserve lead-in audio and brief response pauses.
                   prefixPaddingMs: 400,
-                  // Let candidates pause briefly mid-answer without interruption.
                   silenceDurationMs: 1500,
                 },
               },
@@ -372,10 +342,6 @@ function buildInterviewContext(
     ),
   };
 }
-
-// See lib/resume-name-heuristic.ts for extractCandidateName() and its
-// rationale/limitations — kept as its own module so it's unit-testable
-// without importing this route's module-scope Google GenAI/Firestore setup.
 
 function buildInterviewerPrompt(context?: InterviewContext): string {
   const candidateName = extractCandidateName(context?.resumeText) || null;

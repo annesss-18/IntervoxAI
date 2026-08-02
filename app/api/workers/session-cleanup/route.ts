@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     activeCutoff,
   });
 
-  // Stats are best-effort after the session expiry batch commits.
+  // Update stats after session expiry; failures are non-blocking.
   await Promise.allSettled(
     Array.from(userActiveDelta.entries()).map(([uid, delta]) =>
       UserRepository.updateStats(uid, { activeDelta: delta }).catch((err) =>

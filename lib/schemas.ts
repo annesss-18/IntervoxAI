@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { isTrustedCompanyLogoUrl } from "@/lib/icon-utils";
 
-// Firestore document IDs are user-controlled in routes, so validate them once
-// here and reuse the schema everywhere.
+// Validate user-controlled Firestore IDs once for reuse.
 export const firestoreIdSchema = z
   .string()
   .min(1, "ID cannot be empty")
@@ -23,7 +22,7 @@ export const trustedCompanyLogoUrlSchema = z
   ])
   .optional();
 
-// Keep this list aligned with the Gemini Live voices we support.
+// Keep this list aligned with supported Gemini Live voices.
 export const ALLOWED_VOICE_NAMES = [
   "Puck",
   "Charon",

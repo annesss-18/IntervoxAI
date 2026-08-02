@@ -13,13 +13,12 @@ export const FeedbackRepository = {
       await db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (snap.exists) {
-          // Idempotent: feedback already exists, do not overwrite.
-          // Signal the caller so it can skip side-effects.
+          // Preserve existing feedback and skip duplicate side effects.
           alreadyExisted = true;
           logger.info(`Feedback ${docId} already exists, skipping create`);
           return;
         }
-        tx.set(ref, data); // Full replacement — no merge
+        tx.set(ref, data); // Replace the document without merging.
       });
       return { id: docId, alreadyExisted };
     } catch (error) {
@@ -45,8 +44,7 @@ export const FeedbackRepository = {
         } as Feedback;
       }
 
-      // Fallback: query by compound fields with server-side ordering.
-      // Requires index: (userId ASC, interviewId ASC, createdAt DESC)
+      // Compound-query fallback requires the userId/interviewId/createdAt index.
       const snapshot = await db
         .collection("feedback")
         .where("interviewId", "==", interviewId)

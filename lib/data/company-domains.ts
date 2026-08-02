@@ -1,6 +1,4 @@
-/**
- * Known company-to-domain mappings for logo lookup accuracy.
- */
+/** Company-to-domain mappings for logo lookup. */
 export const COMPANY_DOMAIN_MAP: Record<string, string> = {
   google: "google.com",
   meta: "meta.com",

@@ -57,7 +57,7 @@ export async function runFeedbackGeneration(
     const totalScore = result.totalScore ?? null;
     const templateId = result.templateId ?? null;
 
-    // Active/completed counters move when POST /api/feedback claims completion.
+    // POST /api/feedback updates active and completed counters.
     const aggregateUpdates: Promise<void>[] = [];
 
     if (typeof totalScore === "number") {

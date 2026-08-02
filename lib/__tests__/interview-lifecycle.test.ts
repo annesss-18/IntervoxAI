@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Hoisted mocks keep repository imports stable across each test.
+// Hoisted mocks preserve repository imports across tests.
 const {
   mockDb,
   mockUserRepoUpdateStats,
@@ -52,7 +52,6 @@ vi.mock("@/lib/repositories/template.repository", () => ({
   TemplateRepository: {
     updateAvgScore: mockTemplateRepoUpdateAvgScore,
     findById: vi.fn(),
-    findManyByIds: vi.fn(),
   },
 }));
 

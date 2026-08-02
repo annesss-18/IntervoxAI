@@ -19,13 +19,12 @@ export async function POST(req: NextRequest) {
     const verified = await verifyQstashRequest(req, "/api/workers/feedback");
     if (!verified.ok) return verified.response;
 
-    // Parse and validate the worker payload.
     let parsed: unknown;
     try {
       parsed = JSON.parse(verified.body);
     } catch {
       logger.error("Worker /api/workers/feedback: invalid JSON body");
-      // Malformed payloads are not retryable.
+      // Acknowledge invalid jobs to prevent retries.
       return NextResponse.json({ error: "Invalid JSON" }, { status: 200 });
     }
 
@@ -34,7 +33,7 @@ export async function POST(req: NextRequest) {
       logger.error("Worker /api/workers/feedback: invalid payload", {
         issues: validation.error.issues,
       });
-      // Schema errors are not retryable.
+      // Acknowledge invalid jobs to prevent retries.
       return NextResponse.json({ error: "Invalid payload" }, { status: 200 });
     }
 
@@ -44,9 +43,7 @@ export async function POST(req: NextRequest) {
       `Worker processing feedback for interview ${interviewId}, user ${userId}`,
     );
 
-    // Run the shared feedback pipeline.
-    // Sensitive transcripts stay in Firestore; queue messages contain only
-    // opaque identifiers and are rehydrated after signature verification.
+    // Queue messages contain identifiers only; load transcripts after verification.
     await runFeedbackGeneration(interviewId, userId);
 
     logger.audit("feedback.worker_completed", {
@@ -58,7 +55,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     logger.error("Worker /api/workers/feedback failed:", error);
 
-    // Returning 500 tells QStash to retry the job.
+    // A 500 response prompts QStash to retry the job.
     return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }

@@ -94,12 +94,11 @@ export interface InterviewSession {
   userId: string;
   hasResume?: boolean;
   resumeText?: string;
-  transcript?: Array<{ role: string; content: string }>;
-  templateSnapshot?: SessionTemplateSnapshot;
-  transcriptTurnCount?: number;
-  transcriptChunkCount?: number;
+  templateSnapshot: SessionTemplateSnapshot;
+  transcriptTurnCount: number;
+  transcriptChunkCount: number;
   lastTranscriptCheckpointAt?: string | null;
-  // Expired sessions are terminal setup sessions cleaned up after 48 hours.
+  // Expired setup sessions are cleaned up after 48 hours.
   status: "setup" | "active" | "completed" | "expired";
   durationMinutes?: number;
   startedAt: string;

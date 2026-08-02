@@ -16,7 +16,7 @@ function getApp(): App {
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // Newline escapes in env vars need to be converted back to real newlines.
+      // Restore escaped newlines in the environment variable.
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     }),
   });
@@ -27,7 +27,7 @@ function getApp(): App {
 let _auth: Auth | undefined;
 let _db: Firestore | undefined;
 
-// Auth is initialized on first access.
+// Initialize Auth lazily.
 export const auth: Auth = new Proxy({} as Auth, {
   get(_target, prop, receiver) {
     if (!_auth) _auth = getAuth(getApp());
@@ -35,7 +35,7 @@ export const auth: Auth = new Proxy({} as Auth, {
   },
 });
 
-// Firestore is initialized on first access.
+// Initialize Firestore lazily.
 export const db: Firestore = new Proxy({} as Firestore, {
   get(_target, prop, receiver) {
     if (!_db)

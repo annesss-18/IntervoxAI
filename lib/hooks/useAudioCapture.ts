@@ -148,7 +148,7 @@ export function useAudioCapture(): UseAudioCaptureReturn {
 
         sourceRef.current.connect(processorRef.current);
 
-        // Keep the processing graph active without audible monitor output.
+        // Keep processing active without monitor output.
         outputMonitorGainRef.current = audioContextRef.current.createGain();
         outputMonitorGainRef.current.gain.value = 0;
         processorRef.current.connect(outputMonitorGainRef.current);
@@ -223,7 +223,7 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
 
 function mapSensitivityToVadThreshold(sensitivity: number): number {
   const normalized = Math.max(1, Math.min(100, sensitivity));
-  // Higher sensitivity maps to a lower RMS threshold.
+  // Map higher sensitivity to a lower RMS threshold.
   const minThreshold = 0.002;
   const maxThreshold = 0.02;
   const ratio = (100 - normalized) / 99;

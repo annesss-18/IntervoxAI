@@ -23,7 +23,7 @@ import {
   AlertTriangle,
   Mail,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 
 interface AccountClientProps {
   userName: string;

@@ -179,9 +179,7 @@ async function appendFullTranscriptTail(
     return currentBase;
   }
 
-  // Keep every Firestore chunk well below document-size limits.  The incoming
-  // full transcript may be valid as an API payload but is never stored as a
-  // single document.
+  // Split transcripts before the Firestore document-size limit.
   while (normalizedTranscript.length > currentBase) {
     const entries: TranscriptSentence[] = [];
     let characters = 0;
@@ -263,8 +261,7 @@ export const POST = withAuthClaims(
       const { interviewId, transcript, transcriptAppend, checkpointBase } =
         validation.data;
 
-      // A serverless background callback is not a durable production queue.
-      // Refuse to accept work that cannot be delivered reliably.
+      // Production requires durable queue delivery.
       if (process.env.NODE_ENV === "production" && !isQueueAvailable()) {
         return NextResponse.json(
           {
@@ -411,7 +408,7 @@ export const POST = withAuthClaims(
         return completionClaimResponse(claim)!;
       }
 
-      // Move counters once when the session is definitively completed.
+      // Update counters only for the completion claim.
       if (claim.movedStats) {
         UserRepository.updateStats(user.id, {
           activeDelta: -1,
@@ -430,8 +427,7 @@ export const POST = withAuthClaims(
         transcriptTurns: storedTranscriptCount,
       });
 
-      // Trigger durable feedback processing immediately.  The worker rehydrates
-      // the transcript from Firestore rather than receiving it in the queue.
+      // Queue identifiers only; the worker loads the transcript from Firestore.
       if (storedTranscriptCount > 0) {
         await InterviewRepository.update(interviewId, {
           feedbackStatus: "processing",
@@ -457,7 +453,7 @@ export const POST = withAuthClaims(
             );
           }
         } else {
-          // Development-only convenience path.  Production is rejected above.
+          // Run asynchronously in development.
           after(async () => {
             await runFeedbackGeneration(interviewId, user.id);
           });

@@ -13,7 +13,7 @@ interface TechIconProps {
   showTooltip?: boolean;
 }
 
-// Tries icon provider fallbacks, then renders a generic glyph.
+// Try icon providers before rendering the generic glyph.
 const TechIcon: React.FC<TechIconProps> = ({
   tech,
   size = 24,

@@ -1,8 +1,6 @@
-// Test the in-memory rate limiter path without requiring Upstash.
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Force Redis to appear unconfigured so we test the in-memory path.
+// Test the in-memory limiter without Upstash.
 vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
 vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
 
@@ -55,21 +53,20 @@ describe("checkRateLimit (in-memory fallback)", () => {
     const config = { maxRequests: 1, windowMs: 60_000 };
 
     const a = await checkRateLimit("user-C:POST:/api/test", config);
-    const b = await checkRateLimit("user-D:POST:/api/test", config); // different user
+    const b = await checkRateLimit("user-D:POST:/api/test", config);
 
     expect(a.allowed).toBe(true);
-    expect(b.allowed).toBe(true); // independent bucket
+    expect(b.allowed).toBe(true);
   });
 
   it("resets after the window expires", async () => {
     const { checkRateLimit } = await import("../rate-limit");
-    const config = { maxRequests: 1, windowMs: 50 }; // 50 ms window
+    const config = { maxRequests: 1, windowMs: 50 };
 
     await checkRateLimit("user-E:POST:/api/test", config);
     const blocked = await checkRateLimit("user-E:POST:/api/test", config);
     expect(blocked.allowed).toBe(false);
 
-    // Wait for the window to expire
     await new Promise((r) => setTimeout(r, 60));
 
     const allowed = await checkRateLimit("user-E:POST:/api/test", config);

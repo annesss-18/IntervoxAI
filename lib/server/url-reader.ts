@@ -7,8 +7,7 @@ import {
 } from "@/lib/server/ssrf-guard";
 
 function getJobUrlReaderProvider(): "jina" | "direct" {
-  // Jina Reader is opt-in — it forwards user-submitted URLs to a third-party
-  // service (r.jina.ai). Default to "direct" for privacy.
+  // Jina Reader is opt-in because it forwards user URLs to a third party.
   return process.env.JOB_URL_READER_PROVIDER?.trim().toLowerCase() === "jina"
     ? "jina"
     : "direct";
@@ -62,8 +61,7 @@ async function extractTextWithCheerio(url: string): Promise<string> {
     );
   }
 
-  // fetchWithSafeRedirects enforces the byte limit while pinning the TCP
-  // connection to a validated public address.
+  // Safe fetch validates redirects, pins DNS, and enforces the byte limit.
   const html = new TextDecoder().decode(response.body);
 
   const $ = cheerio.load(html);
@@ -97,11 +95,10 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     );
   }
 
-  // Run SSRF checks before every outbound request path, including Jina Reader.
+  // Validate every outbound path, including Jina Reader.
   assertAllowedUrlComponents(parsedUrl);
   await assertPublicHostname(parsedUrl.hostname);
 
-  // Primary: Jina Reader (handles JS-rendered career sites, no API key needed).
   if (getJobUrlReaderProvider() === "jina") {
     try {
       const text = await extractTextWithJina(url);
@@ -118,7 +115,6 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     }
   }
 
-  // Fallback: Direct fetch + Cheerio (works for server-rendered pages).
   try {
     const text = await extractTextWithCheerio(url);
     logger.info("URL extracted via Cheerio fallback", {

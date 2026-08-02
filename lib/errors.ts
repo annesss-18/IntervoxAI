@@ -1,6 +1,4 @@
-/**
- * Detect whether an error is an AbortError (from AbortController / fetch abort).
- */
+/** Returns whether an error was caused by cancellation. */
 export function isAbortError(error: unknown): boolean {
   return (
     error instanceof Error &&

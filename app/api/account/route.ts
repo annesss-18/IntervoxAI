@@ -16,7 +16,6 @@ const deleteAccountSchema = z
   })
   .strict();
 
-// PATCH /api/account — update display name
 export const PATCH = withAuth(
   async (req: NextRequest, user: User) => {
     try {
@@ -48,7 +47,6 @@ export const PATCH = withAuth(
   { maxRequests: 10, windowMs: 60_000 },
 );
 
-// DELETE /api/account — permanently delete account
 export const DELETE = withAuthClaims(
   async (req: NextRequest, user: AuthClaims) => {
     try {

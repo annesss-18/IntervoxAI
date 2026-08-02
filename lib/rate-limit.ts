@@ -2,13 +2,12 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { logger } from "@/lib/logger";
 
-// Use Redis for shared rate limiting; in-memory fallback is for local development.
+// Redis shares limits across instances; memory fallback is local only.
 const isRedisConfigured = !!(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 
-// Production check is deferred to runtime (see checkRateLimit) so that
-// `next build` can evaluate this module without the env vars being set.
+// Check production configuration at request time so builds do not need it.
 
 const redis = isRedisConfigured
   ? new Redis({
@@ -49,7 +48,7 @@ interface RateLimitEntry {
 
 const rateLimitMap = new Map<string, RateLimitEntry>();
 
-// Remove expired in-memory buckets to keep fallback state bounded.
+// Bound in-memory fallback state.
 if (typeof setInterval !== "undefined") {
   const cleanupInterval = setInterval(
     () => {
@@ -62,7 +61,7 @@ if (typeof setInterval !== "undefined") {
     },
     5 * 60 * 1000,
   );
-  // Don't let this timer keep a Node.js process alive.
+  // Allow Node.js to exit despite the cleanup timer.
   if (typeof cleanupInterval === "object" && "unref" in cleanupInterval) {
     cleanupInterval.unref();
   }

@@ -5,12 +5,7 @@ import type { SessionPageResult } from "@/lib/services/interview.service";
 import type { SessionStatusFilter } from "@/types";
 import type { PublicTemplateSort } from "@/lib/repositories/template.repository";
 
-/**
- * Server-component read helpers.  This module intentionally is not a Server
- * Action: these functions accept identifiers from trusted server components,
- * not arbitrary browser action payloads.  Mutations remain behind authenticated
- * route handlers.
- */
+/** Read helpers usable from server components and route handlers. */
 export async function getInterviewById(id: string, userId: string) {
   try {
     return await InterviewService.getSessionById(id, userId);

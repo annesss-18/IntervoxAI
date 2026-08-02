@@ -9,7 +9,6 @@ export default function CreateLoading() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:items-start">
-        {/* Left column — info panel (hidden on mobile, matching page) */}
         <div className="hidden lg:block space-y-5">
           <div className="rounded-2xl border border-border p-6 space-y-4">
             <Skeleton className="size-10 rounded-xl" />
@@ -33,7 +32,6 @@ export default function CreateLoading() {
           </div>
         </div>
 
-        {/* Right column — form */}
         <div className="space-y-5">
           <div className="rounded-2xl border border-border overflow-hidden">
             <div className="flex items-center gap-3 border-b border-border/60 px-6 py-4">

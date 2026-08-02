@@ -86,10 +86,7 @@ export const UserRepository = {
   },
 
   async reconcileStats(uid: string): Promise<UserStatsSnapshot> {
-    // Snapshot-query the current session counts and write them atomically.
-    // Note: the collection queries use snapshot reads, not transactional reads,
-    // so a session completing between the queries and the write could introduce
-    // minor drift — this is acceptable for a reconciliation that is re-runnable.
+    // Snapshot reads can briefly drift under concurrent writes; reconciliation is repeatable.
     const stats = await db.runTransaction(async (transaction) => {
       const userRef = db.collection("users").doc(uid);
       const userDoc = await transaction.get(userRef);
@@ -222,7 +219,6 @@ export const UserRepository = {
       await batch.commit();
     }
 
-    // Revoke refresh tokens before deleting the Auth user.
     await auth.revokeRefreshTokens(uid);
     await auth.deleteUser(uid);
 

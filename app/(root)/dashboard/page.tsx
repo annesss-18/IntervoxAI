@@ -78,10 +78,7 @@ function needsStatsReconciliation(args: {
     completedSessionsLoaded === 0 &&
     !completedCursor;
 
-  // Detect counter-below-loaded: a failed best-effort increment left the
-  // stored counter lower than the actual row count we just loaded.
-  // When there is no cursor (we loaded the full set), the counter should be
-  // >= loaded count.  A lower stored value means a write was lost.
+  // Fully loaded counters must not be lower than the rows returned.
   const activeCountBelowLoaded =
     typeof activeCount === "number" &&
     !activeCursor &&

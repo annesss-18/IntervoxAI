@@ -82,11 +82,7 @@ export const PATCH = withAuthClaims(
       }
 
       if (status !== undefined) {
-        // "completed" is deliberately rejected here. The only supported way
-        // to complete a session is POST /api/feedback, which atomically
-        // claims the session AND enqueues feedback generation in the same
-        // step. If PATCH accepted status: "completed" directly, a session
-        // could end up marked completed with no feedback job ever queued.
+        // Complete sessions through feedback submission so generation is queued atomically.
         if (status !== "active") {
           return NextResponse.json(
             {
@@ -309,7 +305,7 @@ export const DELETE = withAuthClaims(
         .collection("transcript_chunks")
         .get();
 
-      // Collect refs first so deletes can be chunked within Firestore limits.
+      // Collect references for batched deletion within Firestore limits.
       const feedbackDocIds = new Set<string>();
       const deterministicFeedbackId = `${sessionData.userId}_${sessionId}`;
       feedbackDocIds.add(deterministicFeedbackId);
@@ -363,7 +359,7 @@ export const DELETE = withAuthClaims(
               err,
             ),
         );
-        // Expired sessions are skipped because cleanup already decremented activeCount.
+        // Cleanup already decremented expired sessions.
       }
 
       logger.audit("session.deleted", {

@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/atoms/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 
 export function DeleteSessionButton({ sessionId }: { sessionId: string }) {
   const router = useRouter();

@@ -6,7 +6,6 @@ const {
   findByUserIdPaginatedMock,
   findSessionByIdMock,
   updateInterviewMock,
-  findManyByIdsMock,
   findTemplateByIdMock,
   findPublicMock,
   findByCreatorIdMock,
@@ -17,7 +16,6 @@ const {
   findByUserIdPaginatedMock: vi.fn(),
   findSessionByIdMock: vi.fn(),
   updateInterviewMock: vi.fn(),
-  findManyByIdsMock: vi.fn(),
   findTemplateByIdMock: vi.fn(),
   findPublicMock: vi.fn(),
   findByCreatorIdMock: vi.fn(),
@@ -37,7 +35,6 @@ vi.mock("@/lib/repositories/interview.repository", () => ({
 vi.mock("@/lib/repositories/template.repository", () => ({
   TemplateRepository: {
     findById: findTemplateByIdMock,
-    findManyByIds: findManyByIdsMock,
     findPublic: findPublicMock,
     findByCreatorId: findByCreatorIdMock,
     updateAvgScore: updateAvgScoreMock,
@@ -96,13 +93,11 @@ describe("InterviewService.getUserSessionsPage", () => {
       ],
       nextCursor: null,
     });
-    findManyByIdsMock.mockResolvedValue(new Map());
 
     const { InterviewService } =
       await import("@/lib/services/interview.service");
     const result = await InterviewService.getUserSessionsPage("user-1");
 
-    expect(findManyByIdsMock).not.toHaveBeenCalled();
     expect(result.sessions).toEqual([
       {
         id: "session-1",
@@ -120,63 +115,6 @@ describe("InterviewService.getUserSessionsPage", () => {
         hasResume: true,
       },
     ]);
-  });
-
-  it("fetches only templates missing from legacy sessions", async () => {
-    findByUserIdPaginatedMock.mockResolvedValue({
-      sessions: [
-        {
-          id: "session-new",
-          templateId: "template-new",
-          status: "active",
-          startedAt: "2026-04-05T10:00:00.000Z",
-          hasResume: false,
-          templateSnapshot: {
-            role: "Frontend Engineer",
-            companyName: "Contoso",
-            level: "Mid",
-            type: "Behavioral",
-            techStack: ["React"],
-          },
-        },
-        {
-          id: "session-legacy",
-          templateId: "template-legacy",
-          status: "completed",
-          startedAt: "2026-04-04T10:00:00.000Z",
-          finalScore: 74,
-          feedbackId: "feedback-legacy",
-          hasResume: true,
-        },
-      ],
-      nextCursor: "session-legacy",
-    });
-    findManyByIdsMock.mockResolvedValue(
-      new Map([
-        [
-          "template-legacy",
-          {
-            id: "template-legacy",
-            role: "Platform Engineer",
-            companyName: "Northwind",
-            companyLogoUrl: undefined,
-            level: "Staff",
-            type: "System Design",
-            techStack: ["Go", "Kafka"],
-          },
-        ],
-      ]),
-    );
-
-    const { InterviewService } =
-      await import("@/lib/services/interview.service");
-    const result = await InterviewService.getUserSessionsPage("user-1");
-
-    expect(findManyByIdsMock).toHaveBeenCalledWith(["template-legacy"]);
-    expect(result.nextCursor).toBe("session-legacy");
-    expect(result.sessions).toHaveLength(2);
-    expect(result.sessions[0]?.role).toBe("Frontend Engineer");
-    expect(result.sessions[1]?.role).toBe("Platform Engineer");
   });
 });
 

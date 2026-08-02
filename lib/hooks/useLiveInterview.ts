@@ -50,7 +50,7 @@ const CHECKPOINT_INTERVAL_MS = 30_000;
 const CHECKPOINT_TURN_THRESHOLD = 10;
 const RECENT_MODEL_TEXT_LIMIT = 2000;
 
-// Avoid closing detection during opening pleasantries.
+// Delay close detection until after opening pleasantries.
 const MIN_MODEL_TURNS_FOR_CLOSE_DETECTION = 4;
 
 function estimateBase64Bytes(base64Data: string): number {
@@ -597,7 +597,7 @@ export function useLiveInterview(
             ? connectError.message
             : "Connection failed";
         setError(errorMessage);
-        // Let the reconnect effect retry transient network and token failures.
+        // Let the reconnect effect handle transient failures.
         setStatus("disconnected");
         throw connectError;
       } finally {

@@ -62,7 +62,6 @@ export const POST = withAuth(
       jdType = formData.get("jdType") as string;
       const jdInput = formData.get("jdInput");
 
-      // Normalize all input modes into plain JD text before analysis.
       if (jdType === "url" && typeof jdInput === "string") {
         try {
           jdText = await extractTextFromUrl(jdInput);
@@ -184,7 +183,6 @@ EXTRACTION TASKS (priority order):
 
       const extractedData = result.object;
 
-      // Precompute a stable logo URL so the client can render immediately.
       const companyLogoUrl = getCompanyLogoUrl(extractedData.companyName);
 
       return NextResponse.json({

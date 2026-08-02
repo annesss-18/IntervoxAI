@@ -1,7 +1,4 @@
-// findCompletedWithScores() paginates through completed sessions,
-// filtering out ones without a finalScore yet, until it has `limit` scored
-// results or hits a bound. These tests script Firestore's .get() responses
-// batch by batch to exercise each stopping condition independently.
+// Verify bounded pagination of scored completed sessions.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -80,7 +77,7 @@ describe("InterviewRepository.findCompletedWithScores", () => {
     const { InterviewRepository } =
       await import("@/lib/repositories/interview.repository");
 
-    // limit=5 -> BATCH_SIZE=10. First batch: only d1 and d4 scored.
+    // The first batch contains only two scored sessions.
     const batch1 = [
       fakeDoc("d1", 80, "2026-01-10"),
       fakeDoc("d2", null, "2026-01-09"),
@@ -144,13 +141,12 @@ describe("InterviewRepository.findCompletedWithScores", () => {
     const { InterviewRepository } =
       await import("@/lib/repositories/interview.repository");
 
-    // Every batch is full-size but entirely scoreless: never short-pages,
-    // never satisfies `limit`. Without a cap this would loop forever.
+    // Bound full scoreless pages to avoid an infinite loop.
     mockGet
       .mockResolvedValueOnce({ empty: false, docs: fullBatch("a", null) })
       .mockResolvedValueOnce({ empty: false, docs: fullBatch("b", null) })
       .mockResolvedValueOnce({ empty: false, docs: fullBatch("c", null) })
-      .mockResolvedValueOnce({ empty: false, docs: fullBatch("d", null) }); // must not be reached
+      .mockResolvedValueOnce({ empty: false, docs: fullBatch("d", null) });
 
     const result = await InterviewRepository.findCompletedWithScores(
       "user-1",

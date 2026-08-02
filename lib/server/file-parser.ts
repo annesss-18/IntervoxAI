@@ -6,15 +6,7 @@ import { PDF_MIME, DOCX_MIME } from "@/lib/resume";
 const MAX_RESUME_SIZE_MB = 5;
 const MAX_TEXT_LENGTH = 50000;
 
-// Unlike lib/server/url-reader.ts's network fetch, unpdf/mammoth don't take
-// an AbortSignal — they're synchronous, CPU-bound work wrapped in a
-// Promise, so there's no cooperative way to cancel a parse already in
-// progress short of a worker thread (a much larger change for what's a
-// low-probability edge case). Promise.race against a timer can't reclaim
-// that CPU time, but it does what actually matters here: it guarantees the
-// HTTP request returns an error instead of hanging for the full duration
-// of a pathological file, bounded by FILE_PARSE_TIMEOUT_MS instead of
-// whatever the deployment platform's own function timeout happens to be.
+// Return promptly when a CPU-bound parser stalls; the underlying work cannot be cancelled.
 export const FILE_PARSE_TIMEOUT_MS = 20_000;
 
 export class FileParseTimeoutError extends Error {

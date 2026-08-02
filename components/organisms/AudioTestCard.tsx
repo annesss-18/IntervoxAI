@@ -52,7 +52,7 @@ export function AudioTestCard({
   const isConnected = connectionStatus === "connected";
   const isConnecting = connectionStatus === "connecting";
 
-  // Run the microphone check and detect sustained voice activity.
+  // Require sustained voice activity to pass the microphone test.
   const stopMicTest = useCallback(() => {
     if (micRafRef.current) {
       cancelAnimationFrame(micRafRef.current);
@@ -108,19 +108,18 @@ export function AudioTestCard({
         if (!micAnalyserRef.current) return;
         analyser.getByteFrequencyData(dataArray);
 
-        // Compute a normalized RMS-like level for the visualizer.
         let sum = 0;
         for (let i = 0; i < dataArray.length; i++) {
           const v = (dataArray[i] ?? 0) / 255;
           sum += v * v;
         }
         const rms = Math.sqrt(sum / dataArray.length);
-        const level = Math.min(1, rms * 3); // amplify for visual
+        const level = Math.min(1, rms * 3);
         setMicLevel(level);
 
         if (level > 0.08) {
           voiceDetectedCount++;
-          // Roughly one second of sustained voice at 60fps is enough to pass.
+          // Require roughly one second of sustained voice.
           if (voiceDetectedCount >= 60 && !micDetectedRef.current) {
             micDetectedRef.current = true;
             setMicStatus("passed");
@@ -134,7 +133,7 @@ export function AudioTestCard({
 
       micRafRef.current = requestAnimationFrame(poll);
 
-      // Stop automatically after 15 seconds if no voice is detected.
+      // End the test after 15 seconds without voice activity.
       micTimeoutRef.current = setTimeout(() => {
         if (!micDetectedRef.current) {
           setMicStatus("failed");
@@ -146,7 +145,6 @@ export function AudioTestCard({
     }
   }, [stopMicTest]);
 
-  // Clean up audio resources when the component unmounts.
   useEffect(() => {
     return () => {
       stopMicTest();
@@ -159,13 +157,12 @@ export function AudioTestCard({
     };
   }, [stopMicTest]);
 
-  // Play a short tone and ask the user to confirm they heard it.
   const startSpeakerTest = useCallback(() => {
     setSpeakerStatus("testing");
     setSpeakerConfirmNeeded(false);
 
     try {
-      // Close the previous context to prevent AudioContext leaks on retries.
+      // Close the previous context before retrying.
       if (
         speakerContextRef.current &&
         speakerContextRef.current.state !== "closed"
@@ -182,7 +179,7 @@ export function AudioTestCard({
       osc.type = "sine";
       osc.frequency.setValueAtTime(440, ctx.currentTime);
 
-      // Apply a gentle fade-in and fade-out envelope.
+      // Fade tone edges to avoid clicks.
       gain.gain.setValueAtTime(0, ctx.currentTime);
       gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
       gain.gain.setValueAtTime(0.3, ctx.currentTime + 1.2);
@@ -223,7 +220,6 @@ export function AudioTestCard({
     </Badge>
   );
 
-  // Derive animated bar heights from the current microphone level.
   const barHeights = Array.from({ length: BAR_COUNT }, (_, i) => {
     if (micStatus !== "testing" || micLevel < 0.01) return 4 + (i % 3) * 2;
     const base = 6;

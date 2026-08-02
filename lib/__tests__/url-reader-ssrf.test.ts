@@ -1,5 +1,3 @@
-// Exercise the public URL reader SSRF guards without making real DNS calls.
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import dns from "node:dns/promises";
 
@@ -9,7 +7,6 @@ vi.mock("node:dns/promises", () => ({
   },
 }));
 
-// Test the SSRF checks through extractTextFromUrl rather than internal helpers.
 describe("SSRF: extractTextFromUrl blocks private addresses", () => {
   beforeEach(() => {
     vi.clearAllMocks();

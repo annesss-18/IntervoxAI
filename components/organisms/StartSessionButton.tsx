@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/atoms/button";
 import { Loader2, PlayCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 import { cn } from "@/lib/utils";
 
 interface StartSessionButtonProps {

@@ -66,7 +66,7 @@ export async function publishFeedbackJob(
     url: workerUrl,
     body: payload,
     retries: 3,
-    // Deduplicate repeated enqueue attempts for the same interview.
+    // Deduplicate retries by interview.
     deduplicationId: `feedback-${payload.interviewId}`,
   });
 

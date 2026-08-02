@@ -20,8 +20,7 @@ describe("extractCandidateName", () => {
   });
 
   it("skips a job-title header line and finds the real name below it (Issue 3)", () => {
-    // Before the fix, "Senior Software Engineer" (3 words, no digits/@/http)
-    // matched the name-shaped heuristic and was returned as the "name".
+    // Regression: job titles must not be mistaken for names.
     const resume = "Senior Software Engineer\nAnnika Voss\nannika@example.com";
     expect(extractCandidateName(resume)).toBe("Annika");
   });

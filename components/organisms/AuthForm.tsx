@@ -17,7 +17,7 @@ import {
 import { auth } from "@/firebase/client";
 import { googleAuthenticate, signIn, signUp } from "@/lib/actions/auth.action";
 import { getFirebaseAuthErrorMessage } from "@/lib/firebase-auth-errors";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 import { Loader2, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -122,7 +122,7 @@ export function AuthForm({ type }: AuthFormProps) {
         router.push(postAuthUrl);
       }
     } catch (error: unknown) {
-      // Keep client auth aligned when the server session fails.
+      // Clear client auth when server session setup fails.
       await auth.signOut().catch(() => {});
       toast.error(
         getFirebaseAuthErrorMessage(
@@ -155,7 +155,7 @@ export function AuthForm({ type }: AuthFormProps) {
       );
       router.push(postAuthUrl);
     } catch (error: unknown) {
-      // Keep client auth aligned when the server session fails.
+      // Clear client auth when server session setup fails.
       await auth.signOut().catch(() => {});
       toast.error(
         getFirebaseAuthErrorMessage(error, "Google authentication failed"),

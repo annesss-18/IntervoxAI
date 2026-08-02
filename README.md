@@ -159,12 +159,15 @@ lib/
   hooks/                     Audio and live interview hooks
   server/                    API middleware, parsing, request, SSRF, and worker helpers
   data/                      Company and technology lookup tables
+  env.ts                     Startup-time environment variable validation
   errors.ts                  Domain-specific error helpers
-  utils/                     Cross-cutting utility modules
+  firebase-auth-errors.ts    Firebase Auth error code to message mapping
   services/email.service.ts  Optional Resend notifications
   rate-limit.ts              Redis and in-memory rate limiting
   resume.ts                  Resume file validation constants
   resume-crypto.ts           Resume encryption helpers
+  resume-name-heuristic.ts   Candidate name extraction from resume text
+  retry.ts                   Retry helper for transient async failures
   icon-utils.ts              Company and tech icon helpers
   logger.ts                  Structured logging
   auth-client.ts             Client-side sign-out helper
@@ -174,6 +177,8 @@ lib/
 public/
   worklets/                  AudioWorklet source
 types/                       Shared TypeScript contracts
+instrumentation.ts           Boot-time env validation (Next.js instrumentation hook)
+proxy.ts                     Auth route protection and CSP nonce injection (Next.js 16 middleware, renamed from middleware.ts)
 firestore.rules              Firestore security rules
 firestore.indexes.json       Firestore composite indexes
 vitest.config.ts             Vitest config
@@ -345,19 +350,21 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/terminal-square.svg" alt="" width="18" /> Available Scripts
 
-| Script        | Command                 | Purpose                             |
-| ------------- | ----------------------- | ----------------------------------- |
-| Dev           | `npm run dev`           | Start Next.js dev server            |
-| Dev (webpack) | `npm run dev:webpack`   | Start dev server with webpack       |
-| Build         | `npm run build`         | Create the production build         |
-| Start         | `npm run start`         | Run the production build            |
-| Lint          | `npm run lint`          | Run ESLint                          |
-| Lint fix      | `npm run lint:fix`      | Auto-fix lint issues                |
-| Type check    | `npm run type-check`    | Run TypeScript checks               |
-| Test          | `npm test`              | Run the Vitest suite                |
-| Test watch    | `npm run test:watch`    | Run Vitest in watch mode            |
-| Test coverage | `npm run test:coverage` | Run Vitest with coverage output     |
-| CI check      | `npm run ci:check`      | Run lint, type checks, tests, build |
+| Script          | Command                 | Purpose                                        |
+| --------------- | ----------------------- | ---------------------------------------------- |
+| Dev             | `npm run dev`           | Start Next.js dev server                       |
+| Dev (webpack)   | `npm run dev:webpack`   | Start dev server with webpack                  |
+| Build           | `npm run build`         | Create the production build                    |
+| Build (webpack) | `npm run build:webpack` | Create the production build with webpack       |
+| Start           | `npm run start`         | Run the production build                       |
+| Lint            | `npm run lint`          | Run ESLint                                     |
+| Lint fix        | `npm run lint:fix`      | Auto-fix lint issues                           |
+| Type check      | `npm run type-check`    | Run TypeScript checks                          |
+| Test            | `npm test`              | Run the Vitest suite                           |
+| Test watch      | `npm run test:watch`    | Run Vitest in watch mode                       |
+| Test coverage   | `npm run test:coverage` | Run Vitest with coverage output                |
+| Audit (prod)    | `npm run audit:prod`    | Fail on high-severity vulns in production deps |
+| CI check        | `npm run ci:check`      | Run lint, type checks, tests, build            |
 
 ---
 

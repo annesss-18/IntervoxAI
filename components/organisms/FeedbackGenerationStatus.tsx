@@ -10,7 +10,7 @@ import {
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
 import { Container } from "@/components/layout/Container";

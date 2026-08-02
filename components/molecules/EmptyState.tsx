@@ -1,10 +1,6 @@
 import type { ReactNode } from "react";
 
-/**
- * Reusable empty-state placeholder used across dashboard, explore, feedback,
- * and session pages. Renders a centred icon, title, description, and optional
- * action inside a dashed-border card with a subtle brand gradient overlay.
- */
+/** Shared empty-state card with an optional action. */
 export function EmptyState({
   icon,
   title,

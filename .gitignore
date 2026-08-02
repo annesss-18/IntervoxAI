@@ -77,9 +77,6 @@ $RECYCLE.BIN/
 *.pem
 *.key
 
-# Turborepo
-.turbo
-
 # AI agent workspace
 .gemini/
 

@@ -10,18 +10,15 @@ export const DELETE = withRateLimit(
       const cookieStore = await cookies();
       const sessionCookie = cookieStore.get("session")?.value;
 
-      // Best-effort revocation of Firebase refresh tokens.
+      // Revoke refresh tokens when possible.
       if (sessionCookie) {
         try {
-          // Match getCurrentUser() by checking revocation before revoking refresh tokens.
           const decoded = await adminAuth.verifySessionCookie(
             sessionCookie,
             true,
           );
           await adminAuth.revokeRefreshTokens(decoded.uid);
-        } catch {
-          // Continue deleting the cookie even if token revocation fails.
-        }
+        } catch {}
       }
 
       cookieStore.delete("session");

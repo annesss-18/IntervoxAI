@@ -11,7 +11,7 @@ interface UseAudioPlaybackReturn {
   stop: () => void;
 }
 
-// Shared resampling buffer; queueAudio copies each view before reuse.
+// Reuse the buffer; queueAudio copies input before the next write.
 let _resampleBuffer: Float32Array | null = null;
 
 export function useAudioPlayback(): UseAudioPlaybackReturn {
@@ -53,7 +53,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
     source.buffer = buffer;
     source.connect(ctx.destination);
 
-    // Chain playback timestamps to reduce audible gaps between chunks.
+    // Chain timestamps to reduce gaps between chunks.
     const startTime = Math.max(
       playbackStartTimeRef.current ?? ctx.currentTime,
       ctx.currentTime,
@@ -117,7 +117,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
         );
 
         if (!playbackStartTimeRef.current) {
-          // Wait for two chunks when possible to smooth initial playback.
+          // Buffer two chunks before starting when possible.
           if (audioQueueRef.current.length >= 2) {
             if (playbackStartTimeoutRef.current) {
               clearTimeout(playbackStartTimeoutRef.current);
@@ -126,7 +126,7 @@ export function useAudioPlayback(): UseAudioPlaybackReturn {
             logger.debug("Starting audio playback");
             playNextInQueue();
           } else if (!playbackStartTimeoutRef.current) {
-            // Fallback for short responses that only produce a single chunk.
+            // Start short responses after a brief delay.
             playbackStartTimeoutRef.current = setTimeout(() => {
               playbackStartTimeoutRef.current = null;
               if (
@@ -181,7 +181,7 @@ function resampleAudio(
   const ratio = inRate / outRate;
   const outputLength = Math.ceil(input.length / ratio);
 
-  // Over-provision to avoid frequent reallocations during early chunks.
+  // Reuse extra capacity to reduce allocations.
   if (!_resampleBuffer || _resampleBuffer.length < outputLength) {
     _resampleBuffer = new Float32Array(Math.ceil(outputLength * 1.5));
   }

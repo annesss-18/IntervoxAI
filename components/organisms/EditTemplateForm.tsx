@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 import {
   Loader2,
   Save,
@@ -74,10 +74,7 @@ export function EditTemplateForm({ template }: EditTemplateFormProps) {
   const removeTech = (t: string) =>
     setTechStack(techStack.filter((s) => s !== t));
 
-  // Mirrors needsTemplateRegeneration() in
-  // lib/services/template-generation.service.ts, but only for cosmetic use
-  // (choosing the loading-button label below). The server independently
-  // makes the real decision, so drift here can't cause incorrect behavior.
+  // Used only to choose the save label; the server makes the authoritative decision.
   const sameTechStackClient = (a: string[], b: string[]) => {
     const normalize = (stack: string[]) =>
       [...stack].map((s) => s.trim().toLowerCase()).sort();

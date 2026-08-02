@@ -1,17 +1,6 @@
-// Best-effort extraction of a candidate's first name from the top of their
-// resume text, used only to personalize the AI interviewer's opening
-// greeting (e.g. "Hey Priya, ..."). This is a heuristic, not a name parser:
-// it looks for a short, name-shaped line near the top of the document and
-// filters out the most common false positives (resume section headers and
-// job titles, which are also short 2-4 word phrases). It cannot be perfect
-// — if it can't find a confident match, callers fall back to a generic
-// greeting ("Hey there, ...").
+// Best-effort first-name extraction for personalized greetings.
 
-// Common resume header / job-title words that would otherwise pass the
-// name-shaped heuristic below — e.g. "Senior Software Engineer" or
-// "Professional Summary" both look like a 2-4 word name until you check
-// the words themselves. Not exhaustive: this is a best-effort filter for a
-// cosmetic opening greeting, not a name-extraction guarantee.
+// Exclude common headings and job titles.
 const NAME_HEURISTIC_DENYLIST = new Set([
   "engineer",
   "developer",

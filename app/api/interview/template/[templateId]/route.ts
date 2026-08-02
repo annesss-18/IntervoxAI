@@ -31,16 +31,7 @@ const templateUpdateSchema = z
   })
   .strict();
 
-// PATCH /api/interview/template/:templateId — update user-editable fields.
-//
-// role, companyName, level, type, techStack, and jobDescription are the
-// exact inputs generateTemplateContent() uses to produce baseQuestions,
-// focusArea, companyCultureInsights, interviewerPersona, and
-// systemInstruction. If a caller changes any of them, this route
-// regenerates that AI-derived content in the same request so the template
-// can never display one job description while the live interviewer
-// actually runs off another. companyLogoUrl and isPublic are cosmetic and
-// update instantly with no AI call.
+// Regenerate AI-derived fields when their inputs change.
 export const PATCH = withAuth(
   async (req: NextRequest, user: User, context: RouteContext) => {
     try {
@@ -79,7 +70,6 @@ export const PATCH = withAuth(
         );
       }
 
-      // Verify the template exists and the user owns it.
       const template = await TemplateRepository.findById(templateId);
       if (!template) {
         return NextResponse.json(
@@ -108,10 +98,7 @@ export const PATCH = withAuth(
       let updatePayload: FullUpdatePayload = data;
 
       if (shouldRegenerate) {
-        // Regeneration calls the same AI pipeline as template creation, so
-        // it shares that flow's cost-control budget instead of the looser
-        // limit meant for cheap metadata-only edits (see route options
-        // below).
+        // Use the shared generation budget for expensive edits.
         const rateLimitResult = await checkRateLimit(
           `template-regen:${user.id}`,
           TEMPLATE_GENERATION_RATE_LIMIT,
@@ -138,10 +125,7 @@ export const PATCH = withAuth(
 
           updatePayload = { ...data, ...generated };
         } catch (error) {
-          // Fail the whole request rather than writing a partial update:
-          // the caller's raw edits (role/company/etc.) and the AI-derived
-          // fields must always change together, never one without the
-          // other.
+          // Avoid saving source changes without matching generated content.
           logger.error("Template regeneration failed during edit:", error);
           return NextResponse.json(
             {

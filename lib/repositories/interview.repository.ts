@@ -58,22 +58,12 @@ export type TranscriptAppendResult =
 const DEFAULT_PAGE_SIZE = 20;
 const TRANSCRIPT_CHUNK_ID_WIDTH = 8;
 
-function getLegacyTranscript(
-  session: Partial<InterviewSessionRecord> | Record<string, unknown>,
-): TranscriptSentence[] {
-  return Array.isArray(session.transcript)
-    ? (session.transcript as TranscriptSentence[])
-    : [];
-}
-
 export function getStoredTranscriptTurnCount(
   session: Partial<InterviewSessionRecord> | Record<string, unknown>,
 ): number {
-  if (typeof session.transcriptTurnCount === "number") {
-    return session.transcriptTurnCount;
-  }
-
-  return getLegacyTranscript(session).length;
+  return typeof session.transcriptTurnCount === "number"
+    ? session.transcriptTurnCount
+    : 0;
 }
 
 function getStoredTranscriptChunkCount(
@@ -194,25 +184,6 @@ async function readTranscriptChunks(
   return transcript;
 }
 
-async function hydrateTranscript(
-  sessionId: string,
-  session: Partial<InterviewSessionRecord> | Record<string, unknown>,
-): Promise<TranscriptSentence[]> {
-  const legacyTranscript = getLegacyTranscript(session);
-  const chunkCount = getStoredTranscriptChunkCount(session);
-
-  if (chunkCount <= 0) {
-    return legacyTranscript;
-  }
-
-  const chunkTranscript = await readTranscriptChunks(sessionId);
-  if (legacyTranscript.length === 0) {
-    return chunkTranscript;
-  }
-
-  return [...legacyTranscript, ...chunkTranscript];
-}
-
 export const InterviewRepository = {
   async findByUserIdPaginated(
     userId: string,
@@ -298,7 +269,7 @@ export const InterviewRepository = {
       if (!doc.exists) return null;
 
       const raw = doc.data() ?? {};
-      const transcript = await hydrateTranscript(id, raw);
+      const transcript = await readTranscriptChunks(id);
 
       const data = {
         id: doc.id,
@@ -336,7 +307,7 @@ export const InterviewRepository = {
       const doc = await db.collection("interview_sessions").doc(id).get();
       if (!doc.exists) return [];
 
-      return await hydrateTranscript(id, doc.data() ?? {});
+      return await readTranscriptChunks(id);
     } catch (error) {
       logger.error(
         `Error fetching transcript for interview session ${id}:`,
@@ -474,29 +445,13 @@ export const InterviewRepository = {
     }
   },
 
-  // findCompletedWithScores can't filter finalScore != null server-side
-  // while still sorting primarily by startedAt: Firestore requires an
-  // inequality filter's field to be the first orderBy() when one is
-  // present, and finalScore isn't the field we want to sort by. Google's
-  // own guidance for this exact shape (inequality filter, unrelated sort
-  // field, small expected result set) is to over-fetch and filter/reorder
-  // in application code — see
-  // https://firebase.google.com/docs/firestore/query-data/multiple-range-fields
-  //
-  // The one thing worth fixing about the old fixed `limit * 3` guess: it's
-  // a flat cost paid on every call regardless of how many completed
-  // sessions actually lack a score, AND it can silently return fewer than
-  // `limit` results for a user whose scoreless rate happens to exceed 2/3
-  // (e.g. several recent sessions still mid-feedback-generation, or with
-  // failed feedback jobs) even when enough older scored sessions exist.
-  // Paginating adaptively fixes both: it stops as soon as it has enough,
-  // and keeps fetching (up to a bounded cap) when it doesn't.
+  // Firestore cannot filter scores while preserving started-at ordering, so scan bounded pages and filter locally.
   async findCompletedWithScores(
     userId: string,
     limit: number = 50,
   ): Promise<InterviewSessionRecord[]> {
     const BATCH_SIZE = limit * 2;
-    const MAX_BATCHES = 3; // bounds worst case to 6x limit documents scanned.
+    const MAX_BATCHES = 3; // Scan at most six times the requested result count.
 
     const results: InterviewSessionRecord[] = [];
 
@@ -539,7 +494,6 @@ export const InterviewRepository = {
 
         cursor = snapshot.docs[snapshot.docs.length - 1];
 
-        // A short page means there's nothing left to paginate into.
         if (snapshot.docs.length < BATCH_SIZE) break;
         if (results.length >= limit) break;
       }

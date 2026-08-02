@@ -7,10 +7,7 @@ import { InterviewTemplate } from "@/types";
 export const TEMPLATE_MAX_TECH_ITEMS = 20;
 export const TEMPLATE_MAX_TECH_ITEM_LENGTH = 50;
 
-// Shared cost-control budget for any code path that calls
-// generateTemplateContent() (template creation, and template edits that
-// change an AI-input field). Kept as one constant so the two call sites
-// can't silently drift apart.
+// Share one rate limit across all template-generation flows.
 export const TEMPLATE_GENERATION_RATE_LIMIT = {
   maxRequests: 5,
   windowMs: 60 * 1000,
@@ -28,9 +25,7 @@ function getTemplateGenerationModel(): string {
   return model;
 }
 
-// Structured output contract for the AI generation call. Kept separate from
-// InterviewTemplate so the model's optional/defaulted fields don't leak into
-// the stricter, fully-populated shape callers receive from this module.
+// Keep model output separate from fully populated template data.
 const templateContentSchema = z.object({
   role: z.string().optional(),
   companyName: z.string().optional(),
@@ -108,15 +103,11 @@ export interface TemplateGenerationInput {
   level: InterviewTemplate["level"];
   type: InterviewTemplate["type"];
   jdInput: string;
-  /** Already parsed, trimmed, deduped tech stack items. */
+  /** Normalized technology names. */
   techStack: string[];
 }
 
-/**
- * The subset of InterviewTemplate that a generation call produces. Used both
- * to build a brand-new template (template creation) and to refresh an
- * existing one whose AI-input fields changed (template editing).
- */
+/** AI-generated fields for an interview template. */
 export type GeneratedTemplateContent = Pick<
   InterviewTemplate,
   | "techStack"
@@ -142,17 +133,7 @@ function getLevelCalibration(level: InterviewTemplate["level"]): string {
   }
 }
 
-/**
- * Calls Gemini to produce the AI-derived content for an interview template:
- * questions, focus areas, culture insights, interviewer persona, and the
- * live-interview system prompt.
- *
- * This is the single source of truth for that generation step. It backs both
- * template creation (POST /api/interview/generate) and template edits that
- * change an AI-input field (PATCH /api/interview/template/:id), so the two
- * flows can never drift into producing template content by two different
- * prompts/schemas.
- */
+/** Generates AI-derived fields for an interview template. */
 export async function generateTemplateContent(
   input: TemplateGenerationInput,
 ): Promise<GeneratedTemplateContent> {
@@ -258,7 +239,7 @@ export type TemplateGenerationRelevantFields = Pick<
   "role" | "companyName" | "level" | "type" | "jobDescription" | "techStack"
 >;
 
-/** A template edit touching only these fields never needs regeneration. */
+/** Partial update of fields that can require regeneration. */
 export type TemplateGenerationRelevantPatch =
   Partial<TemplateGenerationRelevantFields>;
 
@@ -271,17 +252,7 @@ function sameTechStack(a: string[] = [], b: string[] = []): boolean {
   return normalizedA.every((item, index) => item === normalizedB[index]);
 }
 
-/**
- * Decides whether an incoming template patch changes any field that
- * generateTemplateContent() takes as input. Only those fields (role,
- * companyName, level, type, jobDescription, techStack) drive the AI-derived
- * content (baseQuestions, systemInstruction, interviewerPersona,
- * companyCultureInsights, focusArea) — cosmetic fields like companyLogoUrl
- * or isPublic never require regeneration.
- *
- * `patch` fields that are `undefined` are treated as "not part of this
- * update" (matching Firestore's partial-update semantics), not as "cleared".
- */
+/** Returns whether a patch changes an AI-generation input. */
 export function needsTemplateRegeneration(
   current: TemplateGenerationRelevantFields,
   patch: TemplateGenerationRelevantPatch,

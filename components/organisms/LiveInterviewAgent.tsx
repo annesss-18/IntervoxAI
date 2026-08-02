@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 import { AlertCircle, RefreshCw, User2 } from "lucide-react";
 import { useLiveInterview } from "@/lib/hooks/useLiveInterview";
 import { useAudioCapture } from "@/lib/hooks/useAudioCapture";
@@ -36,7 +36,7 @@ export function LiveInterviewAgent({
   const [isMuted, setIsMuted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
-  // Keep callbacks aligned with the latest phase.
+  // Keep callbacks synchronized with the current phase.
   const phaseRef = useRef<InterviewPhase>("setup");
   const sessionActivatedRef = useRef(interview.status !== "setup");
   const handleEndInterviewRef = useRef<(() => void) | null>(null);

@@ -11,8 +11,6 @@ const querySchema = z.object({
   status: z.enum(["active", "completed"]).optional(),
 });
 
-// GET /api/dashboard/sessions?cursor=<sessionId>&limit=20
-// Returns a single page of session cards for the authenticated user.
 export const GET = withAuthClaims(
   async (req: NextRequest, user: AuthClaims) => {
     try {

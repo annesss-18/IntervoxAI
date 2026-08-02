@@ -59,7 +59,7 @@ function isPrivateOrSpecialIPv6(ip: string): boolean {
       return isPrivateOrSpecialIPv4(mappedIpv4);
     }
 
-    // IPv4-mapped IPv6 can also be expressed as ::ffff:7f00:1.
+    // IPv4-mapped addresses can use hexadecimal notation.
     const parts = mappedIpv4.split(":");
     if (
       parts.length === 2 &&
@@ -131,7 +131,7 @@ export async function resolvePublicHostname(
   let secondLookup: Array<{ address: string; family: number }>;
   try {
     firstLookup = await dns.lookup(hostname, { all: true, verbatim: true });
-    // Perform a second lookup after a short delay to reduce DNS rebinding risk.
+    // Repeat the lookup to reduce DNS-rebinding risk.
     await new Promise((resolve) =>
       setTimeout(resolve, DNS_REBINDING_CHECK_DELAY_MS),
     );
@@ -165,8 +165,7 @@ export async function resolvePublicHostname(
     }
   }
 
-  // Pin requests to an address observed in both lookups. This prevents a DNS
-  // answer from changing between validation and the actual TCP connection.
+  // Pin requests to an address present in both DNS lookups.
   const stableAddresses = firstPublic.filter((first) =>
     secondPublic.some(
       (second) =>
@@ -217,8 +216,20 @@ async function fetchPinned(
           Accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.1",
         },
         servername: currentUrl.hostname,
-        lookup: (_hostname, _options, callback) =>
-          callback(null, address.address, address.family),
+        lookup: (
+          _hostname: string,
+          optionsOrCb: unknown,
+          maybeCb?: unknown,
+        ) => {
+          const cb = (typeof optionsOrCb === "function"
+            ? optionsOrCb
+            : maybeCb) as (
+            err: Error | null,
+            address: string,
+            family: number,
+          ) => void;
+          cb(null, address.address, address.family);
+        },
       },
       (response) => {
         const chunks: Buffer[] = [];

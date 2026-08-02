@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "^20.17.0 || >=22.9.0"
+    "node": ">=22.9.0"
   },
   "packageManager": "npm@11.10.1",
   "scripts": {
@@ -22,7 +22,7 @@
     "ci:check": "npm run lint && npm run type-check && npm test && npm run build"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.29",
+    "@ai-sdk/google": "^4.0.29",
     "@google/genai": "^1.42.0",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-avatar": "^1.1.11",
@@ -36,7 +36,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.2",
     "@vercel/analytics": "^1.6.1",
-    "ai": "^6.0.101",
+    "ai": "^7.0.43",
     "cheerio": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -49,7 +49,6 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-hook-form": "^7.71.2",
-    "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
     "unpdf": "^1.4.0",
@@ -76,6 +75,22 @@
     "sharp": "^0.35.3",
     "@hono/node-server": ">=2.0.5",
     "@opentelemetry/core": ">=2.8.0",
-    "uuid": ">=11.1.1"
+    "uuid": ">=11.1.1",
+    "@vitest/coverage-v8": {
+      "test-exclude": {
+        "minimatch": {
+          "brace-expansion": "5.0.8"
+        }
+      }
+    },
+    "eslint-config-next": {
+      "typescript-eslint": {
+        "@typescript-eslint/typescript-estree": {
+          "minimatch": {
+            "brace-expansion": "5.0.8"
+          }
+        }
+      }
+    }
   }
 }

@@ -3,17 +3,15 @@ class AudioProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
     this.TargetSampleRate = 16000;
-    // ~128 ms buffer at 16 kHz for low turn-end latency.
+    // A 128 ms buffer balances latency and batching.
     this.BufferSize = 2048;
     this.buffer = new Float32Array(this.BufferSize);
     this.bufferIndex = 0;
-    // Fractional source position carries across AudioWorklet render quanta.
-    // Resetting it for each 128-frame block drifts from 16 kHz on 44.1 kHz
-    // devices and produces discontinuities in the PCM stream.
+    // Preserve fractional phase across render quanta to prevent resampling drift.
     this.sourcePosition = 0;
     this.VadThreshold = 0.005;
 
-    // Continue briefly after speech drops so pauses do not become hard gaps.
+    // Retain speech briefly across natural pauses.
     this.VadHoldFrames = 5;
     this.vadHoldCount = 0;
 
@@ -35,7 +33,7 @@ class AudioProcessor extends AudioWorkletProcessor {
     const inputChannel = input[0];
     if (!inputChannel) return true;
 
-    // Downsample from the hardware rate to 16 kHz using linear interpolation.
+    // Resample hardware audio to 16 kHz with linear interpolation.
     const ratio = sampleRate / this.TargetSampleRate;
 
     while (this.sourcePosition < inputChannel.length) {
@@ -63,7 +61,6 @@ class AudioProcessor extends AudioWorkletProcessor {
   }
 
   flush() {
-    // Compute RMS energy of the current buffer.
     let rms = 0;
     for (let i = 0; i < this.bufferIndex; i++) {
       const sample = this.buffer[i] || 0;
@@ -82,7 +79,7 @@ class AudioProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Convert Float32 samples to Int16 PCM (little-endian, signed).
+    // Convert samples to signed 16-bit PCM.
     const pcmData = new Int16Array(this.bufferIndex);
     for (let i = 0; i < this.bufferIndex; i++) {
       const s = Math.max(-1, Math.min(1, this.buffer[i]));

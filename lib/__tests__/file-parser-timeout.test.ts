@@ -1,8 +1,4 @@
-// extractTextFromFile() races unpdf/mammoth against a timer (see
-// lib/server/file-parser.ts for why a true cancel isn't possible for
-// CPU-bound synchronous work). These tests use fake timers to simulate a
-// parse that never resolves, without actually waiting FILE_PARSE_TIMEOUT_MS
-// in real time.
+// Use fake timers to test parser timeouts without waiting.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,14 +16,13 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 function makePdfFile(): File {
-  // Real content doesn't matter — extractText() is mocked — but the magic
-  // bytes must pass extractTextFromFile's own "%PDF" sniff check first.
+  // Use the PDF signature required by the parser.
   const bytes = new TextEncoder().encode("%PDF-1.4\nfake pdf bytes");
   return new File([bytes], "resume.pdf", { type: "application/pdf" });
 }
 
 function makeDocxFile(): File {
-  const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]); // "PK.."
+  const bytes = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]);
   return new File([bytes], "resume.docx", {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
@@ -61,12 +56,11 @@ describe("extractTextFromFile timeout (Issue 7)", () => {
     } = await import("@/lib/server/file-parser");
 
     vi.useFakeTimers();
-    // Never resolves — simulates a pathological/hanging parse.
+    // Simulate a stalled parser.
     mockExtractText.mockImplementationOnce(() => new Promise(() => {}));
 
     const pending = extractTextFromFile(makePdfFile());
-    // Attach the rejection assertion before advancing time so there's no
-    // unhandled-rejection window between the timer firing and the assert.
+    // Attach the rejection assertion before advancing timers.
     const assertion = expect(pending).rejects.toSatisfy((error: unknown) =>
       isFileParseTimeoutError(error),
     );

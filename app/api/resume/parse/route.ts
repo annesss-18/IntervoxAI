@@ -58,7 +58,7 @@ export const POST = withAuth(
         );
       }
 
-      // Normalize whitespace and control characters before truncation.
+      // Normalize parsed text before truncation.
       const cleanedText = text
         .replace(/[^\S\n]+/g, " ")
         .replace(/\n{3,}/g, "\n\n")

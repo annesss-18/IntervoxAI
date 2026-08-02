@@ -23,8 +23,7 @@ async function sendResendEmail(
   });
 
   if (!response.ok) {
-    // Providers can echo recipient addresses and request details in errors.
-    // Keep production logs free of those values.
+    // Avoid logging recipient or request data from provider errors.
     throw new Error(`Resend email request failed (${response.status})`);
   }
 }

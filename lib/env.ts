@@ -1,26 +1,4 @@
-// Centralized environment-variable validation.
-//
-// Before this module existed, a misconfigured deployment only found out a
-// variable was missing when a request first touched that specific feature
-// (e.g. the first resume upload, the first feedback job, the first template
-// generation) — each with its own inline check and error message scattered
-// across lib/. This module collects every one of those checks in one place
-// and runs them all at once at boot (see instrumentation.ts), so a bad
-// deploy fails immediately and visibly instead of piecemeal, in production,
-// hours or days later.
-//
-// Three tiers, matching how the rest of the codebase already treats these
-// variables (see .env.example):
-//   1. Always required — the app cannot do anything useful without these
-//      (Firebase auth/DB, resume encryption). Missing any of these is a
-//      hard error in every environment.
-//   2. Required in production only — features that already have a
-//      documented development fallback (APP_URL, Upstash rate limiting,
-//      QStash queueing, the three Gemini feature keys/models). Hard error
-//      in production; warning in development so a partial local setup
-//      still boots.
-//   3. Advisory — optional features that degrade gracefully when unset
-//      (Resend email, Brandfetch logos). Warning only, never fatal.
+// Validate required, production-only, and optional configuration at startup.
 import { z } from "zod";
 import { parseEncryptionKey } from "@/lib/resume-crypto";
 import { logger } from "@/lib/logger";
@@ -70,9 +48,9 @@ const productionRequiredSchema = z.object({
 
 export interface EnvValidationResult {
   success: boolean;
-  /** Fatal problems. Non-empty only when something in tier 1, or tier 2 in production, is missing/invalid. */
+  /** Missing or invalid required configuration. */
   errors: string[];
-  /** Non-fatal problems: tier 2 outside production, and all of tier 3. */
+  /** Missing optional configuration. */
   warnings: string[];
 }
 
@@ -80,13 +58,7 @@ function issuesToMessages(issues: z.ZodIssue[]): string[] {
   return issues.map((issue) => `${issue.path.join(".")} ${issue.message}`);
 }
 
-/**
- * Runs every environment-variable check the codebase relies on and returns
- * a combined result. Pure with respect to the passed-in `env` (defaults to
- * `process.env`) so it can be unit tested with a fake env object — it does
- * not throw or log by itself; see assertValidEnv() for the boot-time
- * wrapper that does.
- */
+/** Validates the supplied environment without logging or throwing. */
 export function validateEnv(
   env: NodeJS.ProcessEnv = process.env,
 ): EnvValidationResult {
@@ -99,12 +71,7 @@ export function validateEnv(
     errors.push(...issuesToMessages(alwaysResult.error.issues));
   }
 
-  // RESUME_ENCRYPTION_KEY: reuse resume-crypto.ts's own parser for the
-  // format check, so this can never drift from what
-  // encryptResumeText()/decryptResumeText() actually accept. Checked
-  // against the *passed-in* env (not resume-crypto's internal
-  // process.env-reading, cached getEncryptionKey()), so this function
-  // genuinely validates whatever `env` the caller gives it.
+  // Reuse the encryption parser so format validation stays consistent.
   const rawResumeKey = env.RESUME_ENCRYPTION_KEY;
   if (!rawResumeKey) {
     errors.push(
@@ -155,13 +122,7 @@ export function validateEnv(
   return { success: errors.length === 0, errors, warnings };
 }
 
-/**
- * Boot-time entry point: logs every warning, and throws a single
- * consolidated error (logged first) if anything fatal is missing. Intended
- * to be called once from instrumentation.ts's register(), which Next.js
- * runs before the server accepts requests — see
- * https://nextjs.org/docs/app/api-reference/file-conventions/instrumentation
- */
+/** Logs configuration warnings and throws for invalid required settings. */
 export function assertValidEnv(env: NodeJS.ProcessEnv = process.env): void {
   const result = validateEnv(env);
 

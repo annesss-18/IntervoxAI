@@ -12,7 +12,6 @@ export const metadata: Metadata = {
 export default async function AccountPage() {
   const user = await getCurrentUser();
 
-  // Shouldn't happen since (root) layout redirects, but defensive
   if (!user) redirect("/sign-in");
 
   return <AccountClient userName={user.name} userEmail={user.email} />;

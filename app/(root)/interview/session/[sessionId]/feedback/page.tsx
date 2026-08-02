@@ -172,7 +172,7 @@ const Page = async ({ params }: RouteParams) => {
         ? "Solid progress - tighten structure and reduce hedging to close the gap."
         : "Clear room for growth. Focus on the areas below and run another session.";
 
-  // Defensively access fields that may be absent in legacy feedback documents.
+  // Support fields absent from legacy feedback documents.
   const behavioralInsights = feedback.behavioralInsights as
     typeof feedback.behavioralInsights | undefined | null;
   const careerCoaching = feedback.careerCoaching as

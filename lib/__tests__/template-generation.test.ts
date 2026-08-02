@@ -1,10 +1,4 @@
-// needsTemplateRegeneration() decides whether a template PATCH must
-// regenerate baseQuestions/systemInstruction/interviewerPersona/
-// companyCultureInsights, or can update Firestore directly. Getting this
-// wrong in either direction is bad: false-negative silently leaves the
-// interview out of sync with the displayed job description (the original
-// bug); false-positive burns an unnecessary Gemini call and rate-limit
-// budget on every save.
+// Ensure template edits regenerate only when AI inputs change.
 
 import { describe, expect, it } from "vitest";
 import { needsTemplateRegeneration } from "@/lib/services/template-generation.service";
@@ -30,9 +24,7 @@ describe("needsTemplateRegeneration", () => {
   });
 
   it("returns false when every AI-input field is resubmitted unchanged", () => {
-    // Mirrors what EditTemplateForm actually sends: role/companyName/level/
-    // type/techStack are always present in the PATCH body, even when the
-    // user only touched an unrelated field like visibility.
+    // Forms resubmit unchanged AI inputs when only metadata changes.
     const current = baseTemplate();
     expect(
       needsTemplateRegeneration(current, {
@@ -114,9 +106,6 @@ describe("needsTemplateRegeneration", () => {
   });
 
   it("ignores cosmetic-only fields (companyLogoUrl, isPublic are not part of the type at all)", () => {
-    // needsTemplateRegeneration's patch type only accepts AI-input fields,
-    // so companyLogoUrl/isPublic changes can't be expressed here — this
-    // test documents that guarantee via the empty-patch case instead.
     expect(needsTemplateRegeneration(baseTemplate(), {})).toBe(false);
   });
 });

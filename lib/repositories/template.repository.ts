@@ -116,10 +116,7 @@ const _publicCaches: Record<
   ),
 };
 
-// Raw, user-editable fields. Changing any of these except companyLogoUrl/
-// isPublic invalidates the AI-derived fields below — see
-// needsTemplateRegeneration() in lib/services/template-generation.service.ts,
-// which the PATCH /api/interview/template/:id route consults before writing.
+// User-editable template fields.
 export type TemplateUpdatePayload = Partial<
   Pick<
     InterviewTemplate,
@@ -131,8 +128,7 @@ export type TemplateUpdatePayload = Partial<
     | "techStack"
     | "jobDescription"
     | "isPublic"
-    // AI-derived fields: only ever written alongside a regeneration, never
-    // hand-edited directly by a caller.
+    // AI-derived fields are written only during regeneration.
     | "baseQuestions"
     | "focusArea"
     | "companyCultureInsights"
@@ -144,33 +140,6 @@ export type TemplateUpdatePayload = Partial<
 export const TemplateRepository = {
   async findById(id: string): Promise<InterviewTemplate | null> {
     return getOrCreateTemplateCacheFn(id)();
-  },
-
-  async findManyByIds(ids: string[]): Promise<Map<string, InterviewTemplate>> {
-    if (ids.length === 0) return new Map();
-
-    const templateMap = new Map<string, InterviewTemplate>();
-    const uniqueIds = Array.from(new Set(ids));
-
-    try {
-      const results = await Promise.all(
-        uniqueIds.map(async (id) => {
-          const fn = getOrCreateTemplateCacheFn(id);
-          const template = await fn();
-          return { id, template };
-        }),
-      );
-
-      for (const { id, template } of results) {
-        if (template) {
-          templateMap.set(id, template);
-        }
-      }
-    } catch (error) {
-      logger.error("Error fetching templates from cache wrapper:", error);
-    }
-
-    return templateMap;
   },
 
   async findPublic(

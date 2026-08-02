@@ -1,19 +1,6 @@
-// Firebase's client SDK throws errors whose `.message` is formatted as
-// `"Firebase: <text> (<error-code>)."` — e.g. exactly what showed up in a
-// toast: "Firebase: Error (auth/api-key-expired.-please-renew-the-api-key.)."
-// That's an internal SDK/infra string, not something a user can act on, and
-// it leaks operational details (which specific credential is broken) to the
-// public. This module maps known auth error codes to short, user-facing
-// messages; call sites should always go through getFirebaseAuthErrorMessage()
-// rather than reading `error.message` directly.
+// Map Firebase errors to safe user-facing messages.
 
-/**
- * Error codes that mean "this deployment is misconfigured," not "the user
- * did something wrong." Never suggest retrying — retrying cannot help until
- * an operator fixes the underlying credential/config, and telling the user
- * to "try again" for an error that will never resolve itself is worse than
- * a plain "unavailable" message.
- */
+/** Configuration errors require operator intervention. */
 const CONFIG_ERROR_CODES = new Set([
   "auth/api-key-expired",
   "auth/api-key-not-valid",
@@ -55,12 +42,7 @@ function extractFirebaseErrorCode(error: unknown): string | undefined {
   return undefined;
 }
 
-/**
- * Turn any error thrown by the Firebase client SDK (or our own server
- * actions) into a short, user-facing message. Falls back to a generic
- * message for anything unrecognized — never forwards a raw SDK/error
- * string to the UI.
- */
+/** Returns a safe user-facing message for Firebase or server auth errors. */
 export function getFirebaseAuthErrorMessage(
   error: unknown,
   fallback: string,
@@ -74,10 +56,7 @@ export function getFirebaseAuthErrorMessage(
     return AUTH_ERROR_MESSAGES[code];
   }
 
-  // Our own server actions (lib/actions/auth.action.ts) throw plain Errors
-  // with hand-written, already-user-facing messages (no Firebase "code"
-  // field and no "Firebase:"-prefixed text) — those are safe to surface
-  // as-is rather than falling back to the generic message.
+  // Surface explicitly user-facing server action errors.
   if (
     !code &&
     error instanceof Error &&

@@ -25,10 +25,7 @@ function mockHeaders(entries: Record<string, string>): {
 
 const ENV_KEYS = ["VERCEL", "TRUSTED_IP_HEADER", "TRUST_PROXY"] as const;
 
-// @types/node marks NODE_ENV readonly on ProcessEnv to discourage app code
-// from mutating it, but it's an ordinary mutable env var at runtime and
-// tests need to flip it. Route the write through an index-signature view
-// instead of `any`.
+// Tests need a mutable view of NODE_ENV.
 function setNodeEnv(value: string | undefined): void {
   const env = process.env as Record<string, string | undefined>;
   if (value === undefined) delete env.NODE_ENV;

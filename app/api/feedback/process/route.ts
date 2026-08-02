@@ -222,7 +222,7 @@ export const POST = withAuthClaims(
           );
         }
       } else {
-        // Development-only convenience path. Production is rejected above.
+        // Run asynchronously in development.
         after(async () => {
           await runFeedbackGeneration(interviewId, user.id);
         });

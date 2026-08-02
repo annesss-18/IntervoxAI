@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { FileUp, FileCheck, X, Loader2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toaster";
 import {
   isAllowedResumeFile,
   MAX_RESUME_SIZE_BYTES,

@@ -121,7 +121,7 @@ export const logger = {
   },
 
   audit: (event: string, context?: Record<string, unknown>) => {
-    // Audit events always emit unconditionally with a distinct level label.
+    // Audit events always emit.
     const sanitized = context
       ? (sanitizeLogValue(context) as Record<string, unknown>)
       : {};

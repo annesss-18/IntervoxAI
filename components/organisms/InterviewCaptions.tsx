@@ -12,7 +12,7 @@ interface InterviewCaptionsProps {
   className?: string;
 }
 
-// Truncate long captions at a sentence boundary.
+// Prefer a sentence boundary when truncating captions.
 function getDisplayCaption(text: string, maxChars = 280): string {
   const norm = text.replace(/\s+/g, " ").trim();
   if (norm.length <= maxChars) return norm;

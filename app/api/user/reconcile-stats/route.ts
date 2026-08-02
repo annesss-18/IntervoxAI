@@ -1,4 +1,4 @@
-// Recompute the signed-in user's aggregate stats from source-of-truth session and feedback data.
+// Recalculate user stats from session and feedback records.
 
 import { NextRequest, NextResponse } from "next/server";
 import { withAuth } from "@/lib/server/api-middleware";
@@ -34,7 +34,6 @@ export const POST = withAuth(
     }
   },
   {
-    // Reconciliation is a low-frequency maintenance operation.
     maxRequests: 5,
     windowMs: 60 * 1000,
   },

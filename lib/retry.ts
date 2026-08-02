@@ -8,12 +8,7 @@ export interface RetryOptions {
   abortSignal?: AbortSignal;
 }
 
-/**
- * Retry transient failures with exponential backoff.
- *
- * Abort-aware: if the provided `abortSignal` fires, pending backoff waits
- * are cancelled immediately and an `AbortError` is thrown.
- */
+/** Retries transient failures with abort-aware exponential backoff. */
 export async function withRetry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {},
@@ -47,7 +42,7 @@ export async function withRetry<T>(
           `${operationName} failed (attempt ${attempt}/${maxRetries}), retrying in ${delay}ms...`,
         );
 
-        // Make the backoff wait abort-aware so retries stop immediately on cancellation.
+        // Stop waiting immediately when cancelled.
         await new Promise<void>((resolve, reject) => {
           const timer = setTimeout(resolve, delay);
           abortSignal?.addEventListener(

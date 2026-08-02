@@ -1,4 +1,4 @@
-// Centralized logo/icon URL builders with provider-specific fallbacks.
+// Build provider-specific logo and icon URLs.
 import { COMPANY_DOMAIN_MAP } from "@/lib/data/company-domains";
 import { DEVICON_MAP } from "@/lib/data/devicon-map";
 
@@ -57,7 +57,7 @@ function companyToDomain(companyName: string): string {
     return COMPANY_DOMAIN_MAP[withoutSpaces];
   }
 
-  // Fallback heuristic when no explicit mapping exists.
+  // Use a .com domain when no explicit mapping is available.
   return `${withoutSpaces}.com`;
 }
 
@@ -80,7 +80,7 @@ export function getBrandfetchLogoUrl(
     !BRANDFETCH_CLIENT_ID ||
     BRANDFETCH_CLIENT_ID === "your_brandfetch_client_id"
   ) {
-    // Fall back to a public source when Brandfetch credentials are missing.
+    // Fall back to a public source without Brandfetch credentials.
     return getGoogleFaviconUrl(companyName, normalizedSize);
   }
 
@@ -162,7 +162,7 @@ export function getCompanyLogoUrls(
   const googleFallback = getGoogleFaviconUrl(companyName, size);
   const uiAvatarFallback = getUIAvatarsUrl(companyName, size);
 
-  // Avoid duplicate fallback URLs when Brandfetch already resolves to Google.
+  // Avoid a duplicate Google fallback URL.
   if (brandfetchPrimary === googleFallback) {
     return {
       primary: googleFallback,
@@ -191,7 +191,7 @@ export function getDeviconUrl(techName: string): string {
     return `${DEVICON_CDN}/${mapping.slug}/${mapping.slug}-${mapping.variant}.svg`;
   }
 
-  // Last-resort slug normalization for unmapped technologies.
+  // Normalize unmapped technology names as a last resort.
   const slug = normalized.replace(/[^a-z0-9]/g, "");
   return `${DEVICON_CDN}/${slug}/${slug}-original.svg`;
 }

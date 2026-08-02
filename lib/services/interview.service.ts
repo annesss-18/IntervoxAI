@@ -21,7 +21,7 @@ const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
 
-// Deferred to runtime so `next build` can evaluate this module without env vars.
+// Defer model lookup so builds do not require runtime configuration.
 function getFeedbackModel(): string {
   const model = process.env.FEEDBACK_MODEL;
   if (!model) {
@@ -190,13 +190,12 @@ function compactTranscriptForFeedback(
     return { formattedTranscript: baseTranscript, wasCompacted };
   }
 
-  // Budget: 35% head, 30% middle (sampled), 35% tail.
+  // Allocate context across the beginning, middle, and end.
   const headBudget = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.35);
   const tailBudget = Math.floor(MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK * 0.35);
   const middleBudget =
     MAX_TRANSCRIPT_CHARS_FOR_FEEDBACK - headBudget - tailBudget;
 
-  // Build head by including complete turns up to the head budget.
   const headTurns: string[] = [];
   let headLen = 0;
   for (const turn of slicedByTurns) {
@@ -206,7 +205,6 @@ function compactTranscriptForFeedback(
     headLen += line.length + 1;
   }
 
-  // Build tail by including complete turns from the end up to the tail budget.
   const tailTurns: string[] = [];
   let tailLen = 0;
   for (let i = slicedByTurns.length - 1; i >= headTurns.length; i--) {
@@ -216,15 +214,13 @@ function compactTranscriptForFeedback(
     tailLen += line.length + 1;
   }
 
-  // Sample alternating turns from the middle section to preserve diverse
-  // content rather than dropping it entirely.
+  // Sample middle turns to preserve broader context.
   const middleStart = headTurns.length;
   const middleEnd = slicedByTurns.length - tailTurns.length;
   const middleTurns: string[] = [];
   let middleLen = 0;
 
   if (middleEnd > middleStart) {
-    // Sample every Nth turn to fit the budget while covering the range.
     const middleCount = middleEnd - middleStart;
     const step = Math.max(1, Math.floor(middleCount / 8));
 
@@ -287,7 +283,7 @@ async function reconcileCompletedSession(
     feedbackError: null,
     feedbackCompletedAt: data.completedAt,
     feedbackRequestedAt: session.feedbackRequestedAt || data.completedAt,
-    // Transcript is already persisted by POST /api/feedback.
+    // The transcript was persisted by POST /api/feedback.
   });
 }
 
@@ -309,25 +305,12 @@ export const InterviewService = {
       return { sessions: [], nextCursor: null };
     }
 
-    const templateIds = page.sessions
-      .filter((session) => !session.templateSnapshot)
-      .map((s) => s.templateId)
-      .filter(Boolean);
-    const templateMap =
-      templateIds.length > 0
-        ? await TemplateRepository.findManyByIds(templateIds)
-        : new Map<
-            string,
-            Awaited<ReturnType<typeof TemplateRepository.findById>>
-          >();
-
     const sessions = page.sessions
-      .map((session) => {
-        const template =
-          session.templateSnapshot ?? templateMap.get(session.templateId);
-        if (!template) {
+      .map((session): SessionCardData | null => {
+        const template = session.templateSnapshot;
+        if (!template?.role) {
           logger.warn(
-            `Template ${session.templateId} not found for session ${session.id}`,
+            `Session ${session.id} is missing a valid template snapshot`,
           );
           return null;
         }
@@ -402,7 +385,6 @@ export const InterviewService = {
       type: templateData.type,
       systemInstruction: template?.systemInstruction,
       interviewerPersona: template?.interviewerPersona,
-      // Pass focus areas through so the live agent receives them.
       focusArea: template?.focusArea || [],
     };
   },
@@ -468,7 +450,7 @@ export const InterviewService = {
       userId,
     );
 
-    // Reuse feedback when deterministic feedback already exists.
+    // Avoid regenerating deterministic feedback.
     if (existingFeedback) {
       const now = new Date().toISOString();
 
@@ -506,36 +488,14 @@ export const InterviewService = {
 
     logger.info(`Generating feedback for interview ${interviewId}...`);
 
-    // Calibrate scoring with template-level role context when available.
-    let interviewContext = {
+    // Score against the role context captured at session creation.
+    const interviewContext = {
       role: session.templateSnapshot?.role || "Software Engineer",
       level: session.templateSnapshot?.level || "Mid",
       type: session.templateSnapshot?.type || "Technical",
       techStack: session.templateSnapshot?.techStack || ([] as string[]),
       companyName: session.templateSnapshot?.companyName || "the company",
     };
-
-    // Keep feedback calibrated to the exact template that started the session.
-    // Legacy sessions without a snapshot retain the old template lookup.
-    if (!session.templateSnapshot) {
-      try {
-        const template = await TemplateRepository.findById(session.templateId);
-        if (template) {
-          interviewContext = {
-            role: template.role || interviewContext.role,
-            level: template.level || interviewContext.level,
-            type: template.type || interviewContext.type,
-            techStack: template.techStack || [],
-            companyName: template.companyName || interviewContext.companyName,
-          };
-        }
-      } catch (e) {
-        logger.warn(
-          `Could not fetch template for legacy session ${interviewId}, proceeding with defaults`,
-          e,
-        );
-      }
-    }
 
     const techStackLabel = interviewContext.techStack.join(", ") || "General";
 
@@ -643,7 +603,7 @@ Strong No -> No -> Lean No -> Lean Yes -> Yes -> Strong Yes
 
     const validatedFeedback = genResult.object;
 
-    // Keep a stable array shape consumed by feedback UI.
+    // Return categories in the feedback UI's expected format.
     const categoryScoresArray = [
       {
         name: "Communication Skills",

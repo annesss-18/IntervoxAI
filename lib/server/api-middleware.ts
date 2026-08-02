@@ -86,7 +86,7 @@ function validateCsrfOrigin(req: NextRequest): NextResponse | null {
     (contentLength !== null && contentLength !== "0") ||
     Boolean(transferEncoding);
 
-  // Mutation bodies must use a structured type.
+  // Limit mutations to structured content types.
   if (hasBody) {
     const contentType = req.headers.get("content-type") ?? "";
     const allowedTypes = ["application/json", "multipart/form-data"];

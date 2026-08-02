@@ -2,11 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
-import { TemplateRepository } from "@/lib/repositories/template.repository";
 import type { AuthClaims, ScoreHistoryEntry } from "@/types";
 
-// GET /api/dashboard/score-history — returns completed sessions with scores
-// for rendering the score trend chart on the dashboard.
 export const GET = withAuthClaims(
   async (_req: NextRequest, user: AuthClaims) => {
     try {
@@ -18,25 +15,10 @@ export const GET = withAuthClaims(
         return NextResponse.json({ success: true, data: [] });
       }
 
-      // Batch-fetch all templates for the sessions
-      const templateIds = [
-        ...new Set(
-          sessions
-            .filter((session) => !session.templateSnapshot)
-            .map((s) => s.templateId)
-            .filter(Boolean),
-        ),
-      ];
-      const templateMap =
-        templateIds.length > 0
-          ? await TemplateRepository.findManyByIds(templateIds)
-          : new Map();
-
       const data: ScoreHistoryEntry[] = [];
       for (const session of sessions) {
-        const template =
-          session.templateSnapshot ?? templateMap.get(session.templateId);
-        if (!template || session.finalScore == null) continue;
+        const template = session.templateSnapshot;
+        if (!template?.role || session.finalScore == null) continue;
         data.push({
           sessionId: session.id,
           finalScore: session.finalScore,

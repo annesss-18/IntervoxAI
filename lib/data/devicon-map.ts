@@ -1,6 +1,4 @@
-/**
- * Technology aliases mapped to Devicon slug/variant pairs.
- */
+/** Technology aliases mapped to Devicon slugs and variants. */
 export const DEVICON_MAP: Record<string, { slug: string; variant: string }> = {
   javascript: { slug: "javascript", variant: "original" },
   js: { slug: "javascript", variant: "original" },

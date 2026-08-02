@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getFirebaseAuthErrorMessage } from "@/lib/firebase-auth-errors";
 
-// Mirrors the real shape Firebase's client SDK throws.
+// Match the Firebase client error shape.
 function firebaseError(code: string, text = "Error"): Error & { code: string } {
   const err = new Error(`Firebase: ${text} (${code}).`) as Error & {
     code: string;
@@ -12,10 +12,7 @@ function firebaseError(code: string, text = "Error"): Error & { code: string } {
 
 describe("getFirebaseAuthErrorMessage", () => {
   it("never surfaces the raw SDK string for a config-level error (the reported bug)", () => {
-    const err = firebaseError(
-      "auth/api-key-expired",
-      "Error",
-    );
+    const err = firebaseError("auth/api-key-expired", "Error");
     const message = getFirebaseAuthErrorMessage(err, "Failed to sign in");
     expect(message).not.toContain("Firebase:");
     expect(message).not.toContain("api-key-expired");
@@ -67,9 +64,7 @@ describe("getFirebaseAuthErrorMessage", () => {
   });
 
   it("surfaces our own server action's hand-written error messages as-is", () => {
-    // lib/actions/auth.action.ts throws plain Errors with already-friendly
-    // text and no Firebase error code — these should pass through, not be
-    // replaced by the generic fallback.
+    // Pass through intentionally user-safe server errors.
     const err = new Error("That email is already registered.");
     expect(getFirebaseAuthErrorMessage(err, "fallback")).toBe(
       "That email is already registered.",
@@ -88,8 +83,6 @@ describe("getFirebaseAuthErrorMessage", () => {
       "fallback",
     );
     expect(getFirebaseAuthErrorMessage(null, "fallback")).toBe("fallback");
-    expect(getFirebaseAuthErrorMessage(undefined, "fallback")).toBe(
-      "fallback",
-    );
+    expect(getFirebaseAuthErrorMessage(undefined, "fallback")).toBe("fallback");
   });
 });

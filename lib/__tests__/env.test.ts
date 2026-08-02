@@ -2,8 +2,7 @@ import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { validateEnv } from "@/lib/env";
 
-// A syntactically valid 32-byte key, matching what
-// `openssl rand -base64 32` produces — same format resume-crypto.ts expects.
+// Valid 32-byte base64 resume key.
 const VALID_RESUME_KEY = randomBytes(32).toString("base64");
 
 function validDevEnv(): NodeJS.ProcessEnv {
@@ -35,11 +34,11 @@ function validProductionEnv(): NodeJS.ProcessEnv {
     QSTASH_CURRENT_SIGNING_KEY: "fake-current-key",
     QSTASH_NEXT_SIGNING_KEY: "fake-next-key",
     TEMPLATE_GENERATION_API_KEY: "fake-key",
-    TEMPLATE_GENERATION_MODEL: "gemini-2.5-pro",
+    TEMPLATE_GENERATION_MODEL: "gemini-3.6-flash",
     LIVE_INTERVIEW_API_KEY: "fake-key",
-    LIVE_INTERVIEW_MODEL: "gemini-live-2.5-flash-native-audio",
+    LIVE_INTERVIEW_MODEL: "gemini-3.1-flash-live-preview",
     FEEDBACK_API_KEY: "fake-key",
-    FEEDBACK_MODEL: "gemini-2.5-pro",
+    FEEDBACK_MODEL: "gemini-3.6-flash",
     RESEND_API_KEY: "fake-resend-key",
     RESEND_FROM_ADDRESS: "IntervoxAI <noreply@example.com>",
     NEXT_PUBLIC_BRANDFETCH_CLIENT_ID: "fake-client-id",
@@ -61,7 +60,7 @@ describe("validateEnv", () => {
   });
 
   it("warns (does not error) about missing production-tier vars in development", () => {
-    const env = validDevEnv(); // no APP_URL, Upstash, QStash, Gemini keys
+    const env = validDevEnv();
     const result = validateEnv(env);
     expect(result.success).toBe(true);
     expect(result.warnings.some((w) => w.includes("APP_URL"))).toBe(true);

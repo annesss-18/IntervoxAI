@@ -3,7 +3,7 @@ import { DM_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { Analytics } from "@vercel/analytics/react";
 import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/atoms/sonner";
+import { Toaster } from "@/components/atoms/toaster";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import "./globals.css";
 const dmSans = DM_Sans({
@@ -129,7 +129,7 @@ export default async function RootLayout({
           nonce={nonce}
         >
           <AuthProvider>{children}</AuthProvider>
-          <Toaster position="top-center" richColors closeButton />
+          <Toaster />
         </ThemeProvider>
         <Analytics />
       </body>
