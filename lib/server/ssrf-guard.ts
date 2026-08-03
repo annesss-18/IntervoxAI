@@ -223,12 +223,15 @@ async function fetchPinned(
         ) => {
           const cb = (typeof optionsOrCb === "function"
             ? optionsOrCb
-            : maybeCb) as (
-            err: Error | null,
-            address: string,
-            family: number,
-          ) => void;
-          cb(null, address.address, address.family);
+            : maybeCb) as Function;
+            
+          const isAll = typeof optionsOrCb === "object" && optionsOrCb !== null && (optionsOrCb as any).all;
+          
+          if (isAll) {
+            cb(null, [{ address: address.address, family: address.family }]);
+          } else {
+            cb(null, address.address, address.family);
+          }
         },
       },
       (response) => {
