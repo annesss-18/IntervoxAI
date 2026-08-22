@@ -8,7 +8,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   signInWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   updateProfile,
@@ -82,6 +83,40 @@ export function AuthForm({ type }: AuthFormProps) {
 
   const isSignIn = type === "sign-in";
 
+  React.useEffect(() => {
+    const handleRedirectResult = async () => {
+      try {
+        const cred = await getRedirectResult(auth);
+        if (cred) {
+          setIsGoogleLoading(true);
+          const idToken = await cred.user.getIdToken();
+          const email = cred.user.email || "";
+          if (!email) throw new Error("No email on this Google account.");
+
+          const result = await googleAuthenticate({
+            name: cred.user.displayName || "User",
+            idToken,
+          });
+
+          if (!result.success)
+            throw new Error(result.message || "Authentication failed");
+          toast.success(
+            isSignIn ? "Welcome back!" : "Account created successfully!",
+          );
+          router.push(postAuthUrl);
+        }
+      } catch (error: unknown) {
+        await auth.signOut().catch(() => {});
+        toast.error(
+          getFirebaseAuthErrorMessage(error, "Google authentication failed"),
+        );
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    };
+    handleRedirectResult();
+  }, [postAuthUrl, router, isSignIn]);
+
   const signInForm = useForm<SignInData>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: "", password: "" },
@@ -138,30 +173,12 @@ export function AuthForm({ type }: AuthFormProps) {
     setIsGoogleLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      const cred = await signInWithPopup(auth, provider);
-      const idToken = await cred.user.getIdToken();
-      const email = cred.user.email || "";
-      if (!email) throw new Error("No email on this Google account.");
-
-      const result = await googleAuthenticate({
-        name: cred.user.displayName || "User",
-        idToken,
-      });
-
-      if (!result.success)
-        throw new Error(result.message || "Authentication failed");
-      toast.success(
-        isSignIn ? "Welcome back!" : "Account created successfully!",
-      );
-      router.push(postAuthUrl);
+      await signInWithRedirect(auth, provider);
     } catch (error: unknown) {
-      // Clear client auth when server session setup fails.
-      await auth.signOut().catch(() => {});
+      setIsGoogleLoading(false);
       toast.error(
         getFirebaseAuthErrorMessage(error, "Google authentication failed"),
       );
-    } finally {
-      setIsGoogleLoading(false);
     }
   };
 
