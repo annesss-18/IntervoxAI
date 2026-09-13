@@ -48,7 +48,8 @@ const MAX_AUDIO_CHUNK_BYTES = 32768;
 const BASE64_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
 const CHECKPOINT_INTERVAL_MS = 30_000;
 const CHECKPOINT_TURN_THRESHOLD = 10;
-const RECENT_MODEL_TEXT_LIMIT = 2000;
+const CAPTION_WORD_INTERVAL_MS = 55;
+const CAPTION_CATCH_UP_INTERVAL_MS = 26;
 
 // Delay close detection until after opening pleasantries.
 const MIN_MODEL_TURNS_FOR_CLOSE_DETECTION = 4;
@@ -73,6 +74,27 @@ function isValidPcmChunk(base64Data: string): boolean {
   }
 
   return estimatedBytes % 2 === 0;
+}
+
+// Live transcription events may arrive as whole phrases and do not reliably
+// preserve a leading space. Normalize once at the boundary so both the saved
+// transcript and the subtitle stream remain readable.
+function appendTranscriptText(current: string, incoming: string): string {
+  const next = incoming.replace(/\s+/g, " ").trim();
+  const previous = current.replace(/\s+/g, " ").trim();
+
+  if (!next) return previous;
+  if (!previous) return next;
+
+  if (/^[,.;:!?%\)\]\}]/.test(next) || /[([{]$/.test(previous)) {
+    return `${previous}${next}`;
+  }
+
+  return `${previous} ${next}`;
+}
+
+function captionWords(text: string): string[] {
+  return text.match(/\S+/g) ?? [];
 }
 
 function normalizeInitialTranscript(
@@ -144,12 +166,16 @@ export function useLiveInterview(
   const userTranscriptRef = useRef("");
   const modelTurnBufferRef = useRef("");
   const userTranscriptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const captionQueueRef = useRef<string[]>([]);
+  const captionVisibleRef = useRef("");
+  const captionSpeakerRef = useRef<"user" | "model" | null>(null);
+  const captionTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const captionClearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectionAttemptsRef = useRef(0);
   const reconnectNotBeforeRef = useRef(0);
   const isIntentionalDisconnectRef = useRef(false);
   const isConnectedRef = useRef(false);
   const lastSpeakerRef = useRef<"user" | "model" | null>(null);
-  const recentModelTranscriptRef = useRef("");
   const closingDetectedRef = useRef(false);
   const connectingPromiseRef = useRef<Promise<void> | null>(null);
   const checkpointTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -158,6 +184,12 @@ export function useLiveInterview(
   const checkpointConflictRetryRef = useRef(0);
   const hasInitialPromptSentRef = useRef(false);
   const modelTurnCountRef = useRef(0);
+  const resumptionHandleRef = useRef<string | null>(null);
+  const cachedTokenRef = useRef<{
+    token: string;
+    model: string;
+    expiresAtMs: number;
+  } | null>(null);
 
   useEffect(() => {
     sessionIdRef.current = sessionId;
@@ -312,11 +344,15 @@ export function useLiveInterview(
     }
 
     if (status === "disconnected" || status === "idle") {
-      hasInitialPromptSentRef.current = false;
-      recentModelTranscriptRef.current = "";
-      modelTurnBufferRef.current = "";
-      closingDetectedRef.current = false;
-      modelTurnCountRef.current = 0;
+      // A resumption handle means the server-side session — and its
+      // conversation history — is expected to survive this reconnect.
+      // Only wipe local turn-tracking state on a genuinely fresh start.
+      if (!resumptionHandleRef.current) {
+        hasInitialPromptSentRef.current = false;
+        modelTurnBufferRef.current = "";
+        closingDetectedRef.current = false;
+        modelTurnCountRef.current = 0;
+      }
     }
   }, [isHeld, status]);
 
@@ -324,13 +360,101 @@ export function useLiveInterview(
     setIsHeld(false);
   }, []);
 
+  const stopCaptionReveal = useCallback(() => {
+    if (captionTimerRef.current) {
+      clearTimeout(captionTimerRef.current);
+      captionTimerRef.current = null;
+    }
+    captionQueueRef.current = [];
+  }, []);
+
+  const beginCaptionForSpeaker = useCallback(
+    (speaker: "user" | "model") => {
+      if (captionClearTimeoutRef.current) {
+        clearTimeout(captionClearTimeoutRef.current);
+        captionClearTimeoutRef.current = null;
+      }
+
+      if (captionSpeakerRef.current !== speaker) {
+        stopCaptionReveal();
+        captionSpeakerRef.current = speaker;
+        captionVisibleRef.current = "";
+        setCurrentCaption("");
+      }
+    },
+    [stopCaptionReveal],
+  );
+
+  const queueCaptionText = useCallback(
+    (speaker: "user" | "model", text: string) => {
+      beginCaptionForSpeaker(speaker);
+      captionQueueRef.current.push(...captionWords(text));
+
+      if (captionTimerRef.current) return;
+
+      const revealNextWord = () => {
+        const word = captionQueueRef.current.shift();
+        if (!word) {
+          captionTimerRef.current = null;
+          return;
+        }
+
+        captionVisibleRef.current = appendTranscriptText(
+          captionVisibleRef.current,
+          word,
+        );
+        setCurrentCaption(captionVisibleRef.current);
+
+        const interval =
+          captionQueueRef.current.length > 10
+            ? CAPTION_CATCH_UP_INTERVAL_MS
+            : CAPTION_WORD_INTERVAL_MS;
+        captionTimerRef.current = setTimeout(revealNextWord, interval);
+      };
+
+      revealNextWord();
+    },
+    [beginCaptionForSpeaker],
+  );
+
+  const clearCaptionAfter = useCallback(
+    (speaker: "user" | "model", delay: number) => {
+      if (captionClearTimeoutRef.current) {
+        clearTimeout(captionClearTimeoutRef.current);
+      }
+
+      const queuedWordCount = captionQueueRef.current.length;
+      captionClearTimeoutRef.current = setTimeout(
+        () => {
+          if (captionSpeakerRef.current !== speaker) return;
+          stopCaptionReveal();
+          captionVisibleRef.current = "";
+          setCurrentCaption("");
+          setCurrentSpeaker(null);
+        },
+        Math.max(delay, queuedWordCount * CAPTION_CATCH_UP_INTERVAL_MS + 900),
+      );
+    },
+    [stopCaptionReveal],
+  );
+
   const handleMessage = useCallback(
     (message: LiveServerMessage) => {
+      if (message.sessionResumptionUpdate?.resumable) {
+        const newHandle = message.sessionResumptionUpdate.newHandle;
+        if (newHandle) {
+          resumptionHandleRef.current = newHandle;
+        }
+      }
+
       if (message.serverContent?.interrupted) {
         setIsAIResponding(false);
         setCurrentSpeaker(null);
         setCurrentCaption("");
         modelTurnBufferRef.current = "";
+        stopCaptionReveal();
+        captionVisibleRef.current = "";
+        captionSpeakerRef.current = null;
         onInterruption?.();
         return;
       }
@@ -356,9 +480,12 @@ export function useLiveInterview(
         setCurrentSpeaker("user");
         setIsUserSpeaking(true);
 
-        userTranscriptRef.current +=
-          message.serverContent.inputTranscription.text;
-        setCurrentCaption(userTranscriptRef.current.trim());
+        const userText = message.serverContent.inputTranscription.text;
+        userTranscriptRef.current = appendTranscriptText(
+          userTranscriptRef.current,
+          userText,
+        );
+        queueCaptionText("user", userText);
 
         if (userTranscriptTimeoutRef.current) {
           clearTimeout(userTranscriptTimeoutRef.current);
@@ -376,8 +503,7 @@ export function useLiveInterview(
           }
 
           setIsUserSpeaking(false);
-          setCurrentSpeaker(null);
-          setCurrentCaption("");
+          clearCaptionAfter("user", 2_000);
         }, 1500);
       }
 
@@ -407,16 +533,11 @@ export function useLiveInterview(
           setCurrentSpeaker("model");
           setIsUserSpeaking(false);
 
-          modelTurnBufferRef.current += modelText;
-          recentModelTranscriptRef.current += modelText.toLowerCase();
-          if (
-            recentModelTranscriptRef.current.length > RECENT_MODEL_TEXT_LIMIT
-          ) {
-            recentModelTranscriptRef.current =
-              recentModelTranscriptRef.current.slice(-RECENT_MODEL_TEXT_LIMIT);
-          }
-
-          setCurrentCaption(modelTurnBufferRef.current);
+          modelTurnBufferRef.current = appendTranscriptText(
+            modelTurnBufferRef.current,
+            modelText,
+          );
+          queueCaptionText("model", modelText);
         }
       }
 
@@ -477,12 +598,14 @@ export function useLiveInterview(
             "i hope to see you on the other side",
           ];
 
-          const recentTranscriptLower =
-            recentModelTranscriptRef.current.toLowerCase();
+          // Only the just-completed turn counts — a closing phrase spoken
+          // earlier in the conversation must not linger and trip this later.
+          const finalTextLower = finalModelText.toLowerCase();
+          const closingWindow = finalTextLower.slice(-120);
+          const endsWithQuestion = /\?\s*$/.test(finalModelText);
           if (
-            closingPhrases.some((phrase) =>
-              recentTranscriptLower.includes(phrase),
-            )
+            !endsWithQuestion &&
+            closingPhrases.some((phrase) => closingWindow.includes(phrase))
           ) {
             closingDetectedRef.current = true;
             logger.info(
@@ -494,13 +617,17 @@ export function useLiveInterview(
           }
         }
 
-        setTimeout(() => {
-          setCurrentCaption("");
-          setCurrentSpeaker(null);
-        }, 2000);
+        clearCaptionAfter("model", 2_000);
       }
     },
-    [commitTranscriptEntry, onInterruption, onInterviewComplete],
+    [
+      clearCaptionAfter,
+      commitTranscriptEntry,
+      onInterruption,
+      onInterviewComplete,
+      queueCaptionText,
+      stopCaptionReveal,
+    ],
   );
 
   const connect = useCallback(async () => {
@@ -508,45 +635,73 @@ export function useLiveInterview(
     if (connectingPromiseRef.current) return connectingPromiseRef.current;
 
     const connectionPromise = (async () => {
+      let usedCachedToken = false;
       try {
         setStatus("connecting");
         setError(null);
         isIntentionalDisconnectRef.current = false;
 
-        const tokenResponse = await fetch("/api/live/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId: sessionIdRef.current,
-            ...(templateIdRef.current
-              ? { templateId: templateIdRef.current }
-              : {}),
-          }),
-        });
+        // A resuming reconnect can reuse its still-valid token — the Live
+        // API allows this even though the token is marked single-use — so
+        // it skips the token-issuance cooldown and the gap where mic audio
+        // would otherwise be silently dropped.
+        const TOKEN_REUSE_SAFETY_MS = 20_000;
+        const cached = cachedTokenRef.current;
+        const canReuseToken =
+          Boolean(resumptionHandleRef.current) &&
+          Boolean(cached) &&
+          cached!.expiresAtMs - Date.now() > TOKEN_REUSE_SAFETY_MS;
 
-        if (!tokenResponse.ok) {
-          const errorData = await tokenResponse.json().catch(() => ({}));
-          const retryAfterSeconds = Number(
-            tokenResponse.headers.get("Retry-After") ||
-              (typeof errorData?.retryAfter === "number"
-                ? errorData.retryAfter
-                : 0),
-          );
+        let token: string;
+        let model: string;
 
-          if (tokenResponse.status === 429 && retryAfterSeconds > 0) {
-            reconnectNotBeforeRef.current =
-              Date.now() + retryAfterSeconds * 1000;
-            setError("Reconnecting shortly…");
-            setStatus("disconnected");
-            return;
+        if (canReuseToken) {
+          token = cached!.token;
+          model = cached!.model;
+          usedCachedToken = true;
+        } else {
+          const tokenResponse = await fetch("/api/live/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sessionId: sessionIdRef.current,
+              ...(templateIdRef.current
+                ? { templateId: templateIdRef.current }
+                : {}),
+            }),
+          });
+
+          if (!tokenResponse.ok) {
+            const errorData = await tokenResponse.json().catch(() => ({}));
+            const retryAfterSeconds = Number(
+              tokenResponse.headers.get("Retry-After") ||
+                (typeof errorData?.retryAfter === "number"
+                  ? errorData.retryAfter
+                  : 0),
+            );
+
+            if (tokenResponse.status === 429 && retryAfterSeconds > 0) {
+              reconnectNotBeforeRef.current =
+                Date.now() + retryAfterSeconds * 1000;
+              setError("Reconnecting shortly…");
+              setStatus("disconnected");
+              return;
+            }
+
+            throw new Error(
+              errorData?.error || "Failed to get authentication token",
+            );
           }
 
-          throw new Error(
-            errorData?.error || "Failed to get authentication token",
-          );
+          const tokenData = await tokenResponse.json();
+          token = tokenData.token;
+          model = tokenData.model;
+          cachedTokenRef.current = {
+            token,
+            model,
+            expiresAtMs: new Date(tokenData.expiresAt).getTime(),
+          };
         }
-
-        const { token, model } = await tokenResponse.json();
 
         const ai = new GoogleGenAI({
           apiKey: token,
@@ -559,6 +714,9 @@ export function useLiveInterview(
             responseModalities: [Modality.AUDIO],
             speechConfig: {
               languageCode: "en-US",
+            },
+            sessionResumption: {
+              handle: resumptionHandleRef.current ?? undefined,
             },
           },
           callbacks: {
@@ -597,6 +755,15 @@ export function useLiveInterview(
             ? connectError.message
             : "Connection failed";
         setError(errorMessage);
+        // A failed attempt to resume with a reused token shouldn't be
+        // retried indefinitely — fall back to a fresh token and session
+        // next time. A fresh-token failure leaves resumption state intact,
+        // since that failure says nothing about whether resumption itself
+        // would have worked.
+        if (usedCachedToken) {
+          resumptionHandleRef.current = null;
+          cachedTokenRef.current = null;
+        }
         // Let the reconnect effect handle transient failures.
         setStatus("disconnected");
         throw connectError;
@@ -644,6 +811,8 @@ export function useLiveInterview(
   const disconnect = useCallback(() => {
     isIntentionalDisconnectRef.current = true;
     isConnectedRef.current = false;
+    resumptionHandleRef.current = null;
+    cachedTokenRef.current = null;
 
     if (checkpointTimerRef.current) {
       clearInterval(checkpointTimerRef.current);
@@ -655,6 +824,14 @@ export function useLiveInterview(
       userTranscriptTimeoutRef.current = null;
     }
 
+    if (captionClearTimeoutRef.current) {
+      clearTimeout(captionClearTimeoutRef.current);
+      captionClearTimeoutRef.current = null;
+    }
+    stopCaptionReveal();
+    captionVisibleRef.current = "";
+    captionSpeakerRef.current = null;
+
     if (sessionRef.current) {
       sessionRef.current.close();
       sessionRef.current = null;
@@ -665,7 +842,7 @@ export function useLiveInterview(
     setCurrentCaption("");
     setCurrentSpeaker(null);
     setStatus("disconnected");
-  }, []);
+  }, [stopCaptionReveal]);
 
   const sendAudio = useCallback((base64Data: string) => {
     if (!sessionRef.current || !isConnectedRef.current) return;

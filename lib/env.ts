@@ -112,6 +112,13 @@ export function validateEnv(
     );
   }
 
+  if ((hasResendKey || hasResendFrom) && !env.SUPPORT_INBOX_EMAIL) {
+    warnings.push(
+      "SUPPORT_INBOX_EMAIL is not set — the support form will accept " +
+        "submissions but they will not be delivered anywhere.",
+    );
+  }
+
   if (!env.NEXT_PUBLIC_BRANDFETCH_CLIENT_ID) {
     warnings.push(
       "NEXT_PUBLIC_BRANDFETCH_CLIENT_ID is not set — company logos will " +

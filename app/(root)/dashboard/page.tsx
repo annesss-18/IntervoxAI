@@ -158,15 +158,18 @@ export default async function DashboardPage() {
         title={`Good to see you, ${firstName}`}
         description="Track active practice, review completed sessions, and launch your next interview."
       >
-        <Link href="/create">
-          <Button variant="gradient" className="gap-2">
-            <PlusCircle className="size-4" />
-            New Interview
-          </Button>
-        </Link>
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+          <ScoreTrendChart />
+          <Link href="/create">
+            <Button variant="gradient" className="w-full gap-2 sm:w-auto">
+              <PlusCircle className="size-4" />
+              New Interview
+            </Button>
+          </Link>
+        </div>
       </PageHeader>
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
         <MetricCard
           label="Active Sessions"
           value={String(activeCount)}
@@ -186,17 +189,11 @@ export default async function DashboardPage() {
           icon={<TrendingUp className="size-5" />}
           tone="info"
         />
-        <MetricCard
-          label="Templates"
-          value={String(templates.length)}
-          icon={<LayoutTemplate className="size-5" />}
-          tone="accent"
-        />
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="mb-6 w-full sm:w-auto">
-          <TabsTrigger value="active">
+        <TabsList className="mb-6 w-full">
+          <TabsTrigger value="active" className="flex-1">
             Practice
             {activeCount > 0 && (
               <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-primary/15 text-[10px] font-bold text-primary">
@@ -204,7 +201,7 @@ export default async function DashboardPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="history">
+          <TabsTrigger value="history" className="flex-1">
             History
             {completedCount > 0 && (
               <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
@@ -212,7 +209,7 @@ export default async function DashboardPage() {
               </span>
             )}
           </TabsTrigger>
-          <TabsTrigger value="templates">
+          <TabsTrigger value="templates" className="flex-1">
             Templates
             {templates.length > 0 && (
               <span className="ml-1.5 flex size-5 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
@@ -246,7 +243,6 @@ export default async function DashboardPage() {
         </TabsContent>
 
         <TabsContent value="history">
-          <ScoreTrendChart />
           <DashboardSessionList
             initialSessions={completedSessions}
             initialCursor={completedSessionsPage.nextCursor}

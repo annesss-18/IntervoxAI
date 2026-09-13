@@ -41,12 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const userChanged = lastUserIdRef.current !== user.uid;
       lastUserIdRef.current = user.uid;
-
-      if (userChanged) {
-        router.refresh();
-      }
     });
 
     return () => unsubscribe();

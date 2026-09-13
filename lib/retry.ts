@@ -8,6 +8,39 @@ export interface RetryOptions {
   abortSignal?: AbortSignal;
 }
 
+interface StatusLike {
+  statusCode?: number;
+  status?: number;
+}
+
+/**
+ * Failures that will produce the identical result on retry — a malformed
+ * schema response, a bad request, an auth problem — aren't worth paying
+ * for again. Only transient failures (rate limits, timeouts, 5xx) retry.
+ */
+function isNonRetryable(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  const name = error.name || "";
+  if (
+    name.includes("NoObjectGeneratedError") ||
+    name.includes("TypeValidationError") ||
+    name.includes("InvalidArgumentError") ||
+    name.includes("InvalidPromptError")
+  ) {
+    return true;
+  }
+
+  const status =
+    (error as StatusLike).statusCode ?? (error as StatusLike).status;
+  if (typeof status === "number") {
+    // 429 (rate limit) and 5xx are transient; other 4xx are not.
+    return status >= 400 && status < 500 && status !== 429;
+  }
+
+  return false;
+}
+
 /** Retries transient failures with abort-aware exponential backoff. */
 export async function withRetry<T>(
   fn: () => Promise<T>,
@@ -33,6 +66,15 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error;
       if (isAbortError(error) || abortSignal?.aborted) {
+        throw error;
+      }
+
+      if (isNonRetryable(error)) {
+        logger.warn(
+          `${operationName} failed with a non-retryable error, not retrying: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
         throw error;
       }
 

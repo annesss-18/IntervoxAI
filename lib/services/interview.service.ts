@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { withRetry } from "@/lib/retry";
+import { getAiModel, thinkingProviderOptions } from "@/lib/ai/model-config";
 import { FeedbackRepository } from "@/lib/repositories/feedback.repository";
 import { InterviewRepository } from "@/lib/repositories/interview.repository";
 import {
@@ -20,15 +21,6 @@ import {
 const feedbackGoogle = createGoogleGenerativeAI({
   apiKey: process.env.FEEDBACK_API_KEY,
 });
-
-// Defer model lookup so builds do not require runtime configuration.
-function getFeedbackModel(): string {
-  const model = process.env.FEEDBACK_MODEL;
-  if (!model) {
-    throw new Error("FEEDBACK_MODEL is required");
-  }
-  return model;
-}
 
 const feedbackSchema = z.object({
   totalScore: z
@@ -498,13 +490,15 @@ export const InterviewService = {
     };
 
     const techStackLabel = interviewContext.techStack.join(", ") || "General";
+    const feedbackModel = getAiModel("feedback");
 
     const genResult = await withRetry(
       () =>
         generateObject({
-          model: feedbackGoogle(getFeedbackModel()),
+          model: feedbackGoogle(feedbackModel),
           abortSignal,
           schema: feedbackSchema,
+          providerOptions: thinkingProviderOptions("feedback", feedbackModel),
           prompt: `
 You are a senior hiring committee member writing interview feedback that the candidate will use to improve. Be honest, specific, and useful. Cite concrete moments from the transcript. Generic observations are not acceptable.
 
@@ -591,8 +585,7 @@ Total Score:
 Hiring Recommendation:
 Strong No -> No -> Lean No -> Lean Yes -> Yes -> Strong Yes
           `.trim(),
-          system:
-            "You are a senior interview evaluator writing feedback a candidate will use to improve. Every observation must cite a specific moment in the transcript. Every recommendation must be concrete and actionable. Score honestly against the actual role level and avoid generic praise or generic criticism.",
+          system: "You are a senior interview evaluator on a hiring committee.",
         }),
       {
         maxRetries: 3,

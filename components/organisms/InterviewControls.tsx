@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import {
   Mic,
   MicOff,
@@ -32,7 +32,7 @@ interface InterviewControlsProps {
   totalSeconds?: number;
 }
 
-export function InterviewControls({
+export const InterviewControls = memo(function InterviewControls({
   connectionStatus,
   elapsedTime,
   isMuted,
@@ -225,4 +225,4 @@ export function InterviewControls({
       </Dialog>
     </>
   );
-}
+});

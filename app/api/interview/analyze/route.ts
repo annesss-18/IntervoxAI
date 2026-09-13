@@ -7,6 +7,7 @@ import { extractTextFromFile } from "@/lib/server/file-parser";
 import { extractTextFromUrl } from "@/lib/server/url-reader";
 import { getCompanyLogoUrl } from "@/lib/icon-utils";
 import { logger } from "@/lib/logger";
+import { getAiModel, thinkingProviderOptions } from "@/lib/ai/model-config";
 
 export const runtime = "nodejs";
 
@@ -17,12 +18,28 @@ const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
 
-function getTemplateGenerationModel(): string {
-  const model = process.env.TEMPLATE_GENERATION_MODEL;
-  if (!model) {
-    throw new Error("TEMPLATE_GENERATION_MODEL is required");
-  }
-  return model;
+const BOILERPLATE_LINE_PATTERNS = [
+  /^\s*(apply now|apply here|apply today)\s*$/i,
+  /^\s*(share this job|share via)\b/i,
+  /^\s*(similar jobs|related jobs|you may also like)\s*$/i,
+  /^\s*(we use cookies|cookie (policy|settings|preferences))\b/i,
+  /^\s*(sign in|log in|create account|register)\s*$/i,
+  /^\s*(privacy policy|terms of (service|use))\s*$/i,
+  /^\s*(back to (search|results|jobs)|view all jobs)\s*$/i,
+  /^\s*\u00A9\s*\d{4}/,
+];
+
+function cleanJobDescriptionText(raw: string): string {
+  const lines = raw.split(/\r?\n/).filter((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return true;
+    return !BOILERPLATE_LINE_PATTERNS.some((pattern) => pattern.test(trimmed));
+  });
+
+  return lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 const analysisSchema = z.object({
@@ -47,9 +64,6 @@ const analysisSchema = z.object({
     "HR",
     "Mixed",
   ]),
-  cleanedJd: z
-    .string()
-    .describe("Pure job description without navigation/footer/ads"),
 });
 
 export const POST = withAuth(
@@ -130,9 +144,11 @@ export const POST = withAuth(
         );
       }
 
+      const extractionModel = getAiModel("extraction");
       const result = await generateObject({
-        model: templateGenGoogle(getTemplateGenerationModel()),
+        model: templateGenGoogle(extractionModel),
         schema: analysisSchema,
+        providerOptions: thinkingProviderOptions("extraction", extractionModel),
         prompt: `
 You extract structured information from a job posting. Be precise and literal. Extract only what the posting supports, and infer only where these instructions explicitly allow it.
 
@@ -158,6 +174,7 @@ EXTRACTION TASKS (priority order):
 3. TECH STACK
    Extract every explicitly mentioned technology, including languages, frameworks, databases, infrastructure tools, and cloud services.
    Add an implied technology only when a named platform or service makes it unavoidable.
+   Use the common, canonical short name for each (e.g. "Node.js" not "NodeJS backend runtime", "PostgreSQL" not "Postgres database", "GCP" not "Google Cloud Platform services").
 
 4. LEVEL
    Infer seniority from the role scope:
@@ -175,18 +192,17 @@ EXTRACTION TASKS (priority order):
    - Leadership, teamwork, communication, or culture focus -> "Behavioral"
    - Recruiting, screening, compensation, or benefits focus -> "HR"
    - Balanced technical and soft-skill focus -> "Mixed"
-
-6. CLEAN JD
-   Remove navigation, sign-in or apply buttons, cookie banners, "Similar Jobs" sections, page chrome, and footers. Keep only the job description content.
         `,
       });
 
       const extractedData = result.object;
+      const cleanedJd = cleanJobDescriptionText(jdText);
 
       const companyLogoUrl = getCompanyLogoUrl(extractedData.companyName);
 
       return NextResponse.json({
         ...extractedData,
+        cleanedJd,
         companyLogoUrl,
       });
     } catch (error) {

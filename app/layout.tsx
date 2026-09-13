@@ -118,7 +118,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${dmSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${dmSans.variable} ${instrumentSerif.variable} ${jetbrainsMono.variable} overflow-x-hidden font-sans antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider

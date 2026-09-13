@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "@/components/atoms/toaster";
-import { AlertCircle, RefreshCw, User2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLiveInterview } from "@/lib/hooks/useLiveInterview";
 import { useAudioCapture } from "@/lib/hooks/useAudioCapture";
 import { useAudioPlayback } from "@/lib/hooks/useAudioPlayback";
@@ -15,7 +15,6 @@ import type { InterviewSessionDetail } from "@/types";
 import { InterviewSetupCard } from "@/components/organisms/InterviewSetupCard";
 import { AudioTestCard } from "@/components/organisms/AudioTestCard";
 import { InterviewControls } from "@/components/organisms/InterviewControls";
-import { SpeakerIndicator } from "@/components/organisms/SpeakerIndicator";
 import { InterviewCaptions } from "@/components/organisms/InterviewCaptions";
 
 interface LiveInterviewAgentProps {
@@ -45,6 +44,7 @@ export function LiveInterviewAgent({
   );
   const [isUpdatingSession, setIsUpdatingSession] = useState(false);
   const timeUpTriggeredRef = useRef(false);
+  const isMutedRef = useRef(false);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -53,11 +53,25 @@ export function LiveInterviewAgent({
   const totalSeconds = (interview.durationMinutes ?? 15) * 60;
 
   const {
+    queueAudio,
+    clearQueue: clearAudioQueue,
+    stop: stopPlayback,
+  } = useAudioPlayback();
+
+  const handleInterruption = useCallback(() => {
+    clearAudioQueue();
+  }, [clearAudioQueue]);
+
+  const handleInterviewComplete = useCallback(() => {
+    logger.info("Interview naturally completed via closing phrase detection");
+    toast.info("Interview complete; generating your feedback.");
+    handleEndInterviewRef.current?.();
+  }, []);
+
+  const {
     status: connectionStatus,
     error: connectionError,
     transcript,
-    isAIResponding,
-    isUserSpeaking,
     currentCaption,
     currentSpeaker,
     elapsedTime,
@@ -72,22 +86,11 @@ export function LiveInterviewAgent({
     templateId: interview.templateId,
     initialTranscript: interview.transcript,
     holdInitialPrompt: true,
-    onInterruption: () => {
-      clearAudioQueue();
-    },
-    onInterviewComplete: () => {
-      logger.info("Interview naturally completed via closing phrase detection");
-      toast.info("Interview completed — generating your feedback…");
-      handleEndInterviewRef.current?.();
-    },
+    onInterruption: handleInterruption,
+    onInterviewComplete: handleInterviewComplete,
   });
 
   const { error: captureError, startCapture, stopCapture } = useAudioCapture();
-  const {
-    queueAudio,
-    clearQueue: clearAudioQueue,
-    stop: stopPlayback,
-  } = useAudioPlayback();
 
   useEffect(() => {
     onAudioReceived((base64Data) => {
@@ -95,11 +98,15 @@ export function LiveInterviewAgent({
     });
   }, [onAudioReceived, queueAudio]);
 
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
   const handleAudioChunk = useCallback(
     (chunk: string) => {
-      if (!isMuted) sendAudio(chunk);
+      if (!isMutedRef.current) sendAudio(chunk);
     },
-    [sendAudio, isMuted],
+    [sendAudio],
   );
 
   useEffect(() => {
@@ -293,43 +300,63 @@ export function LiveInterviewAgent({
     setTimeout(() => void handleEndInterview(), 0);
   }, [handleEndInterview]);
 
-  const handleToggleMute = () => {
+  const handleToggleMute = useCallback(() => {
     setIsMuted(!isMuted);
     toast.info(isMuted ? "Microphone unmuted" : "Microphone muted");
-  };
+  }, [isMuted]);
 
-  const transcriptLength = transcript.length;
-  let latestModelCaption: string | null = null;
-  let latestUserCaption: string | null = null;
+  const { latestModelCaption, latestUserCaption, estimatedProgress } =
+    useMemo(() => {
+      let latestModelCaption: string | null = null;
+      let latestUserCaption: string | null = null;
+      let modelTurnCount = 0;
 
-  if (transcriptLength > 0) {
-    for (let i = transcriptLength - 1; i >= 0; i--) {
-      const e = transcript[i];
-      if (!e) continue;
-      if (
-        latestModelCaption === null &&
-        e.role === "model" &&
-        e.content.trim()
-      ) {
-        latestModelCaption = e.content;
+      for (let i = transcript.length - 1; i >= 0; i--) {
+        const entry = transcript[i];
+        if (!entry) continue;
+
+        if (entry.role === "model") {
+          modelTurnCount += 1;
+          if (latestModelCaption === null && entry.content.trim()) {
+            latestModelCaption = entry.content;
+          }
+        } else if (
+          entry.role === "user" &&
+          latestUserCaption === null &&
+          entry.content.trim()
+        ) {
+          latestUserCaption = entry.content;
+        }
       }
-      if (latestUserCaption === null && e.role === "user" && e.content.trim()) {
-        latestUserCaption = e.content;
-      }
-      if (latestModelCaption !== null && latestUserCaption !== null) break;
-    }
-  }
 
-  const modelTurnCount = transcript.filter((e) => e.role === "model").length;
-  const estimatedProgress = Math.min(
-    Math.round(
-      (modelTurnCount / Math.max(1, interview.questions.length * 2.5)) * 100,
-    ),
-    95,
-  );
+      return {
+        latestModelCaption,
+        latestUserCaption,
+        estimatedProgress: Math.min(
+          Math.round(
+            (modelTurnCount / Math.max(1, interview.questions.length * 2.5)) *
+              100,
+          ),
+          95,
+        ),
+      };
+    }, [interview.questions.length, transcript]);
+
+  const modelCaption =
+    currentSpeaker === "model" && currentCaption
+      ? currentCaption
+      : latestModelCaption;
+  const userCaption =
+    currentSpeaker === "user" && currentCaption
+      ? currentCaption
+      : latestUserCaption;
 
   const sessionTimeWarning = elapsedTime >= totalSeconds - 60;
   const remainingSeconds = Math.max(0, totalSeconds - elapsedTime);
+  const interviewerName =
+    interview.interviewerPersona?.name?.trim() || "AI Interviewer";
+  const interviewerRole =
+    interview.interviewerPersona?.title?.trim() || "Your interviewer";
 
   return (
     <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-xl)]">
@@ -426,8 +453,8 @@ export function LiveInterviewAgent({
             />
           </div>
 
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
               <Badge
                 variant={
                   connectionStatus === "connected" ? "success" : "secondary"
@@ -442,44 +469,35 @@ export function LiveInterviewAgent({
                     : "Time up"}
                 </Badge>
               )}
+              <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                Live interview room
+              </span>
             </div>
-            <div className="flex items-center gap-2">
-              <SpeakerIndicator
-                connectionStatus={connectionStatus}
-                role="interviewer"
-                isAIResponding={isAIResponding}
-                isUserSpeaking={isUserSpeaking}
-                isMuted={false}
-                variant="compact"
-              />
-              <SpeakerIndicator
-                connectionStatus={connectionStatus}
-                role="candidate"
-                isAIResponding={isAIResponding}
-                isUserSpeaking={isUserSpeaking}
-                isMuted={isMuted}
-                variant="compact"
-              />
-              <Link href="/dashboard" aria-label="Return to dashboard">
-                <User2 className="size-4 text-muted-foreground" />
-              </Link>
-            </div>
+            <Link
+              href="/dashboard"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              <ArrowLeft className="size-3.5" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Link>
           </div>
 
-          <div className="grid gap-4 px-4 py-4 md:grid-cols-2">
+          <div className="grid min-h-0 flex-1 gap-4 overflow-auto px-4 py-4 md:grid-cols-2 md:overflow-hidden">
             <InterviewCaptions
-              currentCaption={currentCaption}
-              currentSpeaker={currentSpeaker}
+              caption={modelCaption}
+              isLive={currentSpeaker === "model" && Boolean(currentCaption)}
               isMuted={false}
               focus="model"
-              fallbackCaption={latestModelCaption}
+              speakerName={interviewerName}
+              speakerRole={interviewerRole}
+              className="h-full"
             />
             <InterviewCaptions
-              currentCaption={currentCaption}
-              currentSpeaker={currentSpeaker}
+              caption={userCaption}
+              isLive={currentSpeaker === "user" && Boolean(currentCaption)}
               isMuted={isMuted}
               focus="user"
-              fallbackCaption={latestUserCaption}
+              className="h-full"
             />
           </div>
 

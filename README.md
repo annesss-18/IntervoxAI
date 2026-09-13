@@ -312,39 +312,45 @@ Open `http://localhost:3000`.
 
 ## <img src="https://cdn.jsdelivr.net/npm/lucide-static/icons/key-round.svg" alt="" width="18" /> Environment Variables
 
-| Variable                                   | Required      | Description                                              |
-| ------------------------------------------ | ------------- | -------------------------------------------------------- |
-| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                               |
-| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics measurement ID                        |
-| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK project ID                            |
-| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                 |
-| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key with `\n` escapes         |
-| `FIREBASE_DATABASE_ID`                     | Optional      | Firestore database ID, defaults to `prod`                |
-| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for template generation                   |
-| `TEMPLATE_GENERATION_MODEL`                | Yes           | Gemini model ID for template generation                  |
-| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live interviews                       |
-| `LIVE_INTERVIEW_MODEL`                     | Yes           | Gemini model ID for live interviews                      |
-| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback generation                   |
-| `FEEDBACK_MODEL`                           | Yes           | Gemini model ID for feedback generation                  |
-| `RESUME_ENCRYPTION_KEY`                    | Yes           | 32-byte base64 key for encrypted resume storage          |
-| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering          |
-| `NEXT_PUBLIC_APP_URL`                      | Prod          | Canonical app URL for origin validation and metadata     |
-| `JOB_URL_READER_PROVIDER`                  | Optional      | `jina` or `direct` for job URL extraction privacy        |
-| `LOG_LEVEL`                                | Optional      | Logging level: `debug`, `info`, `warn`, or `error`       |
-| `TRUSTED_IP_HEADER`                        | Optional      | Header name for client IP (e.g. `cf-connecting-ip`)      |
-| `TRUST_PROXY`                              | Optional      | Set to `1` to trust rightmost `x-forwarded-for` entry    |
-| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting          |
-| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                 |
-| `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs           |
-| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash signing key for worker verification       |
-| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key for worker verification |
-| `RESEND_API_KEY`                           | Optional      | Resend API key for feedback-ready email notifications    |
-| `RESEND_FROM_ADDRESS`                      | Optional      | Verified sender address used for feedback-ready emails   |
+| Variable                                   | Required      | Description                                                                |
+| ------------------------------------------ | ------------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_FIREBASE_API_KEY`             | Yes           | Firebase client SDK config                                                 |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`         | Yes           | Single configured Firebase Auth domain; canonical app domain in production |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID`          | Yes           | Firebase client SDK config                                                 |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`      | Yes           | Firebase client SDK config                                                 |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Yes           | Firebase client SDK config                                                 |
+| `NEXT_PUBLIC_FIREBASE_APP_ID`              | Yes           | Firebase client SDK config                                                 |
+| `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`      | Optional      | Firebase Analytics measurement ID                                          |
+| `FIREBASE_PROJECT_ID`                      | Yes (runtime) | Firebase Admin SDK project ID                                              |
+| `FIREBASE_CLIENT_EMAIL`                    | Yes (runtime) | Firebase Admin SDK service account email                                   |
+| `FIREBASE_PRIVATE_KEY`                     | Yes (runtime) | Firebase Admin SDK private key with `\n` escapes                           |
+| `FIREBASE_DATABASE_ID`                     | Optional      | Firestore database ID, defaults to `prod`                                  |
+| `TEMPLATE_GENERATION_API_KEY`              | Yes           | Gemini API key for template generation                                     |
+| `TEMPLATE_GENERATION_MODEL`                | Yes           | Gemini model ID for template generation                                    |
+| `LIVE_INTERVIEW_API_KEY`                   | Yes           | Gemini API key for live interviews                                         |
+| `LIVE_INTERVIEW_MODEL`                     | Yes           | Gemini model ID for live interviews                                        |
+| `FEEDBACK_API_KEY`                         | Yes           | Gemini API key for feedback generation                                     |
+| `FEEDBACK_MODEL`                           | Yes           | Gemini model ID for feedback generation                                    |
+| `RESUME_ENCRYPTION_KEY`                    | Yes           | 32-byte base64 key for encrypted resume storage                            |
+| `NEXT_PUBLIC_BRANDFETCH_CLIENT_ID`         | Optional      | Brandfetch client ID for company logo rendering                            |
+| `NEXT_PUBLIC_APP_URL`                      | Prod          | Canonical app URL for origin validation and metadata                       |
+| `JOB_URL_READER_PROVIDER`                  | Optional      | `jina` or `direct` for job URL extraction privacy                          |
+| `LOG_LEVEL`                                | Optional      | Logging level: `debug`, `info`, `warn`, or `error`                         |
+| `TRUSTED_IP_HEADER`                        | Optional      | Header name for client IP (e.g. `cf-connecting-ip`)                        |
+| `TRUST_PROXY`                              | Optional      | Set to `1` to trust rightmost `x-forwarded-for` entry                      |
+| `UPSTASH_REDIS_REST_URL`                   | Prod          | Upstash Redis URL for distributed rate limiting                            |
+| `UPSTASH_REDIS_REST_TOKEN`                 | Prod          | Upstash Redis auth token                                                   |
+| `QSTASH_TOKEN`                             | Optional      | Upstash QStash token for durable feedback jobs                             |
+| `QSTASH_CURRENT_SIGNING_KEY`               | Optional      | Current QStash signing key for worker verification                         |
+| `QSTASH_NEXT_SIGNING_KEY`                  | Optional      | Next rotating QStash signing key for worker verification                   |
+| `RESEND_API_KEY`                           | Optional      | Resend API key for feedback-ready email notifications                      |
+| `RESEND_FROM_ADDRESS`                      | Optional      | Verified sender address used for feedback-ready emails                     |
+
+### Google sign-in deployment
+
+For production redirect sign-in, set `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` to the one canonical app hostname (no protocol or path), not a value calculated from the current deployment hostname. The app proxies Firebase's `__/auth` and `__/firebase` helpers through that domain so browsers with third-party-storage protections can complete the redirect.
+
+Before deploying, add `https://<canonical-domain>/__/auth/handler` to the Google OAuth client’s authorized redirect URIs, and add `<canonical-domain>` to Firebase Authentication’s authorized domains. Configure every production alias to redirect to that canonical hostname; preview deployments should use the configured Firebase domain or test with desktop popup sign-in.
 
 ---
 

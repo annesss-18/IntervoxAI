@@ -66,7 +66,7 @@ export default async function CreatePage({
         }
       />
 
-      <div className="grid gap-8 lg:grid-cols-[1fr_1.4fr] lg:items-start">
+      <div className="grid gap-8 lg:grid-cols-[1fr_1.6fr] lg:items-start">
         <div className="hidden space-y-5 lg:block">
           <div className="gradient-border relative overflow-hidden rounded-2xl p-px">
             <div className="relative overflow-hidden rounded-2xl bg-card p-6">

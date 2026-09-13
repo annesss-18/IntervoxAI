@@ -9,6 +9,8 @@ const CONFIG_ERROR_CODES = new Set([
   "auth/app-not-authorized",
   "auth/configuration-not-found",
   "auth/project-not-found",
+  "auth/unauthorized-domain",
+  "auth/operation-not-allowed",
 ]);
 
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -30,6 +32,11 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
   "auth/cancelled-popup-request": "Sign-in was cancelled.",
   "auth/popup-blocked":
     "Your browser blocked the sign-in popup. Please allow popups for this site and try again.",
+  "auth/web-storage-unsupported":
+    "Your browser blocked the storage needed to complete sign-in. Please try again in a regular browser window.",
+  "auth/operation-not-supported-in-this-environment":
+    "This browser does not support this sign-in method. Please try again in a regular browser window.",
+  "auth/redirect-cancelled-by-user": "Sign-in was cancelled.",
   "auth/account-exists-with-different-credential":
     "An account already exists with this email using a different sign-in method.",
 };

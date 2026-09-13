@@ -1,18 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Mic,
-  RefreshCw,
-  Wifi,
-  LayoutDashboard,
-  Mail,
-  Twitter,
-  MessageCircle,
-  ArrowRight,
-  LifeBuoy,
-} from "lucide-react";
+import { Mic, RefreshCw, Wifi, LayoutDashboard, LifeBuoy } from "lucide-react";
 import { Container, PageHeader, Section } from "@/components/layout/Container";
 import { Button } from "@/components/atoms/button";
+import { SupportForm } from "@/components/organisms/SupportForm";
 
 export const metadata: Metadata = {
   title: "Support",
@@ -39,30 +30,6 @@ const quickFixes = [
     icon: LayoutDashboard,
     title: "Can't see past sessions",
     fix: "Ensure you're signed in to the same account. Sessions are tied to your Firebase user ID.",
-  },
-];
-
-const contactChannels = [
-  {
-    icon: Mail,
-    label: "Email",
-    value: "support@intervoxai.com",
-    href: "mailto:support@intervoxai.com",
-    sub: "Response within 2 business days",
-  },
-  {
-    icon: Twitter,
-    label: "Twitter / X",
-    value: "@intervoxai",
-    href: "https://twitter.com/intervoxai",
-    sub: "DMs open",
-  },
-  {
-    icon: MessageCircle,
-    label: "GitHub Discussions",
-    value: "github.com/intervoxai",
-    href: "https://github.com/intervoxai",
-    sub: "Bug reports & feature requests",
   },
 ];
 
@@ -122,36 +89,26 @@ export default function SupportPage() {
                 </p>
                 When reaching out, please include your{" "}
                 <strong className="text-foreground">session ID</strong> (found
-                in the feedback page URL), your{" "}
-                <strong className="text-foreground">browser</strong>, and a
-                one-sentence description of what went wrong.
+                in the feedback page URL) and your{" "}
+                <strong className="text-foreground">browser</strong> in the
+                message below.
               </div>
 
-              <div className="space-y-3">
-                {contactChannels.map((ch) => {
-                  const Icon = ch.icon;
-                  return (
-                    <a
-                      key={ch.label}
-                      href={ch.href}
-                      target={ch.href.startsWith("http") ? "_blank" : undefined}
-                      rel="noopener noreferrer"
-                      className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-[var(--shadow-sm)] hover:-translate-y-0.5"
-                    >
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted ring-1 ring-border transition-colors group-hover:bg-primary/10 group-hover:ring-primary/20">
-                        <Icon className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold">{ch.value}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {ch.sub}
-                        </p>
-                      </div>
-                      <ArrowRight className="size-4 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0.5" />
-                    </a>
-                  );
-                })}
-              </div>
+              <SupportForm />
+
+              <a
+                href="https://github.com/annesss-18/IntervoxAI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex items-center gap-4 rounded-2xl border border-border bg-card p-4 transition-all duration-200 hover:border-primary/30 hover:shadow-[var(--shadow-sm)] hover:-translate-y-0.5"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">GitHub</p>
+                  <p className="text-xs text-muted-foreground">
+                    Bug reports & feature requests
+                  </p>
+                </div>
+              </a>
             </div>
           </div>
         </Container>

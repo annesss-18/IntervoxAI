@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Github, Linkedin, Twitter } from "lucide-react";
+import { Github } from "lucide-react";
 import { BrandIcon, BrandWordmark } from "@/components/molecules/BrandLogo";
 
 const footerLinks = {
@@ -20,12 +20,10 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Twitter, href: "https://twitter.com/intervoxai", label: "Twitter" },
-  { icon: Github, href: "https://github.com/intervoxai", label: "GitHub" },
   {
-    icon: Linkedin,
-    href: "https://linkedin.com/company/intervoxai",
-    label: "LinkedIn",
+    icon: Github,
+    href: "https://github.com/annesss-18/IntervoxAI",
+    label: "GitHub",
   },
 ];
 

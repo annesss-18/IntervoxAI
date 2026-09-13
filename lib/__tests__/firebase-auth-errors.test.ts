@@ -26,6 +26,8 @@ describe("getFirebaseAuthErrorMessage", () => {
       "auth/invalid-api-key",
       "auth/app-deleted",
       "auth/configuration-not-found",
+      "auth/unauthorized-domain",
+      "auth/operation-not-allowed",
     ]) {
       const message = getFirebaseAuthErrorMessage(
         firebaseError(code),
@@ -53,6 +55,12 @@ describe("getFirebaseAuthErrorMessage", () => {
     expect(
       getFirebaseAuthErrorMessage(firebaseError("auth/too-many-requests"), "x"),
     ).toContain("Too many attempts");
+    expect(
+      getFirebaseAuthErrorMessage(
+        firebaseError("auth/web-storage-unsupported"),
+        "x",
+      ),
+    ).toContain("storage");
   });
 
   it("falls back to the provided message for an unrecognized Firebase code", () => {

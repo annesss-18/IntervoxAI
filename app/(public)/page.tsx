@@ -114,7 +114,7 @@ const iconColorMap: Record<string, string> = {
 export default function LandingPage() {
   return (
     <div className="bg-background overflow-hidden">
-      <section className="relative flex min-h-[90vh] items-center border-b border-border/50 py-24 sm:py-32">
+      <section className="relative flex min-h-[80vh] items-center border-b border-border/50 py-16 sm:py-24">
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
           <div
             className="absolute -top-32 right-0 h-[480px] w-[480px] rounded-full opacity-[0.12] blur-[100px]"

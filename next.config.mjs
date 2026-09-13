@@ -46,13 +46,20 @@ const nextConfig = {
         source: "/__/auth/:path*",
         destination: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com/__/auth/:path*`,
       },
+      {
+        source: "/__/firebase/:path*",
+        destination: `https://${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com/__/firebase/:path*`,
+      },
     ];
   },
 
   async headers() {
     return [
       {
-        source: "/(.*)",
+        // Firebase's same-origin redirect helper is loaded in an iframe. It
+        // must receive Firebase's own headers, rather than the app's DENY
+        // framing policy or CSP. See README's Google auth deployment notes.
+        source: "/((?!__/auth|__/firebase).*)",
         headers: [
           {
             key: "X-DNS-Prefetch-Control",

@@ -20,6 +20,17 @@ interface ResolvedAddress {
   family: 4 | 6;
 }
 
+type LookupCallback = (
+  err: NodeJS.ErrnoException | null,
+  address: string,
+  family: number,
+) => void;
+
+type LookupAllCallback = (
+  err: NodeJS.ErrnoException | null,
+  addresses: { address: string; family: number }[],
+) => void;
+
 const BLOCKED_HOSTS = [
   "127.0.0.1",
   "localhost",
@@ -218,19 +229,23 @@ async function fetchPinned(
         servername: currentUrl.hostname,
         lookup: (
           _hostname: string,
-          optionsOrCb: unknown,
-          maybeCb?: unknown,
+          optionsOrCb: { all?: boolean } | LookupCallback,
+          maybeCb?: LookupCallback | LookupAllCallback,
         ) => {
-          const cb = (typeof optionsOrCb === "function"
-            ? optionsOrCb
-            : maybeCb) as Function;
-            
-          const isAll = typeof optionsOrCb === "object" && optionsOrCb !== null && (optionsOrCb as any).all;
-          
+          const isAll =
+            typeof optionsOrCb === "object" &&
+            optionsOrCb !== null &&
+            optionsOrCb.all === true;
+          const cb = typeof optionsOrCb === "function" ? optionsOrCb : maybeCb;
+
+          if (!cb) return;
+
           if (isAll) {
-            cb(null, [{ address: address.address, family: address.family }]);
+            (cb as LookupAllCallback)(null, [
+              { address: address.address, family: address.family },
+            ]);
           } else {
-            cb(null, address.address, address.family);
+            (cb as LookupCallback)(null, address.address, address.family);
           }
         },
       },

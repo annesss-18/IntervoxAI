@@ -143,11 +143,20 @@ export async function checkRateLimit(
   }
 
   if (!isRedisConfigured) {
-    if (process.env.NODE_ENV === "production") {
-      logger.warn(
-        "Redis is NOT configured in production. Falling back to in-memory rate limiting, which is not recommended for distributed deployments.",
+    const shouldFailClosed =
+      config.failClosed ?? process.env.NODE_ENV === "production";
+
+    if (shouldFailClosed) {
+      logger.error(
+        "Redis is NOT configured in production. Failing closed instead of silently falling back to per-instance in-memory rate limiting.",
       );
+      return {
+        allowed: false,
+        remaining: 0,
+        resetTime: Date.now() + (config.windowMs ?? 60000),
+      };
     }
+
     logger.debug("Using in-memory rate limiting (Redis not configured)");
   }
   return checkRateLimitInMemory(identifier, config);

@@ -333,20 +333,52 @@ export function CreateInterviewForm({
           <div className="p-6 space-y-6">
             {companyName && (
               <div className="flex items-center gap-4 rounded-xl border border-border bg-surface-2/60 p-4">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-xl font-bold text-white shadow-sm">
-                  {companyName.charAt(0).toUpperCase()}
-                </div>
+                {companyLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={companyLogoUrl}
+                    alt={`${companyName} logo`}
+                    className="size-12 shrink-0 rounded-xl border border-border/60 bg-white object-contain p-1.5"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-brand-gradient text-xl font-bold text-white shadow-sm">
+                    {companyName.charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="label-caps mb-0.5">Detected company</p>
                   <p className="font-semibold truncate">{companyName}</p>
-                  {companyLogoUrl && (
-                    <p className="text-xs text-success mt-0.5">
-                      Logo URL detected
-                    </p>
-                  )}
                 </div>
               </div>
             )}
+
+            <div className="space-y-1.5">
+              <Label>Visibility</Label>
+              <div className="flex h-11 items-center gap-1 rounded-xl border border-border bg-surface-2/50 p-1 sm:w-64">
+                {[
+                  { val: true, icon: Globe, label: "Public" },
+                  { val: false, icon: Lock, label: "Private" },
+                ].map(({ val, icon: Icon, label }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setIsPublic(val)}
+                    className={cn(
+                      "flex h-full flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
+                      isPublic === val
+                        ? "bg-card text-foreground shadow-[var(--shadow-sm)]"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="size-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-1.5">
@@ -404,7 +436,7 @@ export function CreateInterviewForm({
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-3">
+            <div className="grid gap-5 md:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Experience Level</Label>
                 <div className="relative">
@@ -444,31 +476,6 @@ export function CreateInterviewForm({
                     {INTERVIEW_TYPES.find((t) => t.value === type)?.desc}
                   </p>
                 )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label>Visibility</Label>
-                <div className="flex h-11 items-center gap-1 rounded-xl border border-border bg-surface-2/50 p-1">
-                  {[
-                    { val: true, icon: Globe, label: "Public" },
-                    { val: false, icon: Lock, label: "Private" },
-                  ].map(({ val, icon: Icon, label }) => (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => setIsPublic(val)}
-                      className={cn(
-                        "flex h-full flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold transition-all duration-200",
-                        isPublic === val
-                          ? "bg-card text-foreground shadow-[var(--shadow-sm)]"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Icon className="size-3.5" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 

@@ -123,7 +123,7 @@ const TemplatePage = async ({
         Back to Explore
       </Link>
 
-      <div className="relative mb-5 overflow-hidden rounded-2xl border border-border bg-card gradient-border">
+      <section className="relative mb-5 overflow-hidden rounded-2xl border border-border bg-card gradient-border">
         <div
           className="pointer-events-none absolute -top-16 -right-16 h-40 w-56 rounded-full opacity-15 blur-[80px]"
           style={{ background: "var(--gradient-brand)" }}
@@ -133,9 +133,9 @@ const TemplatePage = async ({
           style={{ background: "var(--gradient-brand)" }}
         />
 
-        <div className="relative flex flex-col lg:flex-row">
-          <div className="flex flex-1 flex-col gap-2.5 p-5 sm:p-6 lg:border-r lg:border-border">
-            <div className="flex items-center gap-3">
+        <div className="relative grid lg:grid-cols-[minmax(0,1fr)_21rem]">
+          <div className="min-w-0 p-5 sm:p-7">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-2">
                 <CompanyLogo
                   companyName={template.companyName || "Unknown Company"}
@@ -147,20 +147,16 @@ const TemplatePage = async ({
               <span className="text-sm font-semibold text-foreground">
                 {template.companyName || "IntervoxAI"}
               </span>
-              <Badge variant="primary" dot className="text-[10px] ml-auto">
-                <Sparkles className="size-2.5" />
-                Ready to Practice
-              </Badge>
             </div>
 
-            <h1 className="text-xl font-bold leading-tight text-foreground sm:text-2xl">
+            <h1 className="mt-5 max-w-3xl text-2xl font-bold leading-tight text-foreground sm:text-3xl">
               {template.role}{" "}
               <span className="text-muted-foreground font-normal">
                 Interview
               </span>
             </h1>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <Badge variant="secondary" className="text-[10px]">
                 <Briefcase className="size-3" />
                 {template.level}
@@ -171,32 +167,45 @@ const TemplatePage = async ({
               </Badge>
             </div>
 
-            <div className="flex flex-col gap-2 pt-1">
+            <div className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
               {template.techStack && template.techStack.length > 0 && (
-                <div className="flex items-center gap-2.5">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 shrink-0">
-                    Tech Stack
+                <div className="rounded-xl border border-border/65 bg-surface-2/45 p-3">
+                  <span className="label-caps text-[9px] text-muted-foreground/75">
+                    Tech stack
                   </span>
-                  <DisplayTechIcons techStack={template.techStack} />
+                  <div className="mt-2.5">
+                    <DisplayTechIcons techStack={template.techStack} />
+                  </div>
                 </div>
               )}
 
               {template.focusArea && template.focusArea.length > 0 && (
-                <div className="flex flex-wrap items-baseline gap-1.5">
-                  <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 shrink-0 mr-0.5">
+                <div className="rounded-xl border border-border/65 bg-surface-2/45 p-3">
+                  <span className="label-caps text-[9px] text-muted-foreground/75">
                     Focus
                   </span>
-                  {template.focusArea.map((area) => (
-                    <Badge key={area} variant="outline" className="text-[10px]">
-                      {area}
-                    </Badge>
-                  ))}
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {template.focusArea.map((area) => (
+                      <Badge
+                        key={area}
+                        variant="outline"
+                        className="text-[10px]"
+                      >
+                        {area}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="flex flex-col justify-center gap-3.5 p-5 sm:p-6 lg:min-w-[250px] lg:max-w-[290px] overflow-hidden">
+          <aside className="flex flex-col gap-4 border-t border-border bg-surface-2/30 p-5 sm:p-6 lg:border-l lg:border-t-0">
+            <Badge variant="primary" dot className="w-fit text-[10px]">
+              <Sparkles className="size-2.5" />
+              Ready to practice
+            </Badge>
+
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-border/60 bg-surface-2/50 p-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
@@ -226,14 +235,14 @@ const TemplatePage = async ({
               </div>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <StartSessionButton templateId={template.id} />
               <p className="text-[10px] text-center text-muted-foreground">
-                AI feedback after your session
+                Choose a length, then get AI feedback after your session.
               </p>
             </div>
 
-            <div className="flex gap-2 pt-1 border-t border-border/50">
+            <div className="flex gap-2 border-t border-border/50 pt-3">
               <Link href={`/create?forkFrom=${template.id}`} className="flex-1">
                 <Button
                   variant="outline"
@@ -261,26 +270,24 @@ const TemplatePage = async ({
                 </Link>
               )}
             </div>
-
-            <div className="flex flex-col gap-1.5">
-              <FeaturePill
-                icon={
-                  <ShieldCheck className="size-3.5 text-success shrink-0" />
-                }
-                text="Personalised AI context"
-              />
-              <FeaturePill
-                icon={<Zap className="size-3.5 text-primary shrink-0" />}
-                text="Stack-aware questioning"
-              />
-              <FeaturePill
-                icon={<Clock3 className="size-3.5 text-info shrink-0" />}
-                text="Instant post-session feedback"
-              />
-            </div>
-          </div>
+          </aside>
         </div>
-      </div>
+
+        <div className="relative grid gap-2 border-t border-border/70 bg-card/45 px-5 py-3 sm:grid-cols-3 sm:px-7">
+          <FeaturePill
+            icon={<ShieldCheck className="size-3.5 text-success shrink-0" />}
+            text="Personalised AI context"
+          />
+          <FeaturePill
+            icon={<Zap className="size-3.5 text-primary shrink-0" />}
+            text="Stack-aware questioning"
+          />
+          <FeaturePill
+            icon={<Clock3 className="size-3.5 text-info shrink-0" />}
+            text="Instant post-session feedback"
+          />
+        </div>
+      </section>
 
       <div className="grid gap-5 lg:grid-cols-[3fr_2fr] items-start animate-fade-up delay-100 fill-both">
         <article className="rounded-2xl border border-border bg-card p-6">

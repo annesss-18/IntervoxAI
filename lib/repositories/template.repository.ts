@@ -5,6 +5,20 @@ import { unstable_cache, revalidateTag } from "next/cache";
 
 const CACHE_REVALIDATE_SECONDS = 300;
 const MAX_TEMPLATE_CACHE_SIZE = 500;
+// Listing pages only render these card fields. Excluding generated prompts,
+// job descriptions, and persona details substantially reduces Firestore read
+// payloads and cached data when a library contains many templates.
+const TEMPLATE_CARD_SELECT_FIELDS = [
+  "role",
+  "companyName",
+  "companyLogoUrl",
+  "level",
+  "type",
+  "techStack",
+  "usageCount",
+  "avgScore",
+  "createdAt",
+] as const;
 
 const _templateByIdCacheMap = new Map<
   string,
@@ -63,6 +77,7 @@ const _publicCaches: Record<
         .collection("interview_templates")
         .where("isPublic", "==", true)
         .orderBy("createdAt", "desc")
+        .select(...TEMPLATE_CARD_SELECT_FIELDS)
         .limit(MAX_PUBLIC_LIMIT)
         .get();
 
@@ -82,6 +97,7 @@ const _publicCaches: Record<
         .collection("interview_templates")
         .where("isPublic", "==", true)
         .orderBy("usageCount", "desc")
+        .select(...TEMPLATE_CARD_SELECT_FIELDS)
         .limit(MAX_PUBLIC_LIMIT)
         .get();
 
@@ -101,6 +117,7 @@ const _publicCaches: Record<
         .collection("interview_templates")
         .where("isPublic", "==", true)
         .orderBy("avgScore", "desc")
+        .select(...TEMPLATE_CARD_SELECT_FIELDS)
         .limit(MAX_PUBLIC_LIMIT)
         .get();
 
@@ -161,6 +178,7 @@ export const TemplateRepository = {
         .collection("interview_templates")
         .where("creatorId", "==", userId)
         .orderBy("createdAt", "desc")
+        .select(...TEMPLATE_CARD_SELECT_FIELDS)
         .limit(50)
         .get();
 

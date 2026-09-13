@@ -46,7 +46,7 @@ export function AudioTestCard({
   const micTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const micDetectedRef = useRef(false);
 
-  const speakerContextRef = useRef<AudioContext | null>(null);
+  const speakerAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const bothPassed = micStatus === "passed" && speakerStatus === "passed";
   const isConnected = connectionStatus === "connected";
@@ -148,11 +148,8 @@ export function AudioTestCard({
   useEffect(() => {
     return () => {
       stopMicTest();
-      if (
-        speakerContextRef.current &&
-        speakerContextRef.current.state !== "closed"
-      ) {
-        speakerContextRef.current.close();
+      if (speakerAudioRef.current) {
+        speakerAudioRef.current.pause();
       }
     };
   }, [stopMicTest]);
@@ -162,37 +159,25 @@ export function AudioTestCard({
     setSpeakerConfirmNeeded(false);
 
     try {
-      // Close the previous context before retrying.
-      if (
-        speakerContextRef.current &&
-        speakerContextRef.current.state !== "closed"
-      ) {
-        speakerContextRef.current.close();
+      // Stop the previous clip before retrying.
+      if (speakerAudioRef.current) {
+        speakerAudioRef.current.pause();
+        speakerAudioRef.current.currentTime = 0;
       }
 
-      const ctx = new AudioContext();
-      speakerContextRef.current = ctx;
+      const audio = new Audio("/audio/welcome.mp3");
+      speakerAudioRef.current = audio;
 
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(440, ctx.currentTime);
-
-      // Fade tone edges to avoid clicks.
-      gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime + 1.2);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
-
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 1.5);
-
-      osc.onended = () => {
+      audio.onended = () => {
         setSpeakerConfirmNeeded(true);
       };
+      audio.onerror = () => {
+        setSpeakerStatus("failed");
+      };
+
+      audio.play().catch(() => {
+        setSpeakerStatus("failed");
+      });
     } catch {
       setSpeakerStatus("failed");
     }
@@ -379,7 +364,7 @@ export function AudioTestCard({
         ) : speakerConfirmNeeded ? (
           <div className="flex items-center gap-3">
             <p className="text-xs text-muted-foreground">
-              Did you hear the tone?
+              Did you hear the welcome message?
             </p>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={confirmSpeakerHeard}>
@@ -394,7 +379,9 @@ export function AudioTestCard({
         ) : speakerStatus === "testing" ? (
           <div className="flex items-center gap-2 rounded-lg border border-secondary/20 bg-secondary/5 px-3 py-2">
             <Volume2 className="size-4 text-secondary animate-pulse" />
-            <span className="text-xs text-secondary">Playing test tone…</span>
+            <span className="text-xs text-secondary">
+              Playing welcome message…
+            </span>
           </div>
         ) : (
           <Button

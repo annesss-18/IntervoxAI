@@ -3,6 +3,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { ALLOWED_VOICE_NAMES } from "@/lib/schemas";
 import { InterviewTemplate } from "@/types";
+import { getAiModel, thinkingProviderOptions } from "@/lib/ai/model-config";
 
 export const TEMPLATE_MAX_TECH_ITEMS = 20;
 export const TEMPLATE_MAX_TECH_ITEM_LENGTH = 50;
@@ -16,14 +17,6 @@ export const TEMPLATE_GENERATION_RATE_LIMIT = {
 const templateGenGoogle = createGoogleGenerativeAI({
   apiKey: process.env.TEMPLATE_GENERATION_API_KEY,
 });
-
-function getTemplateGenerationModel(): string {
-  const model = process.env.TEMPLATE_GENERATION_MODEL;
-  if (!model) {
-    throw new Error("TEMPLATE_GENERATION_MODEL is required");
-  }
-  return model;
-}
 
 // Keep model output separate from fully populated template data.
 const templateContentSchema = z.object({
@@ -204,9 +197,11 @@ It must include:
 - voice rules: English only, contractions always, and 2 to 3 sentences max per turn
 `.trim();
 
+  const generationModel = getAiModel("generation");
   const result = await generateObject({
-    model: templateGenGoogle(getTemplateGenerationModel()),
+    model: templateGenGoogle(generationModel),
     schema: templateContentSchema,
+    providerOptions: thinkingProviderOptions("generation", generationModel),
     prompt: constructedPrompt,
   });
 

@@ -2,18 +2,20 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   updateProfile,
   sendPasswordResetEmail,
+  type User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "@/firebase/client";
 import { googleAuthenticate, signIn, signUp } from "@/lib/actions/auth.action";
@@ -72,8 +74,41 @@ function getSafeCallbackUrl(raw: string | null): string {
   return "/dashboard";
 }
 
+function getAuthErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" ? code : undefined;
+  }
+  return undefined;
+}
+
+function shouldUseRedirectOnThisDevice(): boolean {
+  const userAgent = window.navigator.userAgent;
+  const isMobileBrowser =
+    /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|Mobile/i.test(userAgent);
+  const isTouchOnlyDevice =
+    window.matchMedia("(pointer: coarse)").matches &&
+    !window.matchMedia("(hover: hover)").matches;
+
+  return isMobileBrowser || isTouchOnlyDevice;
+}
+
+function shouldRetryPopupWithRedirect(error: unknown, popupOpenedAt: number) {
+  const code = getAuthErrorCode(error);
+  return (
+    code === "auth/popup-blocked" ||
+    code === "auth/operation-not-supported-in-this-environment" ||
+    (code === "auth/popup-closed-by-user" && Date.now() - popupOpenedAt < 1500)
+  );
+}
+
+function navigateAfterAuthentication(path: string): void {
+  // A full navigation guarantees that the session cookie set by the server
+  // action is present before protected-route middleware and layouts run.
+  window.location.assign(path);
+}
+
 export function AuthForm({ type }: AuthFormProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const postAuthUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
   const [isLoading, setIsLoading] = React.useState(false);
@@ -82,28 +117,38 @@ export function AuthForm({ type }: AuthFormProps) {
   const [isResettingPassword, setIsResettingPassword] = React.useState(false);
 
   const isSignIn = type === "sign-in";
+  const redirectResultHandledRef = React.useRef(false);
+
+  const completeGoogleAuthentication = React.useCallback(
+    async (user: FirebaseUser) => {
+      const idToken = await user.getIdToken();
+      if (!user.email) throw new Error("No email on this Google account.");
+
+      const result = await googleAuthenticate({
+        name: user.displayName || "User",
+        idToken,
+      });
+
+      if (!result.success)
+        throw new Error(result.message || "Authentication failed");
+      toast.success(
+        isSignIn ? "Welcome back!" : "Account created successfully!",
+      );
+      navigateAfterAuthentication(postAuthUrl);
+    },
+    [isSignIn, postAuthUrl],
+  );
 
   React.useEffect(() => {
     const handleRedirectResult = async () => {
+      if (redirectResultHandledRef.current) return;
+      redirectResultHandledRef.current = true;
+
       try {
         const cred = await getRedirectResult(auth);
         if (cred) {
           setIsGoogleLoading(true);
-          const idToken = await cred.user.getIdToken();
-          const email = cred.user.email || "";
-          if (!email) throw new Error("No email on this Google account.");
-
-          const result = await googleAuthenticate({
-            name: cred.user.displayName || "User",
-            idToken,
-          });
-
-          if (!result.success)
-            throw new Error(result.message || "Authentication failed");
-          toast.success(
-            isSignIn ? "Welcome back!" : "Account created successfully!",
-          );
-          router.push(postAuthUrl);
+          await completeGoogleAuthentication(cred.user);
         }
       } catch (error: unknown) {
         await auth.signOut().catch(() => {});
@@ -114,8 +159,8 @@ export function AuthForm({ type }: AuthFormProps) {
         setIsGoogleLoading(false);
       }
     };
-    handleRedirectResult();
-  }, [postAuthUrl, router, isSignIn]);
+    void handleRedirectResult();
+  }, [completeGoogleAuthentication]);
 
   const signInForm = useForm<SignInData>({
     resolver: zodResolver(signInSchema),
@@ -140,7 +185,7 @@ export function AuthForm({ type }: AuthFormProps) {
         if (!result.success)
           throw new Error(result.message || "Failed to sign in");
         toast.success("Welcome back!");
-        router.push(postAuthUrl);
+        navigateAfterAuthentication(postAuthUrl);
       } else {
         const { name, email, password } = data as SignUpData;
         const cred = await createUserWithEmailAndPassword(
@@ -154,7 +199,7 @@ export function AuthForm({ type }: AuthFormProps) {
         if (!result.success)
           throw new Error(result.message || "Failed to create account");
         toast.success("Account created successfully!");
-        router.push(postAuthUrl);
+        navigateAfterAuthentication(postAuthUrl);
       }
     } catch (error: unknown) {
       // Clear client auth when server session setup fails.
@@ -171,14 +216,40 @@ export function AuthForm({ type }: AuthFormProps) {
   };
   const handleGoogleAuth = async () => {
     setIsGoogleLoading(true);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      if (shouldUseRedirectOnThisDevice()) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
+      const popupOpenedAt = Date.now();
+      try {
+        const cred = await signInWithPopup(auth, provider);
+        await completeGoogleAuthentication(cred.user);
+        return;
+      } catch (popupError: unknown) {
+        if (shouldRetryPopupWithRedirect(popupError, popupOpenedAt)) {
+          try {
+            await signInWithRedirect(auth, provider);
+            return;
+          } catch (redirectError: unknown) {
+            throw redirectError;
+          }
+        }
+        throw popupError;
+      }
     } catch (error: unknown) {
+      // Clear client auth when server session setup fails.
+      await auth.signOut().catch(() => {});
       setIsGoogleLoading(false);
       toast.error(
         getFirebaseAuthErrorMessage(error, "Google authentication failed"),
       );
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 

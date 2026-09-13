@@ -20,7 +20,7 @@ import {
   BrandIcon,
   BrandWordmark,
 } from "@/components/molecules/BrandLogo";
-import { Avatar, AvatarFallback } from "@/components/atoms/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/atoms/avatar";
 import {
   Sheet,
   SheetContent,
@@ -33,7 +33,7 @@ import { cn, getInitials } from "@/lib/utils";
 import { useAuth } from "@/components/providers/AuthProvider";
 
 interface NavbarProps {
-  user?: { name: string; email: string; id: string } | null;
+  user?: { name: string; email: string; id: string; photoURL?: string } | null;
 }
 
 const navLinks = [
@@ -63,6 +63,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
           name: authUser.displayName || "User",
           email: authUser.email || "",
           id: authUser.uid,
+          photoURL: authUser.photoURL || undefined,
         }
       : null;
 
@@ -139,7 +140,7 @@ export function Navbar({ user: initialUser }: NavbarProps) {
           {user ? (
             <>
               <div className="hidden md:block">
-                <UserMenu user={user} />
+                <UserMenu user={user} avatarUrl={user.photoURL} />
               </div>
 
               <div className="md:hidden">
@@ -160,6 +161,10 @@ export function Navbar({ user: initialUser }: NavbarProps) {
                     <div className="flex flex-1 flex-col gap-5">
                       <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/60 p-3">
                         <Avatar size="sm">
+                          <AvatarImage
+                            src={user.photoURL ?? ""}
+                            alt={user.name}
+                          />
                           <AvatarFallback>
                             {getInitials(user.name)}
                           </AvatarFallback>
@@ -269,34 +274,36 @@ export function Navbar({ user: initialUser }: NavbarProps) {
             </>
           ) : (
             <div className="flex items-center gap-2">
-              <Link
-                href="/explore"
-                className={cn(
-                  "flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200",
-                  pathname === "/explore" || pathname.startsWith("/explore/")
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-surface-2",
-                )}
-              >
-                <Compass
+              {pathname !== "/" && (
+                <Link
+                  href="/explore"
                   className={cn(
-                    "size-4",
-                    (pathname === "/explore" ||
-                      pathname.startsWith("/explore/")) &&
-                      "text-primary",
-                  )}
-                />
-                <span
-                  className={cn(
-                    "hidden sm:inline",
-                    (pathname === "/explore" ||
-                      pathname.startsWith("/explore/")) &&
-                      "text-gradient-brand font-semibold",
+                    "flex items-center gap-2 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200",
+                    pathname === "/explore" || pathname.startsWith("/explore/")
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-surface-2",
                   )}
                 >
-                  Explore
-                </span>
-              </Link>
+                  <Compass
+                    className={cn(
+                      "size-4",
+                      (pathname === "/explore" ||
+                        pathname.startsWith("/explore/")) &&
+                        "text-primary",
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "hidden sm:inline",
+                      (pathname === "/explore" ||
+                        pathname.startsWith("/explore/")) &&
+                        "text-gradient-brand font-semibold",
+                    )}
+                  >
+                    Explore
+                  </span>
+                </Link>
+              )}
               <Link href="/sign-in" className="hidden sm:block">
                 <Button variant="ghost" size="sm">
                   Sign In

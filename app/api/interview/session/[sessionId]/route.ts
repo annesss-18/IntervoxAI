@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
+import { revalidateTag } from "next/cache";
 import { db } from "@/firebase/admin";
 import { withAuthClaims } from "@/lib/server/api-middleware";
 import { logger } from "@/lib/logger";
@@ -283,21 +285,75 @@ export const DELETE = withAuthClaims(
       }
 
       const sessionRef = db.collection("interview_sessions").doc(sessionId);
-      const sessionDoc = await sessionRef.get();
 
-      if (!sessionDoc.exists) {
+      type ClaimResult =
+        | { status: "not_found" }
+        | { status: "unauthorized" }
+        | { status: "ok"; sessionData: FirebaseFirestore.DocumentData };
+
+      // Reading the session, deciding to delete it, and decrementing the
+      // template's usageCount all happen in one transaction so a second,
+      // concurrent DELETE for the same session can never also decrement —
+      // it will see the session already gone and become a no-op.
+      const claim: ClaimResult = await db.runTransaction(
+        async (transaction) => {
+          const sessionDoc = await transaction.get(sessionRef);
+          if (!sessionDoc.exists) {
+            return { status: "not_found" };
+          }
+
+          const sessionData = sessionDoc.data() ?? {};
+          if (sessionData.userId !== user.id) {
+            return { status: "unauthorized" };
+          }
+
+          const templateId = sessionData.templateId;
+          let templateRef: FirebaseFirestore.DocumentReference | null = null;
+          let templateUsageCount: number | null = null;
+          if (typeof templateId === "string" && templateId) {
+            templateRef = db.collection("interview_templates").doc(templateId);
+            const templateDoc = await transaction.get(templateRef);
+            if (templateDoc.exists) {
+              const count = templateDoc.data()?.usageCount;
+              templateUsageCount = typeof count === "number" ? count : null;
+            } else {
+              templateRef = null;
+            }
+          }
+
+          transaction.delete(sessionRef);
+          if (
+            templateRef &&
+            templateUsageCount !== null &&
+            templateUsageCount > 0
+          ) {
+            transaction.update(templateRef, {
+              usageCount: FieldValue.increment(-1),
+            });
+          }
+
+          return { status: "ok", sessionData };
+        },
+      );
+
+      if (claim.status === "not_found") {
         return NextResponse.json(
           { error: "Session not found" },
           { status: 404 },
         );
       }
-
-      const sessionData = sessionDoc.data() ?? {};
-      if (sessionData.userId !== user.id) {
+      if (claim.status === "unauthorized") {
         logger.warn(
           `Unauthorized session delete attempt: user ${user.id} tried to delete session ${sessionId}`,
         );
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+
+      const sessionData = claim.sessionData;
+      const templateId = sessionData.templateId;
+      if (typeof templateId === "string" && templateId) {
+        revalidateTag(`template:${templateId}`, "max");
+        revalidateTag("templates-public", "max");
       }
 
       const feedbackCollection = db.collection("feedback");
@@ -305,7 +361,8 @@ export const DELETE = withAuthClaims(
         .collection("transcript_chunks")
         .get();
 
-      // Collect references for batched deletion within Firestore limits.
+      // The session document itself is already gone (deleted above);
+      // this cleans up its subcollections and any feedback documents.
       const feedbackDocIds = new Set<string>();
       const deterministicFeedbackId = `${sessionData.userId}_${sessionId}`;
       feedbackDocIds.add(deterministicFeedbackId);
@@ -314,7 +371,7 @@ export const DELETE = withAuthClaims(
         feedbackDocIds.add(sessionFeedbackId);
       }
 
-      const allDeleteRefs: FirebaseFirestore.DocumentReference[] = [sessionRef];
+      const allDeleteRefs: FirebaseFirestore.DocumentReference[] = [];
       for (const fid of feedbackDocIds) {
         allDeleteRefs.push(feedbackCollection.doc(fid));
       }

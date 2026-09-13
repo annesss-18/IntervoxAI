@@ -58,6 +58,25 @@ export type TranscriptAppendResult =
 const DEFAULT_PAGE_SIZE = 20;
 const TRANSCRIPT_CHUNK_ID_WIDTH = 8;
 
+// Dashboard cards only use these snapshot fields. Session snapshots also
+// contain prompts and job descriptions, which can be tens of kilobytes each.
+// Keep collection-list reads lean instead of transferring those fields for
+// every card.
+const SESSION_CARD_SELECT_FIELDS = [
+  "hasResume",
+  "status",
+  "startedAt",
+  "completedAt",
+  "feedbackId",
+  "finalScore",
+  "templateSnapshot.role",
+  "templateSnapshot.companyName",
+  "templateSnapshot.companyLogoUrl",
+  "templateSnapshot.level",
+  "templateSnapshot.type",
+  "templateSnapshot.techStack",
+] as const;
+
 export function getStoredTranscriptTurnCount(
   session: Partial<InterviewSessionRecord> | Record<string, unknown>,
 ): number {
@@ -206,21 +225,7 @@ export const InterviewRepository = {
 
       query = query
         .orderBy("startedAt", "desc")
-        .select(
-          "templateId",
-          "templateSnapshot",
-          "userId",
-          "hasResume",
-          "status",
-          "startedAt",
-          "completedAt",
-          "activatedAt",
-          "feedbackId",
-          "finalScore",
-          "feedbackStatus",
-          "feedbackError",
-          "feedbackCompletedAt",
-        )
+        .select(...SESSION_CARD_SELECT_FIELDS)
         .limit(limit + 1);
 
       if (afterCursor) {
@@ -464,14 +469,7 @@ export const InterviewRepository = {
           .where("userId", "==", userId)
           .where("status", "==", "completed")
           .orderBy("startedAt", "desc")
-          .select(
-            "templateId",
-            "templateSnapshot",
-            "userId",
-            "status",
-            "startedAt",
-            "finalScore",
-          )
+          .select(...SESSION_CARD_SELECT_FIELDS)
           .limit(BATCH_SIZE);
 
         if (cursor) {

@@ -27,7 +27,31 @@ function normalizeCompanyName(name: string): string {
 }
 
 function normalizeTechName(name: string): string {
-  return name.toLowerCase().trim();
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\s+v?\d+(\.\d+)*$/i, "");
+}
+
+let _strippedDeviconMap: Record<
+  string,
+  { slug: string; variant: string }
+> | null = null;
+
+function getStrippedDeviconMap(): Record<
+  string,
+  { slug: string; variant: string }
+> {
+  if (!_strippedDeviconMap) {
+    const stripped: Record<string, { slug: string; variant: string }> = {};
+    for (const key of Object.keys(DEVICON_MAP)) {
+      const entry = DEVICON_MAP[key];
+      if (!entry) continue;
+      stripped[key.replace(/[^a-z0-9]/g, "")] = entry;
+    }
+    _strippedDeviconMap = stripped;
+  }
+  return _strippedDeviconMap;
 }
 
 function getInitials(name: string): string {
@@ -185,7 +209,9 @@ export function getCompanyLogoUrl(
 
 export function getDeviconUrl(techName: string): string {
   const normalized = normalizeTechName(techName);
-  const mapping = DEVICON_MAP[normalized];
+  const mapping =
+    DEVICON_MAP[normalized] ||
+    getStrippedDeviconMap()[normalized.replace(/[^a-z0-9]/g, "")];
 
   if (mapping) {
     return `${DEVICON_CDN}/${mapping.slug}/${mapping.slug}-${mapping.variant}.svg`;

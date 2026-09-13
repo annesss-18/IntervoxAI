@@ -153,6 +153,41 @@ export const EmailService = {
 
     logger.info(`Feedback email sent for session ${sessionId}`);
   },
+
+  async sendSupportRequest(params: {
+    userId: string;
+    userEmail: string;
+    category: string;
+    message: string;
+  }): Promise<boolean> {
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.RESEND_FROM_ADDRESS;
+    const inbox = process.env.SUPPORT_INBOX_EMAIL;
+    if (!apiKey || !from || !inbox) {
+      logger.warn(
+        "Support email not sent: RESEND_API_KEY, RESEND_FROM_ADDRESS, or SUPPORT_INBOX_EMAIL is not configured.",
+      );
+      return false;
+    }
+
+    const { userId, userEmail, category, message } = params;
+    const html = `
+      <p><strong>From:</strong> ${escapeHtml(userEmail)} (${escapeHtml(userId)})</p>
+      <p><strong>Category:</strong> ${escapeHtml(category)}</p>
+      <p><strong>Message:</strong></p>
+      <p>${escapeHtml(message).replace(/\n/g, "<br />")}</p>
+    `;
+
+    await sendResendEmail(apiKey, {
+      from,
+      to: inbox,
+      subject: `[Support] ${category.replace(/[\r\n]/g, "")} — ${userEmail}`,
+      html,
+    });
+
+    logger.info(`Support request email sent from user ${userId}`);
+    return true;
+  },
 };
 
 function escapeHtml(str: string): string {

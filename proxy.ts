@@ -18,6 +18,18 @@ function isPlausibleSessionCookie(value: string): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // These paths are transparently rewritten to Firebase's sign-in helpers.
+  // The helper iframe cannot operate with the application's CSP or
+  // X-Frame-Options policy, so leave its response completely untouched.
+  if (
+    pathname === "/__/auth" ||
+    pathname.startsWith("/__/auth/") ||
+    pathname === "/__/firebase" ||
+    pathname.startsWith("/__/firebase/")
+  ) {
+    return NextResponse.next();
+  }
+
   const isProtectedRoute = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );

@@ -161,7 +161,16 @@ export const POST = withAuthClaims(
         templateContext,
       );
 
-      const expireTime = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+      const durationMinutes =
+        typeof sessionData?.durationMinutes === "number"
+          ? sessionData.durationMinutes
+          : 15;
+      // Cover the full interview plus buffer for closing remarks and any
+      // reconnects — the token must stay valid for the whole session, not
+      // just long enough to start it.
+      const expireTime = new Date(
+        Date.now() + (durationMinutes + 15) * 60 * 1000,
+      ).toISOString();
       const systemInstruction = buildInterviewerPrompt(interviewContext);
       const voiceName = interviewContext.interviewerPersona?.voice || "Kore";
 
@@ -169,6 +178,9 @@ export const POST = withAuthClaims(
         config: {
           uses: 1,
           expireTime,
+          newSessionExpireTime: new Date(
+            Date.now() + 5 * 60 * 1000,
+          ).toISOString(),
           liveConnectConstraints: {
             model: getLiveInterviewModel(),
             config: {
@@ -184,6 +196,10 @@ export const POST = withAuthClaims(
               },
               inputAudioTranscription: {},
               outputAudioTranscription: {},
+              sessionResumption: {},
+              contextWindowCompression: {
+                slidingWindow: {},
+              },
               realtimeInputConfig: {
                 automaticActivityDetection: {
                   disabled: false,
@@ -406,7 +422,8 @@ The system is configured with a 1.5-second silence threshold before switching tu
 - If silence continues past 12 seconds: gently rephrase: "Let me put that a different way…" then reframe the question more narrowly.
 
 CLOSING THE INTERVIEW
-When you have covered the session's key questions and formed a clear read on the candidate, deliver a warm, specific 2–4 sentence closing. Reference one concrete thing from the conversation that stood out. End with exactly one of these phrases as your final spoken sentence:
+Never combine a new question with closing or farewell language in the same turn. Ask your final question on its own, and wait for the candidate to answer it.
+Only once the candidate has answered your last question, and you have formed a clear read on them, deliver a warm, specific 2–4 sentence closing on its own turn. Reference one concrete thing from the conversation that stood out. End with exactly one of these phrases as your final spoken sentence:
 - "Thank you so much for your time today."
 - "It's been really great speaking with you."
 - "Best of luck — I genuinely hope to see you on the other side of this process."
@@ -497,7 +514,8 @@ Example tone (do not use verbatim):
 "Hey ${candidateGreeting}, I'm ${interviewerName} — ${interviewerTitle} at ${companyName}. Good to connect.${context?.resumeText ? " I had a chance to look through your background before this." : ""} What have you been focused on lately — what's been taking up most of your time?"
 
 CLOSING THE INTERVIEW
-When you have covered the session's key questions and have a clear read on the candidate, deliver a warm, specific closing of 2–4 sentences. Reference one concrete detail from the conversation that stood out — a specific answer, a technical choice, or a moment of clarity. Then end with exactly one of these phrases as your final spoken sentence:
+Never combine a new question with closing or farewell language in the same turn. Ask your final question on its own, and wait for the candidate to answer it.
+Only once the candidate has answered your last question, and you have a clear read on them, deliver a warm, specific closing of 2–4 sentences. Reference one concrete detail from the conversation that stood out — a specific answer, a technical choice, or a moment of clarity. Then end with exactly one of these phrases as your final spoken sentence:
 - "Thank you so much for your time today."
 - "It's been really great speaking with you."
 - "Best of luck — I genuinely hope to see you on the other side of this process."

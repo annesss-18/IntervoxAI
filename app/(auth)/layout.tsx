@@ -109,7 +109,7 @@ export default function AuthLayout({
           </blockquote>
         </aside>
 
-        <main className="relative flex flex-col items-center justify-center bg-background px-6 py-16 sm:px-12 lg:overflow-y-auto">
+        <main className="relative flex flex-col items-center bg-background px-6 py-10 sm:px-12 sm:py-16 lg:overflow-y-auto">
           <div className="absolute top-5 right-5">
             <ThemeToggle />
           </div>
@@ -120,7 +120,9 @@ export default function AuthLayout({
             </Link>
           </div>
 
-          <div className="w-full max-w-[360px] animate-fade-up">{children}</div>
+          <div className="my-auto w-full max-w-[360px] animate-fade-up">
+            {children}
+          </div>
         </main>
       </div>
     </div>

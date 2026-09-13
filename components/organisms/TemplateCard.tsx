@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Star, ArrowRight, Sparkles, Play } from "lucide-react";
+import { Users, TrendingUp, ArrowRight, Sparkles } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/atoms/card";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
@@ -56,8 +56,8 @@ export function TemplateCard({ template }: TemplateCardProps) {
           </span>
           {avgScore > 0 ? (
             <span className="flex items-center gap-1.5 text-warning font-medium">
-              <Star className="size-3.5 fill-current" />
-              {avgScore.toFixed(1)}
+              <TrendingUp className="size-3.5" />
+              Avg score {avgScore.toFixed(0)}/100
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-xs">
@@ -75,8 +75,7 @@ export function TemplateCard({ template }: TemplateCardProps) {
           className="w-full transition-all group-hover:border-primary/40 group-hover:bg-primary/5 group-hover:text-primary"
         >
           <Link href={`/interview/template/${template.id}`}>
-            <Play className="size-3.5" />
-            Start Interview
+            View Interview
             <ArrowRight className="ml-auto size-4 opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0.5" />
           </Link>
         </Button>

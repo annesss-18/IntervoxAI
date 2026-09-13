@@ -26,6 +26,8 @@ interface ExploreClientProps {
 
 const typeFilters = ["Technical", "System Design", "Behavioral", "HR", "Mixed"];
 const levelFilters = ["Junior", "Mid", "Senior", "Staff", "Executive"];
+const INITIAL_VISIBLE_TEMPLATE_COUNT = 24;
+const VISIBLE_TEMPLATE_INCREMENT = 24;
 
 const sortOptions: {
   value: PublicTemplateSort;
@@ -47,6 +49,9 @@ export default function ExploreClient({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTypes, setActiveTypes] = useState<Set<string>>(new Set());
   const [activeLevels, setActiveLevels] = useState<Set<string>>(new Set());
+  const [visibleTemplateCount, setVisibleTemplateCount] = useState(
+    INITIAL_VISIBLE_TEMPLATE_COUNT,
+  );
 
   const toggleFilter = useCallback(
     (set: Set<string>, value: string, setter: (s: Set<string>) => void) => {
@@ -57,6 +62,7 @@ export default function ExploreClient({
         next.add(value);
       }
       setter(next);
+      setVisibleTemplateCount(INITIAL_VISIBLE_TEMPLATE_COUNT);
     },
     [],
   );
@@ -67,6 +73,7 @@ export default function ExploreClient({
     setSearchQuery("");
     setActiveTypes(new Set());
     setActiveLevels(new Set());
+    setVisibleTemplateCount(INITIAL_VISIBLE_TEMPLATE_COUNT);
   }, []);
 
   const handleSortChange = useCallback(
@@ -103,6 +110,9 @@ export default function ExploreClient({
   }, [templates, searchQuery, activeTypes, activeLevels]);
 
   const hasResults = filteredTemplates.length > 0;
+  const visibleTemplates = filteredTemplates.slice(0, visibleTemplateCount);
+  const remainingTemplateCount =
+    filteredTemplates.length - visibleTemplates.length;
 
   return (
     <Container>
@@ -146,12 +156,18 @@ export default function ExploreClient({
               placeholder="Search by role, company, or tech stack…"
               className="pl-10 h-11 rounded-xl"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setVisibleTemplateCount(INITIAL_VISIBLE_TEMPLATE_COUNT);
+              }}
               icon={<Search />}
               iconRight={
                 searchQuery ? (
                   <button
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setVisibleTemplateCount(INITIAL_VISIBLE_TEMPLATE_COUNT);
+                    }}
                     className="cursor-pointer text-muted-foreground hover:text-foreground transition-colors"
                     type="button"
                   >
@@ -260,15 +276,35 @@ export default function ExploreClient({
       </div>
 
       {hasResults ? (
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredTemplates.map((template, i) => (
-            <div
-              key={template.id}
-              className={`animate-fade-up fill-both ${["delay-50", "delay-100", "delay-150", "delay-200", "delay-250", "delay-300"][i % 6]}`}
-            >
-              <TemplateCard template={template} />
+        <div className="space-y-8">
+          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            {visibleTemplates.map((template, i) => (
+              <div
+                key={template.id}
+                className={`animate-fade-up fill-both ${["delay-50", "delay-100", "delay-150", "delay-200", "delay-250", "delay-300"][i % 6]}`}
+              >
+                <TemplateCard template={template} />
+              </div>
+            ))}
+          </div>
+          {remainingTemplateCount > 0 && (
+            <div className="flex flex-col items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleTemplateCount(
+                    (count) => count + VISIBLE_TEMPLATE_INCREMENT,
+                  )
+                }
+                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+              >
+                Show more templates
+              </button>
+              <p className="text-xs text-muted-foreground">
+                {remainingTemplateCount} more available
+              </p>
             </div>
-          ))}
+          )}
         </div>
       ) : (
         <div className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-2/40 py-20 text-center">
